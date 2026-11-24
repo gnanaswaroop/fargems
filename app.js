@@ -44,6 +44,7 @@ const state = {
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
+  tempC: null, unit: (() => { try { return window.FarGemsLogic.parseUnit(localStorage.getItem('fg.unit')); } catch { return 'C'; } })(),
   objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
   sweep: 0, lastT: 0, // radar sweep angle (degrees) and last animation frame time
   passes: [], dirty: true, hits: [], status: {}
@@ -158,8 +159,9 @@ function updatePasses() {
 async function refreshCloud() {
   if (!state.loc) return;
   try {
-    const j = await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${state.loc.lat.toFixed(2)}&longitude=${state.loc.lon.toFixed(2)}&current=cloud_cover`);
+    const j = await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${state.loc.lat.toFixed(2)}&longitude=${state.loc.lon.toFixed(2)}&current=cloud_cover,temperature_2m`);
     state.cloud = j.current?.cloud_cover ?? null;
+    state.tempC = j.current?.temperature_2m ?? null;
   } catch { /* optional */ }
 }
 
@@ -324,6 +326,7 @@ function renderHud() {
   if (state.sunAlt != null) parts.push(`${sunPhase(state.sunAlt)} · Sun ${Math.round(state.sunAlt)}°`);
   if (state.moonIllum != null) parts.push(`${moonName()} ${Math.round(state.moonIllum * 100)}%`);
   if (state.cloud != null) parts.push(`Cloud ${Math.round(state.cloud)}%`);
+  if (state.tempC != null) parts.push(window.FarGemsLogic.formatTemp(state.tempC, state.unit));
   $('#hud').innerHTML = parts.map(esc).join('<br>');
 }
 function renderChips() {
@@ -428,7 +431,7 @@ function setLoc(lat, lon) {
   state.loc = { lat, lon }; lsSet('fg.loc', state.loc);
   $('#locLabel').textContent = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
   $('#sheet').hidden = true;
-  state.aircraft = []; state.aircraftAt = 0; state.cloud = null;
+  state.aircraft = []; state.aircraftAt = 0; state.cloud = null; state.tempC = null;
   tick(); refreshAircraft(); refreshCloud(); updatePasses(); renderAll();
 }
 function locate() {
@@ -481,6 +484,13 @@ function bindUI() {
   $('#compassBtn').onclick = toggleCompass;
   $('#flipBtn').onclick = () => { state.flip = !state.flip; $('#flipBtn').textContent = state.flip ? 'E/W: mirrored' : 'E/W: chart'; state.dirty = true; };
   $('#northBtn').onclick = () => { state.rot = 0; state.dirty = true; };
+  $('#unitBtn').textContent = '°' + state.unit;
+  $('#unitBtn').onclick = () => {
+    state.unit = window.FarGemsLogic.nextUnit(state.unit);
+    try { localStorage.setItem('fg.unit', state.unit); } catch { /* storage blocked */ }
+    $('#unitBtn').textContent = '°' + state.unit;
+    renderHud();
+  };
   $('#layersBtn').onclick = () => { const p = $('#layersPanel'); p.hidden = !p.hidden; $('#layersBtn').classList.toggle('on', !p.hidden); };
   $('#layerList').onchange = e => {
     const k = e.target.dataset.layer;

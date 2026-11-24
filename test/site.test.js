@@ -214,6 +214,16 @@ test('logo: PNG icons carry no provenance metadata chunks', () => {
   }
 });
 
+test('temperature: the viewer has a unit toggle and requests the temperature', () => {
+  const html = read('viewer.html');
+  assert.match(html, /id="unitBtn"/);
+  const app = read('app.js');
+  assert.match(app, /temperature_2m/, 'Open-Meteo request includes the temperature');
+  assert.match(app, /state\.tempC = j\.current\?\.temperature_2m/);
+  assert.match(app, /FarGemsLogic\.formatTemp\(state\.tempC, state\.unit\)/);
+  assert.match(app, /localStorage\.setItem\('fg\.unit'/, 'the unit choice is remembered');
+});
+
 test('sample location opens the sky view directly, without permissions', () => {
   const js = read('landing.js');
   const handler = js.slice(js.indexOf("els.sample.addEventListener('click'"));
