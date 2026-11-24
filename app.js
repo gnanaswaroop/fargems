@@ -186,11 +186,11 @@ function computeSky(now) {
     try { const il = Astronomy.Illumination(name, now); mag = il.mag; phase = il.phase_fraction; } catch { /* optional */ }
     if (name === 'Sun') state.sunAlt = h.altitude;
     if (name === 'Moon') state.moonIllum = phase;
-    objs.push({ id: 'body:' + name, kind: 'body', name, color, az: h.azimuth, el: h.altitude, mag: name === 'Sun' || name === 'Moon' ? null : mag, phase });
+    objs.push({ id: 'body:' + name, kind: 'body', name, color, az: h.azimuth, el: h.altitude, mag: name === 'Sun' || name === 'Moon' ? null : mag, phase, distKm: eq.dist * AU_KM });
   }
   for (const [name, ra, dec] of STARS) {
     const h = Astronomy.Horizon(now, ao, ra / 15, dec, 'normal');
-    objs.push({ id: 'star:' + name, kind: 'star', name, az: h.azimuth, el: h.altitude });
+    objs.push({ id: 'star:' + name, kind: 'star', name, az: h.azimuth, el: h.altitude, distKm: null }); // distance to stars is not known here
   }
   state.showerView = showerView(SHOWERS, now);
   for (const sh of state.showerView) {
@@ -213,7 +213,7 @@ function computeSky(now) {
     const v = pv.velocity || { x: 0, y: 0, z: 0 };
     objs.push({
       id: 'sat:' + s.norad, kind: 'sat', name: s.name, norad: s.norad, az: la.azimuth * R2D, el,
-      range: la.rangeSat, altKm: satellite.eciToGeodetic(p, gmst).height, speed: Math.hypot(v.x, v.y, v.z),
+      range: la.rangeSat, distKm: la.rangeSat, altKm: satellite.eciToGeodetic(p, gmst).height, speed: Math.hypot(v.x, v.y, v.z),
       sunlit, visible: sunlit && dark
     });
   }
@@ -225,7 +225,7 @@ function computeSky(now) {
     const q = advance(a, dt + 15), L2 = lookGd(q.lat, q.lon, q.altKm);
     objs.push({
       id: 'air:' + a.id, kind: 'air', name: a.call || a.reg || a.id.toUpperCase(), az: L.az, el: L.el, az2: L2.az, el2: L2.el,
-      range: L.range, ac: a, altFt: a.altFt + (a.vr || 0) * dt / 60
+      range: L.range, distKm: L.range, ac: a, altFt: a.altFt + (a.vr || 0) * dt / 60
     });
   }
   state.objs = objs; state.byId = new Map(objs.map(o => [o.id, o])); state.dirty = true;
@@ -393,7 +393,34 @@ function renderDetail() {
   } else rows = here;
   el.innerHTML = `<h3>${title}</h3><dl>${rows}</dl>`;
 }
-function renderAll() { renderHud(); renderStatus(); renderDetail(); renderPasses(); }
+// Nearby list: aircraft, satellites, Sun, Moon, planets and stars, nearest first.
+// Each row gives the distance and where to look (with your heading when the compass is on).
+function renderNearby() {
+  const el = $('#nearbyList');
+  if (!el) return;
+  const H = window.FarGemsLogic;
+  const heading = state.compass ? state.heading : null;
+  const items = state.objs.filter(o => ['air', 'sat', 'body', 'star'].includes(o.kind) && (o.el >= -1 || o.kind === 'body'));
+  const sorted = H.sortNearest(items).slice(0, 60);
+  if (!sorted.length) { el.innerHTML = '<li class="muted">Nothing above the horizon right now.</li>'; return; }
+  el.innerHTML = sorted.map(o =>
+    `<li><button class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" type="button">` +
+    `<span class="nm">${esc(o.name)}</span>` +
+    `<span class="meta">${esc(H.formatDistance(o.distKm))}</span>` +
+    `<span class="where">${esc(H.describeDirection(o.az, o.el, heading))}</span></button></li>`).join('');
+}
+function renderAll() { renderHud(); renderStatus(); renderDetail(); renderPasses(); renderNearby(); }
+
+// Two pages: Radar and Nearby. Tabs switch; a horizontal swipe outside the radar also switches.
+function setPage(name) {
+  const nearby = name === 'nearby';
+  $('#pager').classList.toggle('nearby', nearby);
+  $('#tabRadar').classList.toggle('on', !nearby);
+  $('#tabNearby').classList.toggle('on', nearby);
+  $('#tabRadar').setAttribute('aria-selected', String(!nearby));
+  $('#tabNearby').setAttribute('aria-selected', String(nearby));
+  if (!nearby) state.dirty = true;
+}
 
 /* ---------- location ---------- */
 function setLoc(lat, lon) {
@@ -492,6 +519,26 @@ function bindUI() {
   $('#zoomIn').onclick = () => { const c = centre(); zoomTo(1.5, c.x, c.y); };
   $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
   $('#zoomReset').onclick = resetView;
+  // Tabs and swipes. Swipes that start on the radar are left alone, because dragging there rotates the sky.
+  $('#tabRadar').onclick = () => setPage('radar');
+  $('#tabNearby').onclick = () => setPage('nearby');
+  $('#nearbyList').onclick = e => {
+    const b = e.target.closest('[data-id]');
+    if (!b) return;
+    state.sel = b.dataset.id; state.dirty = true; renderNearby(); renderDetail(); setPage('radar');
+  };
+  const pager = $('#pager'); let sw = null;
+  pager.addEventListener('pointerdown', e => {
+    if (e.target.closest('#sky, .zoombar')) return;
+    sw = { x: e.clientX, y: e.clientY };
+  });
+  pager.addEventListener('pointerup', e => {
+    if (!sw) return;
+    const dir = window.FarGemsLogic.swipeDirection(e.clientX - sw.x, e.clientY - sw.y);
+    sw = null;
+    if (dir === 'left') setPage('nearby');
+    else if (dir === 'right') setPage('radar');
+  });
   window.addEventListener('resize', () => { state.dirty = true; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshAircraft(); tick(); } });
 }

@@ -250,3 +250,18 @@ test('radar zoom: the viewer has zoom buttons and the radar uses the shared zoom
   assert.match(app, /const V = state\.view;/, 'the dome is drawn with the view');
   assert.match(app, /\$\('#zoomReset'\)\.onclick = resetView/, 'reset returns to the default view');
 });
+
+test('nearby list: two pages with tabs, a swipe between them, and distances on the objects', () => {
+  const html = read('viewer.html');
+  for (const id of ['tabRadar', 'tabNearby', 'pager', 'pageRadar', 'pageNearby', 'nearbyList']) {
+    assert.ok(html.includes(`id="${id}"`), `viewer has #${id}`);
+  }
+  const app = read('app.js');
+  assert.match(app, /\.sortNearest\(/, 'list is sorted nearest first');
+  assert.match(app, /\.describeDirection\(/, 'each row says where to look');
+  assert.match(app, /FarGemsLogic\.swipeDirection\(/, 'swipes switch the page');
+  assert.match(app, /distKm: eq\.dist \* AU_KM/, 'planets and the Sun and Moon have a distance');
+  assert.match(app, /distKm: la\.rangeSat/, 'satellites have a distance');
+  assert.match(app, /distKm: L\.range/, 'aircraft have a distance');
+  assert.match(app, /if \(e\.target\.closest\('#sky, \.zoombar'\)\) return;/, 'swipes that start on the radar are left alone');
+});
