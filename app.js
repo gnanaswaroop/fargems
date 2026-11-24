@@ -43,6 +43,8 @@ const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: false,
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
+  visOnly: (() => { try { return window.FarGemsLogic.parseVisOnly(localStorage.getItem('fg.visOnly')); } catch { return true; } })(),
+  routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
   tempC: null, unit: (() => { try { return window.FarGemsLogic.parseUnit(localStorage.getItem('fg.unit')); } catch { return 'C'; } })(),
   objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
@@ -219,9 +221,14 @@ function computeSky(now) {
   }
 
   const dt = Math.min(60, Math.max(0, (now - state.aircraftAt) / 1000));
+  state.airTotal = 0; state.airVisible = 0;
   if (state.aircraftAt) for (const a of state.aircraft) {
     const p = advance(a, dt), L = lookGd(p.lat, p.lon, p.altKm);
     if (L.el < 0) continue;
+    state.airTotal++;
+    const seen = window.FarGemsLogic.isVisibleFlight(L.el, L.range);
+    if (seen) state.airVisible++;
+    if (state.visOnly && !seen) continue; // too far or too low to see from here
     const q = advance(a, dt + 15), L2 = lookGd(q.lat, q.lon, q.altKm);
     objs.push({
       id: 'air:' + a.id, kind: 'air', name: a.call || a.reg || a.id.toUpperCase(), az: L.az, el: L.el, az2: L2.az, el2: L2.el,
@@ -298,8 +305,10 @@ function draw() {
     if (o.kind !== 'air' || !F.air) continue;
     const p = P(o.az, o.el), q = P(o.az2, o.el2);
     const ang = Math.atan2(q.y - p.y, q.x - p.x);
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.fillStyle = COL.air;
-    ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4.5, 3.8); ctx.lineTo(-2, 0); ctx.lineTo(-4.5, -3.8); ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(window.FarGemsLogic.planeRotation(ang)); ctx.fillStyle = COL.air;
+    ctx.font = (o.id === sel ? 24 : 19) + 'px "Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(window.FarGemsLogic.PLANE_GLYPH, 0, 0); ctx.restore();
     if (o.id === sel || state.objs.length < 60) label(o, p, 8, -6, 'rgba(255,180,84,.9)'); hit(o, p, 12);
   }
   for (const o of state.objs) { // Sun, Moon, planets
@@ -344,7 +353,7 @@ function renderHud() {
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
   if (state.loc) out.push(`<span>${state.loc.lat.toFixed(2)}°, ${state.loc.lon.toFixed(2)}°</span>`);
-  if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${s.air.n} nearby · ${ago(now - s.air.t)} ago</span>`);
+  if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} visible of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');
@@ -365,6 +374,27 @@ function riseSet(name) {
   } catch { return null; }
 }
 // The selected-object card. With nothing selected it shows a hint, so the card always has a purpose.
+// Where the selected flight started and where it is going, from the proxy's route lookup.
+function routeText(a) {
+  const base = AIRCRAFT_PROXY, H = window.FarGemsLogic;
+  if (!a.call) return 'Unknown (no flight number)';
+  const url = H.routeProxyUrl(base, a.call, a.lat, a.lon);
+  if (!url) return `Not available here. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
+  const r = state.routes.get(a.call);
+  if (!r) {
+    state.routes.set(a.call, { state: 'loading' });
+    getJSON(url).then(data => state.routes.set(a.call, { state: 'done', data }))
+      .catch(() => state.routes.set(a.call, { state: 'failed' }))
+      .finally(() => { if (state.sel === 'air:' + a.id) renderDetail(); });
+    return 'Looking up…';
+  }
+  if (r.state === 'loading') return 'Looking up…';
+  if (r.state === 'failed') return `Lookup failed. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
+  const d = r.data && r.data.destination, o = r.data && r.data.origin;
+  if (!d) return `Not known. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
+  const far = d.lat != null ? ` · ${Math.round(H.distanceKm(a.lat, a.lon, d.lat, d.lon)).toLocaleString()} km to go` : '';
+  return esc(H.describeAirport(d)) + far + (o ? `<br><small class="muted">from ${esc(H.describeAirport(o))}</small>` : '');
+}
 function renderDetail() {
   const el = $('#detail'), o = state.sel && state.byId.get(state.sel);
   if (!o) { el.innerHTML = '<p class="muted">Tap an object on the radar to see its details.</p>'; return; }
@@ -377,6 +407,7 @@ function renderDetail() {
     rows = here + kv('Altitude', `${Math.round(o.altFt).toLocaleString()} ft (FL${String(Math.round(o.altFt / 100)).padStart(3, '0')})`)
       + kv('Speed', `${Math.round(a.gs)} kt · ${Math.round(a.gs * 1.852)} km/h`) + kv('Heading', `${Math.round(a.track)}° ${dir16(a.track)}`)
       + kv('Vertical', a.vr ? `${a.vr > 0 ? '+' : ''}${Math.round(a.vr)} ft/min` : 'level') + kv('Distance', `${Math.round(o.range)} km`)
+      + kv('Flying to', routeText(a))
       + kv('Registration', esc(a.reg)) + kv('ICAO hex', esc(a.id.toUpperCase()))
       + (a.call ? kv('Track', `<a href="https://www.flightaware.com/live/flight/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">FlightAware ↗</a>`) : '');
   } else if (o.kind === 'sat') {
@@ -502,7 +533,7 @@ function bindUI() {
     if (wasTap) {
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       let best = null, bd = 1e9;
-      for (const h of state.hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < h.r && d < bd) { best = h; bd = d; } }
+      for (const h of state.hits) { const raw = Math.hypot(h.x - x, h.y - y), d = raw + (h.id.startsWith('star:') ? 10 : 0); /* flights win over a star behind them */ if (raw < h.r && d < bd) { best = h; bd = d; } }
       state.sel = best ? best.id : null; state.dirty = true; renderDetail();
     }
     if (pointers.size === 0) down = null;
@@ -549,6 +580,7 @@ function start() {
   bindUI();
   // Choices made in settings.html.
   state.flip = storedValue('fg.flip') === '1';
+  state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   if (typeof satellite === 'undefined' || typeof Astronomy === 'undefined') {
     $('#status').innerHTML = '<span class="bad">Sky libraries failed to load. Check your connection and reload.</span>';
