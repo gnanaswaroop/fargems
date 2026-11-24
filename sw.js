@@ -1,7 +1,9 @@
 'use strict';
 // FarGems service worker: caches the app shell and the two CDN libraries so the app
 // opens offline. Live data APIs are never cached here (the app keeps its own TLE cache).
-const VERSION = 'fargems-v1';
+// Bump VERSION whenever this file's caching behaviour changes: activating a new version deletes
+// the older caches, so stale files cannot linger.
+const VERSION = 'fargems-v2';
 const SHELL = ['./', 'index.html', 'landing.js', 'viewer.html', 'settings.html', 'settings.js', 'config.js', 'style.css', 'lib/logic.js', 'lib/onboarding.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 const CDN_HOSTS = ['cdn.jsdelivr.net'];
@@ -24,14 +26,23 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    // stale-while-revalidate for the app shell
+    // Network first for the app's own files, so a new deploy shows straight away. `no-cache` makes the
+    // browser revalidate instead of reusing a copy from its HTTP cache (the CDN may allow hours of caching).
+    // Offline, or on a server error, the cached copy is served.
     e.respondWith(caches.open(VERSION).then(async cache => {
-      const hit = await cache.match(req, { ignoreSearch: true });
-      const net = fetch(req).then(res => {
-        if (res && res.ok) cache.put(req, res.clone());
-        return res;
-      }).catch(() => hit);
-      return hit || net;
+      try {
+        const res = await fetch(req, { cache: 'no-cache' });
+        if (res && res.ok) {
+          cache.put(req, res.clone());
+          return res;
+        }
+        const hit = await cache.match(req, { ignoreSearch: true });
+        return hit || res;
+      } catch (err) {
+        const hit = await cache.match(req, { ignoreSearch: true });
+        if (hit) return hit;
+        throw err;
+      }
     }));
   } else if (CDN_HOSTS.includes(url.hostname)) {
     // cache-first for versioned library files
