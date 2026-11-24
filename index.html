@@ -49,6 +49,44 @@
 
   <a id="openLink" class="btn primary wide go" href="viewer.html" hidden>Open the sky view</a>
   <p class="muted small">Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.</p>
+
+  <section id="about" class="card about" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">About FarGems</h2>
+    <p>FarGems is a sky map for your location. It shows what is above you right now, drawn as a radar-style view with a sweep you can turn off.</p>
+
+    <h3>What it shows</h3>
+    <ul>
+      <li><b>Aircraft</b> flying nearby, with altitude, speed and heading (from public ADS-B feeds).</li>
+      <li><b>Satellites</b>, including the ISS, Tiangong and about 100 of the brightest, with their next passes.</li>
+      <li><b>The Sun, Moon and planets</b>, with rise and set times and the Moon's phase.</li>
+      <li><b>Bright stars</b> and the <b>radiants</b> of active meteor showers.</li>
+      <li><b>Cloud cover</b> for your area, when available.</li>
+    </ul>
+
+    <h3>Layers and radar</h3>
+    <p>Open <b>Layers</b> in the sky view to switch each layer on or off: the object layers, altitude rings and compass, names, and the radar sweep. The sweep is off if your device asks for reduced motion.</p>
+
+    <h3>Where the data comes from</h3>
+    <dl>
+      <dt>Aircraft</dt><dd>adsb.lol, airplanes.live, OpenSky</dd>
+      <dt>Satellites</dt><dd>CelesTrak orbit data, with positions calculated in your browser</dd>
+      <dt>Sun, Moon, planets, stars</dt><dd>Calculated in your browser with astronomy-engine</dd>
+      <dt>Meteor showers</dt><dd>A built-in table of approximate dates and radiants</dd>
+      <dt>Clouds</dt><dd>Open-Meteo</dd>
+    </dl>
+
+    <h3>Privacy</h3>
+    <p>Your location and compass stay on your device. The app sends your coordinates only to the public data services above, to fetch data for your area. There are no accounts, no tracking and no server of ours.</p>
+
+    <h3>Limits</h3>
+    <ul>
+      <li>Aircraft come from community feeds, so some aircraft are missing or delayed.</li>
+      <li>The compass is usually 5–20° off, and results vary by phone.</li>
+      <li>Meteor shower dates and radiants are approximate, and individual meteors can't be tracked.</li>
+    </ul>
+
+    <p class="muted small">Project page: <a href="https://github.com/gnanaswaroop/fargems">github.com/gnanaswaroop/fargems</a>.</p>
+  </section>
 </main>
 
 <script src="lib/onboarding.js"></script>

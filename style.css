@@ -67,3 +67,20 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .welcome .manual{margin:16px 0 0;display:grid;gap:8px}
 .welcome .manual label{font-size:13px;color:var(--muted)}
 .welcome .card{margin:0 0 4px}
+
+/* ---------- layers panel (viewer) ---------- */
+.layers h3 { margin: 0 0 4px; font-size: 15px; }
+.layer-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
+@media (max-width: 380px) { .layer-list { grid-template-columns: 1fr; } }
+.layer-row { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.layer-row input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ---------- about section (landing) ---------- */
+.about { text-align: left; margin-top: 24px; }
+.about h2 { margin: 0 0 8px; font-size: 17px; }
+.about h3 { margin: 14px 0 4px; font-size: 14px; color: var(--accent); }
+.about p, .about li { font-size: 14px; color: var(--text); }
+.about ul { margin: 4px 0 0; padding-left: 18px; }
+.about dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 6px 0 0; }
+.about dt { color: var(--muted); }
+.about dd { margin: 0; }

@@ -32,8 +32,14 @@
     <button id="compassBtn" class="btn" type="button">Compass</button>
     <button id="flipBtn" class="btn" type="button">E/W: chart</button>
     <button id="northBtn" class="btn" type="button">North up</button>
+    <button id="layersBtn" class="btn" type="button" aria-controls="layersPanel">Layers</button>
   </div>
 
+  <div id="layersPanel" class="card layers" hidden>
+    <h3>Layers</h3>
+    <p class="muted small">Turn map layers on or off. The radar sweep turns clockwise, like a radar screen.</p>
+    <div id="layerList" class="layer-list"></div>
+  </div>
   <div id="chips" class="chips"></div>
   <div id="detail" class="card" hidden></div>
   <div id="passes" class="card" hidden></div>
