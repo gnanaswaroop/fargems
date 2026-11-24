@@ -151,3 +151,30 @@ test('worker /route remembers flights the database does not know, for a shorter 
 test('tapping a flight beats a star drawn behind it', () => {
   assert.match(read('app.js'), /startsWith\('star:'\)/);
 });
+
+test('isDisabled reads the ENABLED switch: off only for an explicit off value', async () => {
+  const { isDisabled } = await W;
+  for (const v of ['false', 'FALSE', '0', 'off', 'no', ' disabled ']) assert.equal(isDisabled({ ENABLED: v }), true, v);
+  for (const v of ['true', '1', 'on', '']) assert.equal(isDisabled({ ENABLED: v }), false, v);
+  assert.equal(isDisabled({}), false, 'unset means on');
+  assert.equal(isDisabled(undefined), false);
+});
+
+test('a switched-off worker answers 503 at once for every path, without any upstream call or cache read', async () => {
+  const { handle } = await W;
+  const noFetch = async () => { throw new Error('must not be called'); };
+  const cache = { match: async () => { throw new Error('cache must not be read'); }, put: async () => { throw new Error('no'); } };
+  for (const p of ['/aircraft?lat=1&lon=1', '/route?callsign=UAL1', '/other']) {
+    const res = await handle(new Request('https://worker.example' + p, { headers: { Origin: 'https://fargems.example' } }), { ...ENV, ENABLED: 'false' }, { fetchImpl: noFetch, cache });
+    assert.equal(res.status, 503, p);
+    assert.equal((await res.json()).disabled, true);
+    assert.equal(res.headers.get('Access-Control-Allow-Origin'), 'https://fargems.example', 'the page can still read the answer');
+    assert.ok(Number(res.headers.get('Retry-After')) > 0);
+  }
+});
+
+test('the app tells the visitor when the proxy is switched off', () => {
+  const app = read('app.js');
+  assert.match(app, /HTTP 503/);
+  assert.match(app, /feed switched off for now/);
+});
