@@ -22,6 +22,9 @@ const CACHE_SECONDS = 30;
 const CELL_DEG = 0.25;
 const DEFAULT_RADIUS = 150;
 const MAX_RADIUS = 250;
+const ROUTE_CACHE_SECONDS = 1800;     // a flight keeps its route for hours, so share one lookup between all visitors
+const ROUTE_MISS_CACHE_SECONDS = 600; // flights with no known route are remembered for less time
+const ROUTE_UPSTREAM = 'https://api.adsb.lol/api/0/routeset';
 
 // Cells group nearby points so one upstream request serves all of them.
 export function cellKey(lat, lon, r) {
@@ -77,6 +80,43 @@ async function fetchUpstream(q, fetchImpl) {
   return null;
 }
 
+// Reduce one airport record to the fields the app shows.
+function airport(a) {
+  if (!a || typeof a !== 'object') return null;
+  const out = { iata: a.iata || '', icao: a.icao || '', name: a.name || '', city: a.location || '', country: a.countryiso2 || '' };
+  if (typeof a.lat === 'number' && typeof a.lon === 'number') { out.lat = a.lat; out.lon = a.lon; }
+  return out.iata || out.icao || out.name ? out : null;
+}
+
+// Turn the provider's route answer (an array with one entry per flight) into { callsign, origin, destination }.
+// The first airport is where the flight started and the last is where it is going. Unknown routes give nulls.
+export function normalizeRoute(upstream, callsign) {
+  const entry = Array.isArray(upstream) ? upstream[0] : upstream;
+  const airports = entry && Array.isArray(entry._airports) ? entry._airports.map(airport).filter(Boolean) : [];
+  if (!entry || entry.plausible === false || airports.length < 2) return { callsign, origin: null, destination: null };
+  return { callsign, origin: airports[0], destination: airports[airports.length - 1] };
+}
+
+// Callsigns are letters and digits, 2 to 8 long. Anything else is refused before it is sent upstream.
+export function parseCallsign(url) {
+  const c = String(url.searchParams.get('callsign') || '').trim().toUpperCase();
+  return /^[A-Z0-9]{2,8}$/.test(c) ? c : null;
+}
+
+async function fetchRoute(callsign, lat, lon, fetchImpl) {
+  try {
+    const res = await fetchImpl(ROUTE_UPSTREAM, {
+      method: 'POST',
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planes: [{ callsign, lat, lng: lon }] }),
+    });
+    if (!res.ok) return null;
+    return normalizeRoute(JSON.parse(await res.text()), callsign);
+  } catch {
+    return null;
+  }
+}
+
 function json(status, obj, headers) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -93,6 +133,7 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
   if (request.method !== 'GET') return json(405, { error: 'method not allowed' }, { ...cors, Allow: 'GET, OPTIONS' });
 
   const url = new URL(request.url);
+  if (url.pathname === '/route') return handleRoute(url, cors, fetchImpl, cache);
   if (url.pathname !== '/aircraft') return json(404, { error: 'not found' }, cors);
 
   const q = parseQuery(url);
@@ -125,6 +166,34 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
   await cache.put(cacheKey, new Response(upstream.body, { status: 200, headers: { 'Cache-Control': 'max-age=' + CACHE_SECONDS, 'Content-Type': 'application/json; charset=utf-8' } }));
   response.headers.set('X-Cache', 'MISS');
   return response;
+}
+
+async function handleRoute(url, cors, fetchImpl, cache) {
+  const callsign = parseCallsign(url);
+  if (!callsign) return json(400, { error: 'callsign is required (letters and digits, 2 to 8 long)' }, cors);
+  const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    return json(400, { error: 'lat and lon are required numbers' }, cors);
+  }
+  // Cached by callsign alone: every visitor looking at the same flight shares one lookup.
+  const cacheKey = new Request('https://cache.local/route/' + callsign);
+  const hit = await cache.match(cacheKey);
+  if (hit) {
+    const headers = new Headers(hit.headers);
+    for (const [k, v] of Object.entries(cors)) headers.set(k, v);
+    headers.set('X-Cache', 'HIT');
+    return new Response(hit.body, { status: 200, headers });
+  }
+  const route = await fetchRoute(callsign, lat, lon, fetchImpl);
+  if (!route) return json(502, { error: 'route data unavailable' }, cors);
+  const known = !!(route.origin && route.destination);
+  const ttl = known ? ROUTE_CACHE_SECONDS : ROUTE_MISS_CACHE_SECONDS;
+  const body = JSON.stringify(route);
+  await cache.put(cacheKey, new Response(body, { status: 200, headers: { 'Cache-Control': 'max-age=' + ttl, 'Content-Type': 'application/json; charset=utf-8' } }));
+  return new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=' + ttl, 'X-Cache': 'MISS', ...cors },
+  });
 }
 
 export default {

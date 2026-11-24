@@ -1,5 +1,5 @@
 /* FarGems settings: writes the choices the sky view reads on load.
- * Keys: fg.loc (location), fg.compass (permission), fg.flip ('1'/'0'), fg.unit ('C'/'F'), fg.layers (JSON). */
+ * Keys: fg.loc (location), fg.compass (permission), fg.flip ('1'/'0'), fg.unit ('C'/'F'), fg.visOnly ('1'/'0'), fg.layers (JSON). */
 (() => {
   'use strict';
   const L = window.FarGemsLogic;
@@ -60,6 +60,8 @@
   // Display choices.
   $('#flipToggle').checked = storage.getItem('fg.flip') === '1';
   $('#flipToggle').addEventListener('change', (e) => storage.setItem('fg.flip', e.target.checked ? '1' : '0'));
+  $('#visOnlyToggle').checked = L.parseVisOnly(storage.getItem('fg.visOnly'));
+  $('#visOnlyToggle').addEventListener('change', (e) => storage.setItem('fg.visOnly', e.target.checked ? '1' : '0'));
   $('#unitSelect').value = L.parseUnit(storage.getItem('fg.unit'));
   $('#unitSelect').addEventListener('change', (e) => storage.setItem('fg.unit', L.parseUnit(e.target.value)));
 
