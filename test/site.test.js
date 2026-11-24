@@ -135,3 +135,10 @@ test('JavaScript files parse', () => {
     execFileSync(process.execPath, ['--check', path.join(ROOT, f)]);
   }
 });
+
+test('both pages offer the sample location and the scripts wire it to the shared constant', () => {
+  assert.match(read('index.html'), /id="sampleBtn"/);
+  assert.match(read('viewer.html'), /id="sampleBtn"/);
+  assert.match(read('landing.js'), /O\.SAMPLE_LOCATION/);
+  assert.match(read('app.js'), /FarGemsOnboarding\.SAMPLE_LOCATION/);
+});
