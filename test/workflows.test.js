@@ -63,3 +63,18 @@ test('Pages artifact copies every file the pages precache, and no private folder
     assert.ok(!copied.includes(bad), `${bad} must not be published`);
   }
 });
+
+test('the Pages build writes config.js with the aircraft proxy from a repository variable', () => {
+  const pages = read('.github/workflows/pages.yml');
+  assert.match(pages, /AIRCRAFT_PROXY_URL: \$\{\{ vars\.AIRCRAFT_PROXY_URL \}\}/, 'reads the variable');
+  const line = pages.split('\n').find((l) => l.includes('_site/config.js'));
+  assert.ok(line, 'writes _site/config.js');
+  assert.match(line, /window\.FARGEMS_CONFIG = \{ aircraftProxy: /, 'sets the global the app reads');
+  assert.match(line, /\$AIRCRAFT_PROXY_URL/, 'uses the variable');
+  assert.ok(!pages.includes('aircraftProxy":'), 'no proxy address hard-coded');
+});
+
+test('the repository default config.js carries no proxy address', () => {
+  const cfg = read('config.js');
+  assert.match(cfg, /aircraftProxy: ''/);
+});
