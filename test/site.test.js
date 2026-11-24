@@ -72,7 +72,7 @@ test('landing.js binds to ids that exist on the landing page', () => {
 test('landing.js starts the compass request synchronously inside the tap', () => {
   // iOS rejects requestPermission() after an await, so it must run before any await/then.
   const js = read('landing.js');
-  const handler = js.slice(js.indexOf("els.allow.addEventListener('click'"));
+  const handler = js.slice(js.indexOf('function askPermissions()'));
   const req = handler.indexOf('DeviceOrientationEvent.requestPermission');
   assert.ok(req > -1, 'calls requestPermission');
   assert.equal(handler.slice(0, req).includes('await'), false, 'no await before the request');
@@ -222,4 +222,13 @@ test('temperature: the viewer has a unit toggle and requests the temperature', (
   assert.match(app, /state\.tempC = j\.current\?\.temperature_2m/);
   assert.match(app, /FarGemsLogic\.formatTemp\(state\.tempC, state\.unit\)/);
   assert.match(app, /localStorage\.setItem\('fg\.unit'/, 'the unit choice is remembered');
+});
+
+test('sample location opens the sky view directly, without permissions', () => {
+  const js = read('landing.js');
+  const handler = js.slice(js.indexOf("els.sample.addEventListener('click'"));
+  const body = handler.slice(0, handler.indexOf('});'));
+  assert.match(body, /storeLocation\(storage, s\.lat, s\.lon\)/, 'stores the sample location');
+  assert.match(body, /location\.href = 'viewer\.html'/, 'goes to the viewer');
+  assert.ok(!/askPermissions|requestLocation|requestPermission/.test(body), 'does not ask for permissions');
 });
