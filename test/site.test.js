@@ -239,3 +239,14 @@ test('sample location opens the sky view directly, without permissions', () => {
   assert.match(body, /location\.href = 'viewer\.html'/, 'goes to the viewer');
   assert.ok(!/askPermissions|requestLocation|requestPermission/.test(body), 'does not ask for permissions');
 });
+
+test('radar zoom: the viewer has zoom buttons and the radar uses the shared zoom functions', () => {
+  const html = read('viewer.html');
+  for (const id of ['zoomIn', 'zoomOut', 'zoomReset']) assert.ok(html.includes(`id="${id}"`), `viewer has #${id}`);
+  const app = read('app.js');
+  assert.match(app, /FarGemsLogic\.zoomAt\(/, 'wheel and buttons zoom about a point');
+  assert.match(app, /FarGemsLogic\.panBy\(/, 'drag pans when zoomed in');
+  assert.match(app, /FarGemsLogic\.pinchFactor\(/, 'two fingers pinch to zoom');
+  assert.match(app, /const V = state\.view;/, 'the dome is drawn with the view');
+  assert.match(app, /\$\('#zoomReset'\)\.onclick = resetView/, 'reset returns to the default view');
+});
