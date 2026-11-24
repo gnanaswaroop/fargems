@@ -52,7 +52,10 @@ test('Pages artifact copies every file the pages precache, and no private folder
     assert.ok(covered, `${f} is precached but not copied to the site`);
   }
   assert.ok(copied.includes('.nojekyll'), 'Pages config (.nojekyll) published');
-  assert.ok(!copied.includes('CNAME'), 'no custom domain file is published');
+  assert.ok(!copied.includes('CNAME'), 'the CNAME file is not in the repo; it is written from a variable');
+  // The custom domain comes from a repository variable, so it is never hard-coded in git.
+  assert.match(pages, /PAGES_DOMAIN: \$\{\{ vars\.PAGES_DOMAIN \}\}/);
+  assert.match(pages, /echo "\$PAGES_DOMAIN" > _site\/CNAME/);
 
   // Only files that exist, and never tests, scripts, tmp or workflow files.
   for (const f of copied) assert.ok(exists(f), `copied file missing: ${f}`);
