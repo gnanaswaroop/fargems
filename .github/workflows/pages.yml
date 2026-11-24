@@ -33,13 +33,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Assemble the site (only what the browser needs)
         env:
+          # Aircraft proxy base URL (a repository variable, not in git).
+          AIRCRAFT_PROXY_URL: ${{ vars.AIRCRAFT_PROXY_URL }}
           # Optional custom domain, set in Settings > Secrets and variables > Actions > Variables.
           # It stays out of the repository. Leave the variable unset to publish on the default address.
           PAGES_DOMAIN: ${{ vars.PAGES_DOMAIN }}
         run: |
           mkdir -p _site
-          cp -r index.html viewer.html settings.html settings.js landing.js app.js sw.js style.css manifest.webmanifest \
+          cp -r index.html viewer.html settings.html settings.js config.js landing.js app.js sw.js style.css manifest.webmanifest \
             icon.svg icon-192.png icon-512.png apple-touch-icon.png .nojekyll lib _site/
+          printf '%s\n' "window.FARGEMS_CONFIG = { aircraftProxy: \"$AIRCRAFT_PROXY_URL\" };" > _site/config.js
           if [ -n "$PAGES_DOMAIN" ]; then echo "$PAGES_DOMAIN" > _site/CNAME; fi
       - uses: actions/upload-pages-artifact@v3
         with:

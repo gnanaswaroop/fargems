@@ -77,10 +77,15 @@ const AC_PROVIDERS = [
   { name: 'airplanes.live', url: (la, lo, r) => `https://api.airplanes.live/v2/point/${la}/${lo}/${r}`, parse: parseV2 },
   { name: 'OpenSky', parse: parseOpenSky, url: openSkyUrl }
 ];
+// When the site has an aircraft proxy (config.js), use it: browsers cannot read the providers directly.
+const AIRCRAFT_PROXY = (window.FARGEMS_CONFIG && window.FARGEMS_CONFIG.aircraftProxy) || '';
+const AIRCRAFT_POLL_MS = 30000;
 async function refreshAircraft() {
   if (!state.loc || document.hidden) return;
   const la = state.loc.lat.toFixed(3), lo = state.loc.lon.toFixed(3);
-  for (const p of AC_PROVIDERS) {
+  const proxy = window.FarGemsLogic.aircraftProxyUrl(AIRCRAFT_PROXY, state.loc.lat, state.loc.lon, 150);
+  const sources = proxy ? [{ name: 'FarGems proxy', url: () => proxy, parse: parseV2 }] : AC_PROVIDERS;
+  for (const p of sources) {
     try {
       const list = p.parse(await getJSON(p.url(la, lo, 150)));
       state.aircraft = list; state.aircraftAt = Date.now();
@@ -454,7 +459,7 @@ function start() {
   refreshSats();
   setInterval(() => { tick(); }, 1000);
   setInterval(renderAll, 2000);
-  setInterval(refreshAircraft, 10000);
+  setInterval(refreshAircraft, AIRCRAFT_POLL_MS);
   setInterval(refreshCloud, 15 * 60e3);
   setInterval(refreshSats, 3600e3);
   setInterval(updatePasses, 20 * 60e3);
