@@ -10,6 +10,19 @@ python3 -m http.server 8000     # then open http://localhost:8000
 
 Geolocation, compass and the service worker need HTTPS, but `localhost` counts as secure.
 
+To test on your phone over Wi-Fi, run the HTTPS server:
+
+```
+npm run serve:https          # https://<your-pc-ip>:8443 (accept the certificate warning once)
+npm run serve:https -- 9443  # custom port
+```
+
+It needs `openssl` on your PATH to create a local certificate once (stored in `tmp/certs`, which git ignores).
+
+## Deployment
+
+`.github/workflows/pages.yml` runs the tests and then publishes the site to GitHub Pages on every push to `main`. In repo settings, set Pages → Build and deployment → Source to **GitHub Actions**. `ci.yml` runs the tests on every pull request.
+
 ## Deploy to fargems.com (GitHub Pages)
 
 1. Push these files to the root of `gnanaswaroop/fargems` (branch `main`).
