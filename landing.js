@@ -68,6 +68,13 @@
     });
   });
 
+  // Sample location: lets visitors see the sky view without sharing their own position.
+  $('#sampleBtn').addEventListener('click', () => {
+    const s = O.SAMPLE_LOCATION;
+    if (O.storeLocation(storage, s.lat, s.lon)) location.href = 'viewer.html';
+    else els.msg.textContent = 'Could not save the sample location on this device.';
+  });
+
   els.form.addEventListener('submit', (e) => {
     e.preventDefault();
     const c = O.parseCoords(els.input.value);
