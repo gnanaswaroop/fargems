@@ -129,11 +129,16 @@
     o.canvas.addEventListener('pointerup', onTap);
     o.closeBtn.addEventListener('click', () => { close(); if (o.onClose) o.onClose(); });
 
-    async function open() {
-      if (isOpen) return;
-      await openCamera();
-      isOpen = true; heading = null; o.root.hidden = false; document.body.classList.add('ar-on');
-      raf = requestAnimationFrame(drawFrame);
+    let pending = null; // a start that is still waiting for the camera, shared by simultaneous callers
+    function open() {
+      if (isOpen) return Promise.resolve();
+      if (!pending) {
+        pending = openCamera().then(() => {
+          isOpen = true; heading = null; o.root.hidden = false; document.body.classList.add('ar-on');
+          raf = requestAnimationFrame(drawFrame);
+        }).finally(() => { pending = null; });
+      }
+      return pending;
     }
     function close() {
       if (!isOpen) return;
