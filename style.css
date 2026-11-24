@@ -88,7 +88,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .about dd { margin: 0; }
 
 /* ---------- logo ---------- */
-.logo { display: inline-block; vertical-align: middle; border-radius: 22%; }
+.logo { display: inline-block; vertical-align: middle; }
 .logo-lg { display: block; margin: 0 auto 8px; }
 .logo-sm { margin-right: 8px; position: relative; top: -1px; }
 .brand { display: flex; align-items: center; }

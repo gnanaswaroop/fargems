@@ -170,18 +170,32 @@ test('viewer has a Layers button and panel wired to the shared layer list', () =
   assert.match(app, /\$\('#layersBtn'\)\.onclick/);
 });
 
-test('logo: icon.svg is the FarGems logo, with no scripts or external links', () => {
+test('logo: icon.svg is the FarGems logo, transparent, cropped, with no scripts or external links', () => {
   const svg = read('icon.svg');
-  assert.match(svg, /<svg[^>]*viewBox="0 0 512 512"/);
-  assert.match(svg, /aria-label="FarGems Logo"/);
+  assert.match(svg, /<svg[^>]*aria-label="FarGems Logo"/);
+  // Transparent: no full-canvas background rectangle.
+  assert.ok(!/<rect[^>]*width="512"[^>]*height="512"/.test(svg), 'no full-canvas background rect');
+  // Cropped: a square viewBox around the artwork, not the old 512 canvas.
+  const vb = svg.match(/viewBox="([\d.\s-]+)"/)[1].trim().split(/\s+/).map(Number);
+  assert.equal(vb[2], vb[3], 'viewBox is square');
+  assert.ok(vb[2] < 300 && vb[2] > 200, `viewBox is cropped to the artwork (${vb[2]} units)`);
   assert.ok(!/<script/i.test(svg), 'no script elements');
   assert.ok(!/on[a-z]+=/i.test(svg), 'no event handler attributes');
   assert.ok(!/(xlink:)?href="https?:/i.test(svg), 'no external references');
 });
 
+test('logo: knock-out discs use the site background colour, so the logo matches the page', () => {
+  const svg = read('icon.svg').toLowerCase();
+  const css = read('style.css');
+  const siteBg = css.match(/--bg:\s*(#[0-9a-f]{6})/i)[1].toLowerCase();
+  assert.ok(!svg.includes('#0e172a'), 'old logo background colour is gone');
+  const discs = [...svg.matchAll(/fill="(#[0-9a-f]{6})"/g)].map((m) => m[1]);
+  assert.ok(discs.includes(siteBg), `discs use the site background ${siteBg}`);
+});
+
 test('logo: landing and viewer headers show the logo beside the wordmark', () => {
-  assert.match(read('index.html'), /<img class="logo logo-lg" src="icon\.svg" alt="FarGems logo"/);
-  assert.match(read('viewer.html'), /<img class="logo logo-sm" src="icon\.svg" alt="FarGems logo"/);
+  assert.match(read('index.html'), /<img class="logo logo-lg" src="icon\.svg" alt="FarGems logo" width="112" height="112"/);
+  assert.match(read('viewer.html'), /<img class="logo logo-sm" src="icon\.svg" alt="FarGems logo" width="34" height="34"/);
 });
 
 test('logo: PNG icons carry no provenance metadata chunks', () => {
