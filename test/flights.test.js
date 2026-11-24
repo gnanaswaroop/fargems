@@ -178,3 +178,21 @@ test('the app tells the visitor when the proxy is switched off', () => {
   assert.match(app, /HTTP 503/);
   assert.match(app, /feed switched off for now/);
 });
+
+test('routeEntryFresh retries failed and unknown lookups later, and keeps known routes', () => {
+  const T = 1_000_000;
+  assert.equal(L.routeEntryFresh(undefined, T), false, 'nothing remembered: look it up');
+  assert.equal(L.routeEntryFresh({ state: 'loading', at: T - 5000 }, T), true, 'wait for the lookup in progress');
+  assert.equal(L.routeEntryFresh({ state: 'failed', at: T - 10_000 }, T), true, 'a fresh failure is not hammered');
+  assert.equal(L.routeEntryFresh({ state: 'failed', at: T - 61_000 }, T), false, 'a failure is retried after a minute');
+  assert.equal(L.routeEntryFresh({ state: 'done', at: T - 61_000, data: { destination: null } }, T), true);
+  assert.equal(L.routeEntryFresh({ state: 'done', at: T - 601_000, data: { destination: null } }, T), false, 'unknown is retried after ten minutes');
+  assert.equal(L.routeEntryFresh({ state: 'done', at: T - 86_400_000, data: { destination: { iata: 'BOM' } } }, T), true, 'a known route is kept');
+  assert.equal(L.routeEntryFresh({ state: 'weird', at: T }, T), false);
+});
+
+test('the app uses routeEntryFresh and stamps every route entry with a time', () => {
+  const app = read('app.js');
+  assert.match(app, /routeEntryFresh\(r, Date\.now\(\)\)/);
+  assert.equal((app.match(/state\.routes\.set\([^)]*at: Date\.now\(\)/g) || []).length, 3);
+});
