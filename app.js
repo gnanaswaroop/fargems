@@ -491,20 +491,22 @@ function startCompass() {
 // The camera picture with objects over it. It opens from the AR button, and by itself when the phone is
 // raised to look at the sky (once the camera has been allowed). Laying the phone flat closes it.
 let arView = null;
-const arState = { suppressed: false, since: 0, want: false };
+const arState = { auto: null, opening: false };
 function initAR() {
   if (!window.FarGemsARView || !window.FarGemsAR) return;
+  arState.auto = window.FarGemsAR.newAutoState();
   arView = window.FarGemsARView.create({
     root: $('#ar'), video: $('#arVideo'), canvas: $('#arCanvas'), closeBtn: $('#arClose'),
     getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
     onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
-    onClose: () => { arState.suppressed = true; }, // stay on the radar until the phone has been laid flat once
+    onClose: () => { arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
   });
   $('#arBtn').onclick = openAR;
   setInterval(autoAR, 300);
 }
 async function openAR() {
-  if (!arView || arView.isOpen()) return;
+  if (!arView || arView.isOpen() || arState.opening) return; // one attempt at a time
+  arState.opening = true;
   try {
     // iPhone asks for the compass inside a tap, so ask here before the camera.
     const O = window.FarGemsOnboarding;
@@ -522,18 +524,26 @@ async function openAR() {
     const why = e && e.code === 'denied' ? 'Camera permission was refused. Allow it in your browser settings to use AR.'
       : e && e.code === 'unsupported' ? 'This browser cannot open the camera here (it needs https).' : 'Could not start the camera.';
     toast(why, 5000);
+    // Do not retry by itself: wait until the phone has been laid flat once. A refused camera is forgotten.
+    arState.auto = window.FarGemsAR.suppress(arState.auto);
+    if (e && e.code === 'denied') { try { localStorage.removeItem('fg.camera'); } catch { /* blocked */ } }
+  } finally {
+    arState.opening = false;
   }
 }
 // Called every 300 ms: open or close the camera view from how the phone is held.
 function autoAR() {
   if (!arView || state.ori.beta == null) return;
-  const pose = window.FarGemsAR.cameraPose(state.ori.alpha, state.ori.beta, state.ori.gamma);
-  const want = window.FarGemsAR.wantsAR(arState.want, pose.pitch);
-  if (want !== arState.want) { arState.want = want; arState.since = Date.now(); }
-  if (Date.now() - arState.since < 700) return; // held steadily for a moment
-  if (!want) { arState.suppressed = false; if (arView.isOpen()) arView.close(); return; }
+  const AR = window.FarGemsAR;
+  const pose = AR.cameraPose(state.ori.alpha, state.ori.beta, state.ori.gamma);
   let granted = false; try { granted = localStorage.getItem('fg.camera') === 'granted'; } catch { /* blocked */ }
-  if (granted && state.compass && !arState.suppressed && !arView.isOpen() && !$('#pager').classList.contains('nearby')) openAR();
+  const r = AR.autoStep(arState.auto, {
+    pitch: pose.pitch, now: Date.now(), isOpen: arView.isOpen(), opening: arState.opening, cameraGranted: granted,
+    compassOn: state.compass, onRadarPage: !$('#pager').classList.contains('nearby'),
+  });
+  arState.auto = r.state;
+  if (r.action === 'close') arView.close();
+  else if (r.action === 'open') openAR();
 }
 function bindUI() {
   const cv = $('#sky');

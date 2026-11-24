@@ -94,3 +94,46 @@ test('chooseHeading prefers the compass reading, and smoothHeading takes the sho
   near(AR.smoothHeading(10, 350, 0.5), 0, 1e-9);
   assert.equal(AR.smoothHeading(null, 77), 77);
 });
+
+// ---- automatic open and close ----
+const OK = { isOpen: false, opening: false, cameraGranted: true, compassOn: true, onRadarPage: true };
+function run(steps, st = AR.newAutoState()) {
+  const actions = [];
+  for (const s of steps) { const r = AR.autoStep(st, { ...OK, ...s }); st = r.state; actions.push(r.action); }
+  return { st, actions };
+}
+
+test('autoStep opens only after the phone has been held up steadily', () => {
+  const { actions } = run([{ pitch: 0, now: 1000 }, { pitch: 0, now: 1300 }, { pitch: 0, now: 1800 }]);
+  assert.deepEqual(actions, [null, null, 'open']);
+});
+
+test('autoStep does not open without the camera allowed, the compass on, or on the Nearby page', () => {
+  for (const block of [{ cameraGranted: false }, { compassOn: false }, { onRadarPage: false }]) {
+    const { actions } = run([{ pitch: 0, now: 1000 }, { pitch: 0, now: 2000 }].map((s) => ({ ...s, ...block })));
+    assert.deepEqual(actions, [null, null], JSON.stringify(block));
+  }
+});
+
+test('autoStep does not start a second attempt while one is opening or the view is open', () => {
+  assert.deepEqual(run([{ pitch: 0, now: 1000 }, { pitch: 0, now: 2000, opening: true }]).actions, [null, null]);
+  assert.deepEqual(run([{ pitch: 0, now: 1000 }, { pitch: 0, now: 2000, isOpen: true }]).actions, [null, null]);
+});
+
+test('after a failed attempt or a manual close it stays shut until the phone has been laid flat once', () => {
+  let { st } = run([{ pitch: 0, now: 1000 }, { pitch: 0, now: 2000 }]);
+  st = AR.suppress(st);
+  // still held up for a long time: no repeated attempts
+  const held = run([{ pitch: 0, now: 3000 }, { pitch: 0, now: 4000 }, { pitch: 0, now: 5000 }], st);
+  assert.deepEqual(held.actions, [null, null, null]);
+  // laid flat for a moment, then raised again: allowed once more
+  const again = run([{ pitch: -80, now: 6000 }, { pitch: -80, now: 7000 }, { pitch: 0, now: 8000 }, { pitch: 0, now: 9000 }], held.st);
+  assert.deepEqual(again.actions, [null, null, null, 'open']);
+});
+
+test('autoStep closes an open view once the phone has been flat for a moment, and ignores a closed one', () => {
+  const open = { isOpen: true };
+  const r = run([{ pitch: 0, now: 1000, ...open }, { pitch: -80, now: 2000, ...open }, { pitch: -80, now: 2300, ...open }, { pitch: -80, now: 2800, ...open }]);
+  assert.deepEqual(r.actions, [null, null, null, 'close']);
+  assert.deepEqual(run([{ pitch: -80, now: 1000 }, { pitch: -80, now: 3000 }]).actions, [null, null]);
+});
