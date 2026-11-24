@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+// Normalise line endings so the checks behave the same on Windows (CRLF) and Linux (LF).
+const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/\r\n/g, '\n');
 const exists = (f) => fs.existsSync(path.join(ROOT, f));
 
 test('CI runs npm test on pull requests and pushes to main', () => {
@@ -39,7 +40,8 @@ test('Pages artifact copies every file the pages precache, and no private folder
   const pages = read('.github/workflows/pages.yml');
   const copy = pages.match(/cp -r ([\s\S]*?) _site\//);
   assert.ok(copy, 'copy command found');
-  const copied = copy[1].replace(/\\n/g, ' ').trim().split(/\s+/);
+  // Join YAML line continuations (a trailing backslash) and split into file names.
+  const copied = copy[1].replace(/\\\n/g, ' ').split(/\s+/).filter((t) => t && t !== '\\');
 
   // Everything the service worker precaches must be published.
   const sw = read('sw.js');
