@@ -1,0 +1,14 @@
+{
+  "name": "fargems",
+  "version": "0.1.0",
+  "private": true,
+  "description": "What is flying above you: a client-only PWA.",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python -m http.server 8080 --bind 0.0.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
