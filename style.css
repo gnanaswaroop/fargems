@@ -84,3 +84,10 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .about dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 6px 0 0; }
 .about dt { color: var(--muted); }
 .about dd { margin: 0; }
+
+/* ---------- logo ---------- */
+.logo { display: inline-block; vertical-align: middle; border-radius: 22%; }
+.logo-lg { display: block; margin: 0 auto 8px; }
+.logo-sm { margin-right: 8px; position: relative; top: -1px; }
+.brand { display: flex; align-items: center; }
+.brand.big { display: block; }
