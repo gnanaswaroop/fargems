@@ -1,0 +1,17 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e3]: FarGems
+  - paragraph [ref=f1e4]: "See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers."
+  - region "Two permissions" [ref=f1e5]:
+    - heading "Two permissions" [level=2] [ref=f1e6]
+    - list [ref=f1e7]:
+      - listitem [ref=f1e8]:
+        - generic [ref=f1e9]: Location
+        - generic [ref=f1e10]: Works out what is overhead from where you are.
+        - generic [ref=f1e11]: Not asked yet
+      - listitem [ref=f1e12]:
+        - generic [ref=f1e13]: Compass
+        - generic [ref=f1e14]: Points the sky map the way you face. Optional.
+        - generic [ref=f1e15]: Not asked yet
+    - button "Allow location and compass" [ref=f1e16] [cursor=pointer]
+    - status
+  - paragraph [ref=f1e17]: Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.

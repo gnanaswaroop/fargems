@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
-      <stop offset="0" stop-color="#1d2b55"/>
-      <stop offset="1" stop-color="#0b1020"/>
-    </radialGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8ff0ff"/><stop offset="1" stop-color="#2f7fd8"/>
+    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="170" fill="none" stroke="#26304d" stroke-width="6"/>
-  <circle cx="256" cy="256" r="110" fill="none" stroke="#26304d" stroke-width="4"/>
-  <path d="M256 86 L238 270 L256 256 L274 270 Z" fill="#7aa2ff"/>
-  <circle cx="390" cy="150" r="14" fill="#fb923c"/>
-  <circle cx="124" cy="330" r="9" fill="#fde047"/>
-  <circle cx="330" cy="380" r="6" fill="#e8ecf5"/>
+  <rect width="512" height="512" fill="#0a1020"/>
+  <circle cx="90" cy="100" r="3" fill="#aab6cc"/><circle cx="420" cy="80" r="4" fill="#aab6cc"/>
+  <circle cx="450" cy="410" r="3" fill="#aab6cc"/><circle cx="70" cy="420" r="2.5" fill="#aab6cc"/>
+  <polygon points="143,154 369,154 440,236 256,410 72,236" fill="url(#g)"/>
+  <polygon points="143,154 256,154 220,236 72,236" fill="#ffffff" opacity=".28"/>
+  <polygon points="369,154 256,154 292,236 440,236" fill="#04121a" opacity=".18"/>
+  <polyline points="72,236 440,236" stroke="#04121a" stroke-opacity=".35" stroke-width="5" fill="none"/>
+  <polyline points="220,236 256,410 292,236" stroke="#04121a" stroke-opacity=".3" stroke-width="5" fill="none"/>
 </svg>

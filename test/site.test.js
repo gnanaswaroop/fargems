@@ -1,45 +1,106 @@
 'use strict';
 // Structural checks on the static site: every local file the pages reference must exist,
-// the manifest must be valid, and the service worker must precache real files.
+// the service worker must precache everything the pages need offline, and the manifest and
+// icons must be valid.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const exists = (f) => fs.existsSync(path.join(ROOT, f));
 
-test('index.html references only local files that exist (or external https URLs)', () => {
-  const html = read('index.html');
-  const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(refs.length > 0);
-  for (const r of refs) {
-    if (/^https:\/\//.test(r)) continue;
-    assert.ok(exists(r.split('?')[0]), `missing file referenced: ${r}`);
+// Local <script src> and <link href> references from an HTML page (external URLs excluded).
+const localRefs = (page) => {
+  const html = read(page);
+  return [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1])
+    .filter((r) => !/^(https?:|data:|#|mailto:)/.test(r))
+    .filter((r) => r !== 'viewer.html'); // navigation target, not an asset
+};
+const PAGES = ['index.html', 'viewer.html'];
+
+test('landing page is index.html and the sky view is viewer.html', () => {
+  assert.ok(exists('index.html'));
+  assert.ok(exists('viewer.html'));
+  assert.match(read('index.html'), /<title>FarGems — allow location and compass<\/title>/);
+  assert.match(read('viewer.html'), /<title>FarGems — sky view<\/title>/);
+});
+
+test('every local file referenced by each page exists', () => {
+  for (const page of PAGES) {
+    const refs = localRefs(page);
+    assert.ok(refs.length > 0, `${page} has local references`);
+    for (const r of refs) {
+      assert.ok(exists(r.split('?')[0]), `${page} references missing file: ${r}`);
+    }
   }
 });
 
-test('index.html loads lib/core.js before app.js', () => {
+test('landing page links to the viewer and loads its scripts in order', () => {
   const html = read('index.html');
-  const core = html.indexOf('lib/core.js');
-  const app = html.indexOf('app.js');
-  assert.ok(core > -1 && app > -1, 'both scripts present');
-  assert.ok(core < app, 'core must load first so window.FarGems exists');
+  assert.match(html, /href="viewer\.html"/);
+  assert.ok(html.indexOf('lib/onboarding.js') < html.indexOf('landing.js'), 'onboarding before landing.js');
 });
 
-test('index.html pins CDN libraries to exact versions', () => {
-  const html = read('index.html');
-  assert.match(html, /satellite\.js@5\.0\.0\//);
-  assert.match(html, /astronomy-engine@2\.1\.19\//);
+test('viewer loads logic and onboarding before app.js', () => {
+  const html = read('viewer.html');
+  const logic = html.indexOf('lib/logic.js');
+  const onb = html.indexOf('lib/onboarding.js');
+  const app = html.indexOf('src="app.js"');
+  assert.ok(logic > -1 && onb > -1 && app > -1, 'all scripts present');
+  assert.ok(logic < app && onb < app, 'helpers must load before app.js');
 });
 
-test('index.html has the expected filter tabs matching app.js', () => {
-  const html = read('index.html');
+test('app.js takes its helpers from the shared globals', () => {
   const app = read('app.js');
-  for (const tab of ['aircraft', 'satellites', 'bodies', 'stars', 'showers']) {
-    assert.ok(html.includes(`data-tab="${tab}"`), `button for ${tab}`);
-    assert.ok(app.includes(`case '${tab}':`), `render case for ${tab}`);
+  assert.match(app, /window\.FarGemsLogic/);
+  assert.match(app, /window\.FarGemsOnboarding/);
+});
+
+test('landing.js binds to ids that exist on the landing page', () => {
+  const js = read('landing.js');
+  const html = read('index.html');
+  const ids = [...js.matchAll(/\$\('#([A-Za-z]+)'\)/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 5, 'landing.js looks up its elements');
+  for (const id of ids) {
+    assert.ok(html.includes(`id="${id}"`), `index.html is missing #${id}`);
+  }
+});
+
+test('landing.js starts the compass request synchronously inside the tap', () => {
+  // iOS rejects requestPermission() after an await, so it must run before any await/then.
+  const js = read('landing.js');
+  const handler = js.slice(js.indexOf("els.allow.addEventListener('click'"));
+  const req = handler.indexOf('DeviceOrientationEvent.requestPermission');
+  assert.ok(req > -1, 'calls requestPermission');
+  assert.equal(handler.slice(0, req).includes('await'), false, 'no await before the request');
+  assert.ok(req < handler.indexOf('Promise.all'), 'compass started before waiting on results');
+});
+
+test('index.html and viewer.html pin the CDN libraries to exact versions', () => {
+  for (const page of ['viewer.html']) {
+    const html = read(page);
+    assert.match(html, /satellite\.js@5\.0\.0\//);
+    assert.match(html, /astronomy-engine@2\.1\.19\//);
+  }
+});
+
+test('service worker precaches every local file both pages load', () => {
+  const sw = read('sw.js');
+  const m = sw.match(/const SHELL = \[([\s\S]*?)\];/);
+  assert.ok(m, 'SHELL list found');
+  const precached = new Set([...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]));
+  for (const page of PAGES) {
+    for (const r of localRefs(page)) {
+      assert.ok(precached.has(r), `${r} (from ${page}) is not precached`);
+    }
+  }
+  assert.ok(precached.has('viewer.html'), 'viewer.html precached for offline use');
+  for (const f of precached) {
+    if (f === './') continue;
+    assert.ok(exists(f), `precache entry missing on disk: ${f}`);
   }
 });
 
@@ -64,22 +125,13 @@ test('PNG icons have the PNG signature and expected dimensions', () => {
   }
 });
 
-test('service worker precaches only files that exist', () => {
-  const sw = read('sw.js');
-  const m = sw.match(/const SHELL = \[([^\]]*)\]/);
-  assert.ok(m, 'SHELL list found');
-  const files = [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]).filter((f) => f && f !== './');
-  assert.ok(files.length > 0);
-  for (const f of files) assert.ok(exists(f), `precache missing: ${f}`);
-});
-
 test('CNAME and .nojekyll exist for GitHub Pages', () => {
   assert.equal(read('CNAME').trim(), 'fargems.com');
   assert.ok(exists('.nojekyll'));
 });
 
-test('app.js parses as JavaScript', () => {
-  // Syntax-only check; the browser run is covered by manual testing.
-  const { execFileSync } = require('node:child_process');
-  execFileSync(process.execPath, ['--check', path.join(ROOT, 'app.js')]);
+test('JavaScript files parse', () => {
+  for (const f of ['app.js', 'landing.js', 'lib/logic.js', 'lib/onboarding.js', 'sw.js']) {
+    execFileSync(process.execPath, ['--check', path.join(ROOT, f)]);
+  }
 });

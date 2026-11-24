@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FarGems — sky view</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Live sky view of aircraft, satellites, planets, the Moon and meteor showers above your location. Client-side only.">
+<meta name="theme-color" content="#070b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FarGems">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Sky view. The landing page at index.html asks for permissions first. -->
+<header>
+  <div class="brand">Far<b>Gems</b></div>
+  <button id="locBtn" class="pill" type="button" aria-label="Change location">⌖ <span id="locLabel">Set location</span></button>
+</header>
+
+<main>
+  <section class="skywrap">
+    <canvas id="sky" aria-label="Sky map of objects above you"></canvas>
+    <div id="hud" class="hud"></div>
+  </section>
+
+  <div class="controls">
+    <button id="compassBtn" class="btn" type="button">Compass</button>
+    <button id="flipBtn" class="btn" type="button">E/W: chart</button>
+    <button id="northBtn" class="btn" type="button">North up</button>
+  </div>
+
+  <div id="chips" class="chips"></div>
+  <div id="detail" class="card" hidden></div>
+  <div id="passes" class="card" hidden></div>
+  <div id="status" class="status"></div>
+  <div id="lists"></div>
+
+  <footer>
+    Aircraft: adsb.lol / airplanes.live / OpenSky · Satellites: CelesTrak · Sky maths: satellite.js, astronomy-engine · Clouds: Open-Meteo.
+    Runs entirely in your browser; your location never leaves your device except as coordinates in data requests.
+  </footer>
+</main>
+
+<div id="sheet" class="sheet">
+  <div class="sheet-card">
+    <h2>Where are you?</h2>
+    <p>FarGems needs your position to work out what is overhead.</p>
+    <button id="geoBtn" class="btn primary" type="button">Use my location</button>
+    <form id="manualForm">
+      <label for="manualLoc">…or enter latitude, longitude</label>
+      <div class="row-inline">
+        <input id="manualLoc" inputmode="decimal" autocomplete="off" placeholder="e.g. 22.57, 88.36">
+        <button class="btn" type="submit">Set</button>
+      </div>
+    </form>
+    <button id="closeSheet" class="link" type="button" hidden>Close</button>
+    <p id="sheetMsg" class="muted"></p>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<noscript><p style="padding:1rem">FarGems needs JavaScript.</p></noscript>
+
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js" crossorigin="anonymous"></script>
+<script src="lib/logic.js"></script>
+<script src="lib/onboarding.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,59 +1,56 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>FarGems: what is above you</title>
-  <meta name="description" content="Live aircraft, satellites, Sun, Moon, planets, bright stars and meteor showers above you.">
-  <meta name="theme-color" content="#0b1020">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/dist/satellite.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<meta charset="utf-8">
+<title>FarGems — allow location and compass</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="FarGems shows aircraft, satellites, planets, the Moon and meteor showers above you. Allow location and compass to start.">
+<meta name="theme-color" content="#070b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FarGems">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <header class="top">
-    <h1>FarGems</h1>
-    <p id="status" class="muted">Finding your location…</p>
-  </header>
+<body class="landing">
+<main class="welcome">
+  <div class="brand big">Far<b>Gems</b></div>
+  <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
 
-  <form id="manual" class="manual" hidden>
-    <p>Location unavailable. Enter coordinates manually:</p>
-    <label>Latitude <input id="mLat" type="number" step="any" min="-90" max="90" required></label>
-    <label>Longitude <input id="mLon" type="number" step="any" min="-180" max="180" required></label>
-    <button type="submit">Use these</button>
+  <section class="card perms" aria-labelledby="permsTitle">
+    <h2 id="permsTitle">Two permissions</h2>
+    <ul class="perm-list">
+      <li>
+        <span class="perm-name">Location</span>
+        <span class="perm-why">Works out what is overhead from where you are.</span>
+        <span id="locState" class="perm-state">Not asked yet</span>
+      </li>
+      <li>
+        <span class="perm-name">Compass</span>
+        <span class="perm-why">Points the sky map the way you face. Optional.</span>
+        <span id="compassState" class="perm-state">Not asked yet</span>
+      </li>
+    </ul>
+    <button id="allowBtn" class="btn primary wide" type="button">Allow location and compass</button>
+    <p id="msg" class="muted small" role="status"></p>
+  </section>
+
+  <form id="manualForm" class="card manual" hidden>
+    <label for="manualLoc">Location was not shared. Enter latitude, longitude instead:</label>
+    <div class="row-inline">
+      <input id="manualLoc" inputmode="decimal" autocomplete="off" placeholder="e.g. 22.57, 88.36">
+      <button class="btn" type="submit">Set</button>
+    </div>
   </form>
 
-  <main>
-    <section class="sky" aria-label="Sky view">
-      <canvas id="dome" width="600" height="600"></canvas>
-      <div class="dome-controls">
-        <button id="compassBtn" type="button" hidden>Enable compass</button>
-        <span id="headingLabel" class="muted">Heading: drag the dome to rotate</span>
-      </div>
-      <div id="weather" class="muted small"></div>
-    </section>
+  <a id="openLink" class="btn primary wide go" href="viewer.html" hidden>Open the sky view</a>
+  <p class="muted small">Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.</p>
+</main>
 
-    <section class="list" aria-label="Objects">
-      <nav class="filters" role="tablist">
-        <button data-tab="aircraft" class="active" type="button">Aircraft</button>
-        <button data-tab="satellites" type="button">Satellites</button>
-        <button data-tab="bodies" type="button">Sun, Moon, planets</button>
-        <button data-tab="stars" type="button">Stars</button>
-        <button data-tab="showers" type="button">Meteor showers</button>
-      </nav>
-      <ul id="items"></ul>
-    </section>
-  </main>
-
-  <footer class="muted small">
-    Data: adsb.lol, airplanes.live, OpenSky, CelesTrak, Open-Meteo. Calculations run in your browser.
-    Compass is approximate (often 5–20° off).
-  </footer>
-
-  <script src="lib/core.js"></script>
-  <script src="app.js" defer></script>
+<script src="lib/onboarding.js"></script>
+<script src="landing.js"></script>
 </body>
 </html>
