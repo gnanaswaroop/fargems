@@ -32,10 +32,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Assemble the site (only what the browser needs)
+        env:
+          # Optional custom domain, set in Settings > Secrets and variables > Actions > Variables.
+          # It stays out of the repository. Leave the variable unset to publish on the default address.
+          PAGES_DOMAIN: ${{ vars.PAGES_DOMAIN }}
         run: |
           mkdir -p _site
           cp -r index.html viewer.html landing.js app.js sw.js style.css manifest.webmanifest \
             icon.svg icon-192.png icon-512.png apple-touch-icon.png .nojekyll lib _site/
+          if [ -n "$PAGES_DOMAIN" ]; then echo "$PAGES_DOMAIN" > _site/CNAME; fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
