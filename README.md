@@ -1,55 +1,55 @@
 # FarGems
 
-What is flying above you, right now. FarGems is a client-only PWA that shows aircraft, satellites (ISS, Tiangong and about 100 bright ones), the Sun, Moon, planets, bright stars and active meteor showers, calculated from your location.
+Live sky view of what is above you: aircraft, satellites (ISS, Tiangong and ~100 bright ones), Sun, Moon, planets, bright stars and active meteor showers. A static PWA with no backend. Every data request goes from the browser straight to a public API.
 
-It is static files only, with no backend and no API keys.
+## Run locally
 
-## Files
+```
+python3 -m http.server 8000     # then open http://localhost:8000
+```
 
-- `index.html`, `style.css`, `app.js`: the app
-- `sw.js`: service worker (caches the app shell for offline use)
-- `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`: PWA install assets
-- `CNAME`, `.nojekyll`: GitHub Pages config for `fargems.com`
+Geolocation, compass and the service worker need HTTPS, but `localhost` counts as secure.
 
-## Data sources
+## Deploy to fargems.com (GitHub Pages)
 
-| Layer | Source |
-|---|---|
-| Aircraft | adsb.lol, then airplanes.live, then OpenSky (fallbacks) |
-| Satellites | CelesTrak orbit data, positions computed in the browser with satellite.js |
-| Sun, Moon, planets, stars | astronomy-engine, computed locally |
-| Meteor showers | Built-in table (approximate dates and radiants) |
-| Cloud cover | Open-Meteo |
+1. Push these files to the root of `gnanaswaroop/fargems` (branch `main`).
+2. Repo → Settings → Pages → Source: `main` / root. Custom domain: `fargems.com`. Tick "Enforce HTTPS" once the certificate is issued.
+3. At your DNS provider:
+   - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+   - `CNAME` for `www` → `gnanaswaroop.github.io`
+4. Cloudflare Pages, Netlify and Vercel also work, since the app is only static files.
 
-## Browser sensors
+## Pages
 
-- **Location:** Geolocation API, with manual coordinates as a fallback.
-- **Compass:** DeviceOrientation, with an iOS permission prompt. Without a compass, drag the sky dome to rotate it.
+- `index.html`: landing page. It asks for location and compass permission in one tap (iOS needs the compass request to come from a tap), then opens the sky view.
+- `viewer.html`: the sky view. It turns the compass on automatically when the landing page was allowed.
 
-Location and compass need HTTPS.
+Choices are stored on the device only (`fg.loc`, `fg.compass`).
 
-## Running locally
+## Data sources (all CORS-enabled, no keys)
 
-Serve the folder over HTTP (for example `npx serve .` or `python -m http.server`), then open it in a browser. Use `localhost` for the geolocation and service worker features.
-
-## Deploying to GitHub Pages
-
-1. Push the files to the repo root on `main`.
-2. Settings → Pages → Source `main` / root, custom domain `fargems.com`, then enforce HTTPS once the certificate is issued.
-3. DNS: `A` records for `@` to 185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153; `CNAME` for `www` to `gnanaswaroop.github.io`.
+| Layer | Source | Notes |
+|---|---|---|
+| Aircraft | adsb.lol → airplanes.live → OpenSky (fallbacks, in order) | Polled every 10 s, 150 nm radius. Positions are dead-reckoned between polls. |
+| Satellites | CelesTrak GP (`stations`, `visual` groups) | TLEs cached 6 h in localStorage. SGP4 runs in the browser (satellite.js). |
+| Sun, Moon, planets, stars | astronomy-engine | Computed locally, so it works offline. |
+| Meteor showers | Static table in `app.js` | Windows, peaks and radiants are approximate. |
+| Cloud cover | Open-Meteo | Optional. |
 
 ## Known limits
 
-- Satellite.js and astronomy-engine load from jsDelivr with pinned versions but no integrity hashes. Vendoring them with SRI hashes is the first roadmap item.
-- Compass is typically 5–20° off, and iOS behaviour is not verified.
-- Meteor shower dates and radiants are approximate.
+- **ADS-B coverage:** community feeds have gaps, and military or blocked aircraft may not appear.
+- **Compass accuracy:** typically 5–20° off. The "North up" button plus drag-to-rotate is the fallback.
+- **Sky orientation:** the map uses the standard star-chart convention (E on the left when N is up). The "E/W" button mirrors it if that feels backwards.
+- **Library loading:** the two libraries load from jsDelivr on first run, and the service worker caches them afterwards. Vendoring them into the repo with SRI hashes is on the roadmap.
+- **Meteors:** radiants are plotted, but individual meteors can't be tracked. Nobody publishes them in real time.
 
 ## Roadmap
 
 1. Vendor the libraries with SRI hashes, and add a CSP meta tag.
-2. Camera AR overlay.
-3. Optional Starlink group, in a web worker.
-4. Pass alerts while the app is open.
-5. Compass calibration by tapping the Sun or Moon.
-6. Recent fireballs (NASA CNEOS).
-7. Offline pass-prediction cache.
+2. Camera AR mode: `getUserMedia` plus orientation, with labels over the live image.
+3. Optional Starlink group, as a web worker so the UI stays smooth.
+4. Pass alerts while the app is open, such as "ISS rises in 5 min". Background push is unreliable on iOS without a server.
+5. Calibrate the compass by tapping the Sun or Moon.
+6. Recent fireballs (NASA CNEOS) as a "recent events" list.
+7. Offline pass-prediction cache for the next few days.
