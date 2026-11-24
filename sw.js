@@ -2,7 +2,7 @@
 // FarGems service worker: caches the app shell and the two CDN libraries so the app
 // opens offline. Live data APIs are never cached here (the app keeps its own TLE cache).
 const VERSION = 'fargems-v1';
-const SHELL = ['./', 'index.html', 'landing.js', 'viewer.html', 'style.css', 'lib/logic.js', 'lib/onboarding.js', 'app.js', 'manifest.webmanifest',
+const SHELL = ['./', 'index.html', 'landing.js', 'viewer.html', 'settings.html', 'settings.js', 'style.css', 'lib/logic.js', 'lib/onboarding.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 const CDN_HOSTS = ['cdn.jsdelivr.net'];
 

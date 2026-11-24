@@ -19,7 +19,7 @@ const localRefs = (page) => {
     .filter((r) => !/^(https?:|data:|#|mailto:)/.test(r))
     .filter((r) => r !== 'viewer.html'); // navigation target, not an asset
 };
-const PAGES = ['index.html', 'viewer.html'];
+const PAGES = ['index.html', 'viewer.html', 'settings.html'];
 
 test('landing page is index.html and the sky view is viewer.html', () => {
   assert.ok(exists('index.html'));
@@ -137,13 +137,6 @@ test('JavaScript files parse', () => {
   }
 });
 
-test('both pages offer the sample location and the scripts wire it to the shared constant', () => {
-  assert.match(read('index.html'), /id="sampleBtn"/);
-  assert.match(read('viewer.html'), /id="sampleBtn"/);
-  assert.match(read('landing.js'), /O\.SAMPLE_LOCATION/);
-  assert.match(read('app.js'), /FarGemsOnboarding\.SAMPLE_LOCATION/);
-});
-
 test('landing page always shows the about section, inside the main column, with key facts', () => {
   const html = read('index.html');
   const m = html.match(/<section id="about"[^>]*>/);
@@ -155,19 +148,6 @@ test('landing page always shows the about section, inside the main column, with 
   for (const fact of ['What it shows', 'Layers and radar', 'Where the data comes from', 'Privacy', 'Limits', 'CelesTrak', 'astronomy-engine', 'stay on your device']) {
     assert.ok(html.includes(fact), `about section mentions: ${fact}`);
   }
-});
-
-test('viewer has a Layers button and panel wired to the shared layer list', () => {
-  const html = read('viewer.html');
-  assert.match(html, /id="layersBtn"/);
-  assert.match(html, /id="layersPanel"[^>]*hidden/);
-  assert.match(html, /id="layerList"/);
-  const app = read('app.js');
-  assert.match(app, /FarGemsLogic\.toggleLayer/);
-  assert.match(app, /FarGemsLogic\.defaultLayers/);
-  assert.match(app, /FarGemsLogic\.sweepWedge/);
-  assert.match(app, /FarGemsLogic\.sweepAngle/);
-  assert.match(app, /\$\('#layersBtn'\)\.onclick/);
 });
 
 test('logo: icon.svg is the FarGems logo, transparent, cropped, with no scripts or external links', () => {
@@ -214,14 +194,41 @@ test('logo: PNG icons carry no provenance metadata chunks', () => {
   }
 });
 
-test('temperature: the viewer has a unit toggle and requests the temperature', () => {
-  const html = read('viewer.html');
-  assert.match(html, /id="unitBtn"/);
+
+test('settings page holds the configuration and the viewer does not', () => {
+  const settings = read('settings.html');
+  for (const id of ['geoBtn', 'manualForm', 'sampleBtn', 'compassBtn', 'flipToggle', 'unitSelect', 'layerList']) {
+    assert.ok(settings.includes(`id="${id}"`), `settings has #${id}`);
+  }
+  const viewer = read('viewer.html');
+  for (const id of ['compassBtn', 'flipBtn', 'northBtn', 'layersBtn', 'layersPanel', 'chips', 'lists', 'sheet', 'locBtn', 'unitBtn']) {
+    assert.ok(!viewer.includes(`id="${id}"`), `viewer no longer has #${id}`);
+  }
+  assert.ok(viewer.includes('id="sky"') && viewer.includes('id="detail"'), 'viewer keeps the radar and selected-object card');
+  assert.ok(viewer.includes('href="settings.html"'), 'viewer links to settings');
+});
+
+test('settings writes the choices the viewer reads, using the same keys', () => {
+  const js = read('settings.js');
+  const onboarding = read('lib/onboarding.js');
+  // Location and compass go through the shared onboarding helpers, which own those keys.
+  assert.ok(onboarding.includes("'fg.loc'") && onboarding.includes("'fg.compass'"), 'onboarding owns fg.loc and fg.compass');
+  assert.match(js, /O\.storeLocation\(/, 'settings saves the location');
+  assert.match(js, /O\.storeCompass\(/, 'settings saves the compass permission');
+  for (const key of ['fg.flip', 'fg.unit', 'fg.layers']) {
+    assert.ok(js.includes(`'${key}'`), `settings writes ${key}`);
+  }
   const app = read('app.js');
-  assert.match(app, /temperature_2m/, 'Open-Meteo request includes the temperature');
-  assert.match(app, /state\.tempC = j\.current\?\.temperature_2m/);
-  assert.match(app, /FarGemsLogic\.formatTemp\(state\.tempC, state\.unit\)/);
-  assert.match(app, /localStorage\.setItem\('fg\.unit'/, 'the unit choice is remembered');
+  assert.match(app, /storedValue\('fg\.flip'\)/, 'viewer reads fg.flip');
+  assert.match(app, /L\.loadLayers\(storedValue\('fg\.layers'\)/, 'viewer reads fg.layers');
+  assert.match(app, /fg\.unit/, 'viewer reads the unit');
+});
+
+test('the sky view keeps the radar and the selected object, and drops the feed lists', () => {
+  const app = read('app.js');
+  assert.ok(!/function renderLists|function renderChips|function renderLayers/.test(app), 'list and chip rendering removed');
+  assert.match(app, /Tap an object on the radar/, 'empty selection shows a hint');
+  assert.match(app, /\$\('#noLocation'\)\.hidden = false/, 'without a location the viewer points to settings');
 });
 
 test('sample location opens the sky view directly, without permissions', () => {

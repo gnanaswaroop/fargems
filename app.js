@@ -318,6 +318,10 @@ function loop(t) {
 }
 
 /* ---------- UI ---------- */
+const L = window.FarGemsLogic;
+const storedValue = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
 function moonName() {
   try { return moonPhaseName(Astronomy.MoonPhase(new Date())); } catch { return 'Moon'; }
 }
@@ -326,54 +330,17 @@ function renderHud() {
   if (state.sunAlt != null) parts.push(`${sunPhase(state.sunAlt)} · Sun ${Math.round(state.sunAlt)}°`);
   if (state.moonIllum != null) parts.push(`${moonName()} ${Math.round(state.moonIllum * 100)}%`);
   if (state.cloud != null) parts.push(`Cloud ${Math.round(state.cloud)}%`);
-  if (state.tempC != null) parts.push(window.FarGemsLogic.formatTemp(state.tempC, state.unit));
+  if (state.tempC != null) parts.push(L.formatTemp(state.tempC, state.unit));
   $('#hud').innerHTML = parts.map(esc).join('<br>');
-}
-function renderChips() {
-  const c = { air: 0, sat: 0, sky: 0, met: 0, star: 0 }, vis = state.objs.filter(o => o.kind === 'sat' && o.visible).length;
-  for (const o of state.objs) { const k = o.kind === 'body' ? 'sky' : o.kind; if (k in c && (o.el >= 0 || k === 'met')) c[k]++; }
-  const defs = [['air', 'Aircraft', COL.air, c.air], ['sat', 'Satellites', COL.sat, c.sat], ['sky', 'Sun · Moon · Planets', '#ffd86b', c.sky], ['met', 'Meteors', COL.met, c.met], ['star', 'Stars', COL.star, c.star]];
-  $('#chips').innerHTML = defs.map(([k, n, col, cnt]) => `<button class="chip ${state.filters[k] ? 'on' : ''}" data-f="${k}"><i style="background:${col}"></i>${n} ${cnt}</button>`).join('')
-    + (vis ? `<span class="muted" style="align-self:center">${vis} satellite${vis > 1 ? 's' : ''} visible now</span>` : '');
 }
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
+  if (state.loc) out.push(`<span>${state.loc.lat.toFixed(2)}°, ${state.loc.lon.toFixed(2)}°</span>`);
   if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${s.air.n} nearby · ${ago(now - s.air.t)} ago</span>`);
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');
   $('#status').innerHTML = out.join('');
-}
-const row = (o, left, right, extra = '') =>
-  `<button class="row ${state.sel === o.id ? 'sel' : ''}" data-id="${esc(o.id)}"><span class="dot" style="background:${o.color || COL[o.kind] || '#fff'}"></span><span class="nm">${left}${extra}</span><span class="pos">${right}</span></button>`;
-const posTxt = o => `${Math.round(o.el)}° · ${dir16(o.az)} ${Math.round(o.az)}°`;
-function renderLists() {
-  const F = state.filters, O = state.objs, parts = [];
-  if (F.air) {
-    const l = O.filter(o => o.kind === 'air').sort((a, b) => a.range - b.range).slice(0, 40);
-    parts.push(`<div class="section"><h4>Aircraft overhead (${l.length}${l.length === 40 ? '+' : ''})</h4>${l.map(o =>
-      row(o, esc(o.name) + (o.ac.type ? ` <small>${esc(o.ac.type)}</small>` : ''), `${Math.round(o.range)} km · ${posTxt(o)}`)).join('') || '<p class="muted">None above the horizon right now.</p>'}</div>`);
-  }
-  if (F.sat) {
-    const l = O.filter(o => o.kind === 'sat').sort((a, b) => (b.visible - a.visible) || b.el - a.el).slice(0, 40);
-    parts.push(`<div class="section"><h4>Satellites above horizon (${l.length}${l.length === 40 ? '+' : ''})</h4>${l.map(o =>
-      row(o, esc(o.name), posTxt(o), o.visible ? '<span class="vis">visible</span>' : '')).join('') || '<p class="muted">None yet.</p>'}</div>`);
-  }
-  if (F.sky) {
-    const l = O.filter(o => o.kind === 'body');
-    parts.push(`<div class="section"><h4>Sun, Moon & planets</h4>${l.map(o =>
-      row(o, esc(o.name) + (o.el < 0 ? ' <small>below horizon</small>' : ''), `${Math.round(o.el)}° · ${dir16(o.az)} ${Math.round(o.az)}°`)).join('')}</div>`);
-  }
-  if (F.met) {
-    const l = state.showerView.filter(s => s.active).concat(state.showerView.filter(s => !s.active).slice(0, 1));
-    parts.push(`<div class="section"><h4>Meteor showers</h4>${l.map(s => {
-      const o = state.byId.get('met:' + s.n);
-      const when = s.active ? (s.peakDelta === 0 ? 'peak today' : s.peakDelta < 0 ? `peak in ${-s.peakDelta} d` : `peak ${s.peakDelta} d ago`) : `starts in ${s.daysTo} d`;
-      return o ? row(o, esc(s.n) + ` <small>${when} · ZHR ${s.zhr}</small>`, `radiant ${Math.round(o.el)}°`)
-        : `<div class="row" style="cursor:default"><span class="dot" style="background:${COL.met}"></span><span class="nm">${esc(s.n)} <small>${when} · ZHR ${s.zhr}</small></span></div>`;
-    }).join('')}</div>`);
-  }
-  $('#lists').innerHTML = parts.join('');
 }
 function renderPasses() {
   const el = $('#passes');
@@ -389,10 +356,10 @@ function riseSet(name) {
     return `rise ${fmtTime(r && r.date)} · set ${fmtTime(s && s.date)}`;
   } catch { return null; }
 }
+// The selected-object card. With nothing selected it shows a hint, so the card always has a purpose.
 function renderDetail() {
   const el = $('#detail'), o = state.sel && state.byId.get(state.sel);
-  if (!o) { el.hidden = true; return; }
-  el.hidden = false;
+  if (!o) { el.innerHTML = '<p class="muted">Tap an object on the radar to see its details.</p>'; return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '';
   const here = kv('Sky position', `${Math.round(o.el)}° up · ${dir16(o.az)} (${Math.round(o.az)}°)`);
@@ -418,32 +385,15 @@ function renderDetail() {
   } else rows = here;
   el.innerHTML = `<h3>${title}</h3><dl>${rows}</dl>`;
 }
-// Layers panel: one checkbox per layer, in the shared layer list order.
-function renderLayers() {
-  const L = window.FarGemsLogic;
-  $('#layerList').innerHTML = L.LAYER_KEYS.map(k =>
-    `<label class="layer-row"><input type="checkbox" data-layer="${esc(k)}"${state.filters[k] ? ' checked' : ''}> ${esc(L.LAYER_LABELS[k])}</label>`).join('');
-}
-function renderAll() { renderHud(); renderChips(); renderStatus(); renderLists(); renderDetail(); renderPasses(); }
+function renderAll() { renderHud(); renderStatus(); renderDetail(); renderPasses(); }
 
 /* ---------- location ---------- */
 function setLoc(lat, lon) {
   state.loc = { lat, lon }; lsSet('fg.loc', state.loc);
-  $('#locLabel').textContent = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
-  $('#sheet').hidden = true;
+  $('#noLocation').hidden = true;
   state.aircraft = []; state.aircraftAt = 0; state.cloud = null; state.tempC = null;
   tick(); refreshAircraft(); refreshCloud(); updatePasses(); renderAll();
 }
-function locate() {
-  const msg = $('#sheetMsg');
-  if (!navigator.geolocation) { msg.textContent = 'Geolocation is not available — enter coordinates instead.'; return; }
-  msg.textContent = 'Locating…';
-  navigator.geolocation.getCurrentPosition(
-    p => { msg.textContent = ''; setLoc(p.coords.latitude, p.coords.longitude); },
-    e => { msg.textContent = e.code === 1 ? 'Permission denied — enter coordinates instead.' : 'Could not get a fix — enter coordinates instead.'; },
-    { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
-}
-function openSheet() { $('#closeSheet').hidden = !state.loc; $('#sheet').hidden = false; }
 
 /* ---------- compass & interaction ---------- */
 function onOri(e) {
@@ -454,53 +404,17 @@ function onOri(e) {
   let d = norm360(h - state.heading + 180) - 180;
   state.heading = norm360(state.heading + d * 0.25); state.dirty = true;
 }
-async function toggleCompass() {
-  if (state.compass) { state.compass = false; $('#compassBtn').classList.remove('on'); state.dirty = true; return; }
-  try {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      if (await DeviceOrientationEvent.requestPermission() !== 'granted') throw new Error('permission denied');
-    }
-    if (!toggleCompass.bound) {
-      window.addEventListener('deviceorientationabsolute', onOri, true);
-      window.addEventListener('deviceorientation', onOri, true);
-      toggleCompass.bound = true;
-    }
-    state.compass = true; $('#compassBtn').classList.add('on');
-    toast('Hold the phone flat and overhead, top edge pointing where you face.');
-  } catch (e) { toast('Compass unavailable: ' + e.message); }
+// The compass is switched on in settings. The sky view only starts it when permission was already granted there.
+function startCompass() {
+  if (state.compass) return;
+  if (!startCompass.bound) {
+    window.addEventListener('deviceorientationabsolute', onOri, true);
+    window.addEventListener('deviceorientation', onOri, true);
+    startCompass.bound = true;
+  }
+  state.compass = true; state.dirty = true;
 }
 function bindUI() {
-  $('#locBtn').onclick = openSheet;
-  $('#geoBtn').onclick = locate;
-  $('#sampleBtn').onclick = () => { const s = FarGemsOnboarding.SAMPLE_LOCATION; setLoc(s.lat, s.lon); };
-  $('#closeSheet').onclick = () => { $('#sheet').hidden = true; };
-  $('#manualForm').onsubmit = e => {
-    e.preventDefault();
-    const m = $('#manualLoc').value.match(/(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)/);
-    const la = m && +m[1], lo = m && +m[2];
-    if (!m || Math.abs(la) > 90 || Math.abs(lo) > 180) { $('#sheetMsg').textContent = 'Use “latitude, longitude”, e.g. 22.57, 88.36'; return; }
-    setLoc(la, lo);
-  };
-  $('#compassBtn').onclick = toggleCompass;
-  $('#flipBtn').onclick = () => { state.flip = !state.flip; $('#flipBtn').textContent = state.flip ? 'E/W: mirrored' : 'E/W: chart'; state.dirty = true; };
-  $('#northBtn').onclick = () => { state.rot = 0; state.dirty = true; };
-  $('#unitBtn').textContent = '°' + state.unit;
-  $('#unitBtn').onclick = () => {
-    state.unit = window.FarGemsLogic.nextUnit(state.unit);
-    try { localStorage.setItem('fg.unit', state.unit); } catch { /* storage blocked */ }
-    $('#unitBtn').textContent = '°' + state.unit;
-    renderHud();
-  };
-  $('#layersBtn').onclick = () => { const p = $('#layersPanel'); p.hidden = !p.hidden; $('#layersBtn').classList.toggle('on', !p.hidden); };
-  $('#layerList').onchange = e => {
-    const k = e.target.dataset.layer;
-    if (!k) return;
-    state.filters = window.FarGemsLogic.toggleLayer(state.filters, k);
-    state.dirty = true; renderChips(); renderLists();
-  };
-  renderLayers();
-  $('#chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { state.filters[b.dataset.f] = !state.filters[b.dataset.f]; state.dirty = true; renderChips(); renderLayers(); renderLists(); } };
-  $('#lists').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { state.sel = b.dataset.id; state.dirty = true; renderLists(); renderDetail(); $('#detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } };
   const cv = $('#sky'); let down = null;
   cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture(e.pointerId); });
   cv.addEventListener('pointermove', e => {
@@ -513,7 +427,7 @@ function bindUI() {
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       let best = null, bd = 1e9;
       for (const h of state.hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < h.r && d < bd) { best = h; bd = d; } }
-      state.sel = best ? best.id : null; state.dirty = true; renderLists(); renderDetail();
+      state.sel = best ? best.id : null; state.dirty = true; renderDetail();
     }
     down = null;
   });
@@ -525,13 +439,18 @@ function bindUI() {
 function tick() { try { computeSky(new Date()); } catch (e) { console.error(e); } }
 function start() {
   bindUI();
+  // Choices made in settings.html.
+  state.flip = storedValue('fg.flip') === '1';
+  state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   if (typeof satellite === 'undefined' || typeof Astronomy === 'undefined') {
     $('#status').innerHTML = '<span class="bad">Sky libraries failed to load. Check your connection and reload.</span>';
   }
   const saved = lsGet('fg.loc');
-  if (saved && typeof saved.lat === 'number' && typeof saved.lon === 'number') setLoc(saved.lat, saved.lon); else openSheet();
-  // Landing page already asked for the compass; turn it on without a second prompt.
-  try { if (window.FarGemsOnboarding && FarGemsOnboarding.shouldAutoEnableCompass(localStorage)) toggleCompass(); } catch { /* storage blocked */ }
+  if (saved && typeof saved.lat === 'number' && typeof saved.lon === 'number') setLoc(saved.lat, saved.lon);
+  else $('#noLocation').hidden = false;
+  // Compass permission from settings (or the landing page) turns the compass on without a second prompt.
+  try { if (window.FarGemsOnboarding && FarGemsOnboarding.shouldAutoEnableCompass(localStorage)) startCompass(); } catch { /* storage blocked */ }
+  renderAll();
   refreshSats();
   setInterval(() => { tick(); }, 1000);
   setInterval(renderAll, 2000);

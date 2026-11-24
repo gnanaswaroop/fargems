@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
-const html = fs.readFileSync(path.join(ROOT, 'viewer.html'), 'utf8');
+const html = fs.readFileSync(path.join(ROOT, 'settings.html'), 'utf8');
 
 // Declarations of the first rule whose selector matches `re`. Comments are removed first.
 function declarations(re) {
@@ -65,7 +65,7 @@ test('the layers list is a two-column grid on phones, one column on very narrow 
 
 test('each layer row is a label wrapping one checkbox (markup matches the CSS selectors)', () => {
   // The JS builds `<label class="layer-row"><input type="checkbox">…</label>`; keep that shape.
-  const app = ['src/ui/hud.js', 'app.js'].map((f) => fs.existsSync(path.join(ROOT, f)) ? fs.readFileSync(path.join(ROOT, f), 'utf8') : '').join('\n');
+  const app = ['settings.js'].map((f) => fs.existsSync(path.join(ROOT, f)) ? fs.readFileSync(path.join(ROOT, f), 'utf8') : '').join('\n');
   assert.match(app, /class="layer-row"><input type="checkbox"/);
   assert.match(html, /id="layerList"/);
 });

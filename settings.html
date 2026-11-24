@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FarGems — settings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="FarGems settings: location, compass, units and map layers.">
+<meta name="theme-color" content="#070b14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="settings">
+<header>
+  <div class="brand"><img class="logo logo-sm" src="icon.svg" alt="FarGems logo" width="34" height="34">Far<b>Gems</b></div>
+  <a class="pill" href="viewer.html">Back to sky view</a>
+</header>
+
+<main class="settings-main">
+  <h1>Settings</h1>
+  <p id="settingsMsg" class="muted small" role="status"></p>
+
+  <section class="card" aria-labelledby="locTitle">
+    <h2 id="locTitle">Location</h2>
+    <p>Current: <span id="settingsLoc">Not set</span></p>
+    <button id="geoBtn" class="btn primary wide" type="button">Use my location</button>
+    <form id="manualForm">
+      <label for="manualLoc">…or enter latitude, longitude</label>
+      <div class="row-inline">
+        <input id="manualLoc" inputmode="decimal" autocomplete="off" placeholder="e.g. 22.57, 88.36">
+        <button class="btn" type="submit">Set</button>
+      </div>
+    </form>
+    <button id="sampleBtn" class="link" type="button">Use a sample location</button>
+  </section>
+
+  <section class="card" aria-labelledby="compassTitle">
+    <h2 id="compassTitle">Compass</h2>
+    <p>Points the sky map the way you face. Only iPhone and iPad ask for permission; other devices don't need it.</p>
+    <p>Status: <span id="compassState">Not asked yet</span></p>
+    <button id="compassBtn" class="btn wide" type="button">Allow compass</button>
+  </section>
+
+  <section class="card" aria-labelledby="displayTitle">
+    <h2 id="displayTitle">Display</h2>
+    <label class="layer-row"><input id="flipToggle" type="checkbox"> Mirror east and west (for a sky chart seen from below)</label>
+    <label class="layer-row">Temperature unit
+      <select id="unitSelect" aria-label="Temperature unit">
+        <option value="C">°C</option>
+        <option value="F">°F</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="card layers" aria-labelledby="layersTitle">
+    <h2 id="layersTitle">Map layers</h2>
+    <p class="muted small">Turn map layers on or off. The radar sweep turns clockwise, like a radar screen.</p>
+    <div id="layerList" class="layer-list"></div>
+  </section>
+
+  <footer class="muted small">
+    Data: adsb.lol, airplanes.live, OpenSky, CelesTrak, Open-Meteo. Calculations run in your browser.
+    Location and compass stay on your device.
+  </footer>
+</main>
+
+<script src="lib/logic.js"></script>
+<script src="lib/onboarding.js"></script>
+<script src="settings.js"></script>
+</body>
+</html>
