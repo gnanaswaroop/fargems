@@ -44,6 +44,7 @@ const state = {
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   visOnly: (() => { try { return window.FarGemsLogic.parseVisOnly(localStorage.getItem('fg.visOnly')); } catch { return true; } })(),
+  flightRangeKm: (() => { try { return window.FarGemsLogic.parseFlightRange(localStorage.getItem('fg.flightRange')); } catch { return window.FarGemsLogic.DEFAULT_FLIGHT_RANGE_KM; } })(),
   routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
   tempC: null, unit: (() => { try { return window.FarGemsLogic.parseUnit(localStorage.getItem('fg.unit')); } catch { return 'C'; } })(),
@@ -226,7 +227,7 @@ function computeSky(now) {
     const p = advance(a, dt), L = lookGd(p.lat, p.lon, p.altKm);
     if (L.el < 0) continue;
     state.airTotal++;
-    const seen = window.FarGemsLogic.isVisibleFlight(L.el, L.range);
+    const H = window.FarGemsLogic, seen = H.isVisibleFlight(L.el, H.distanceKm(state.loc.lat, state.loc.lon, p.lat, p.lon), { maxRangeKm: state.flightRangeKm });
     if (seen) state.airVisible++;
     if (state.visOnly && !seen) continue; // too far or too low to see from here
     const q = advance(a, dt + 15), L2 = lookGd(q.lat, q.lon, q.altKm);
@@ -353,7 +354,7 @@ function renderHud() {
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
   if (state.loc) out.push(`<span>${state.loc.lat.toFixed(2)}°, ${state.loc.lon.toFixed(2)}°</span>`);
-  if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} visible of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
+  if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} within ${state.flightRangeKm} km of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');
@@ -581,6 +582,7 @@ function start() {
   // Choices made in settings.html.
   state.flip = storedValue('fg.flip') === '1';
   state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
+  state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   if (typeof satellite === 'undefined' || typeof Astronomy === 'undefined') {
     $('#status').innerHTML = '<span class="bad">Sky libraries failed to load. Check your connection and reload.</span>';
