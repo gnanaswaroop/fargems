@@ -1,15 +1,91 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8ff0ff"/><stop offset="1" stop-color="#2f7fd8"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" fill="#0a1020"/>
-  <circle cx="90" cy="100" r="3" fill="#aab6cc"/><circle cx="420" cy="80" r="4" fill="#aab6cc"/>
-  <circle cx="450" cy="410" r="3" fill="#aab6cc"/><circle cx="70" cy="420" r="2.5" fill="#aab6cc"/>
-  <polygon points="143,154 369,154 440,236 256,410 72,236" fill="url(#g)"/>
-  <polygon points="143,154 256,154 220,236 72,236" fill="#ffffff" opacity=".28"/>
-  <polygon points="369,154 256,154 292,236 440,236" fill="#04121a" opacity=".18"/>
-  <polyline points="72,236 440,236" stroke="#04121a" stroke-opacity=".35" stroke-width="5" fill="none"/>
-  <polyline points="220,236 256,410 292,236" stroke="#04121a" stroke-opacity=".3" stroke-width="5" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="FarGems Logo">
+  
+  <rect id="bg" width="512" height="512" fill="#0E172A" />
+
+  
+  <g id="diamond-cyan" fill="none" stroke="#33C6EC" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+    
+    <polygon points="216,166 296,166 336,184 374,232 256,370 138,232 176,184" />
+
+    
+    <polyline points="138,232 170,244 206,256 256,256" />
+    <polyline points="374,232 342,244 292,228 256,256" />
+    <line x1="176" y1="184" x2="170" y2="244" />
+    <line x1="176" y1="184" x2="220" y2="228" />
+    <line x1="176" y1="184" x2="256" y2="206" />
+    <line x1="138" y1="232" x2="202" y2="204" />
+    <line x1="170" y1="244" x2="220" y2="228" />
+    <line x1="220" y1="228" x2="206" y2="256" />
+    <line x1="220" y1="228" x2="256" y2="256" />
+    <line x1="336" y1="184" x2="342" y2="244" />
+    <line x1="336" y1="184" x2="292" y2="228" />
+    <line x1="374" y1="232" x2="310" y2="204" />
+
+    
+    <line x1="170" y1="244" x2="256" y2="370" />
+    <line x1="206" y1="256" x2="256" y2="370" />
+    <line x1="256" y1="256" x2="256" y2="370" />
+    <line x1="342" y1="244" x2="256" y2="370" />
+  </g>
+
+  
+  <g id="diamond-gold" fill="none" stroke="#F5BC38" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="220,228 256,206 314,194" />
+    <polyline points="256,206 292,228 306,256 256,256" />
+    <line x1="306" y1="256" x2="342" y2="244" />
+    <line x1="306" y1="256" x2="256" y2="370" />
+    <line x1="315" y1="307" x2="256" y2="370" />
+  </g>
+
+  
+  <g id="ringed-planet">
+    <circle cx="224" cy="282" r="16" fill="#0E172A" />
+    
+    <ellipse cx="224" cy="282" rx="24" ry="6.5" transform="rotate(-24 224 282)" fill="none" stroke="#FFFFFF" stroke-width="4" />
+    
+    <circle cx="224" cy="282" r="12" fill="#33C6EC" />
+    
+    <path d="M 202.1 291.8 A 24 6.5 -24 0 0 245.9 272.2" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+  </g>
+
+  
+  <g id="flight">
+    
+    <path d="M 178 286 C 154 304, 174 334, 224 316 C 242 309, 254 298, 265 289" fill="none" stroke="#0E172A" stroke-width="11" stroke-linecap="round" />
+    
+    <path d="M 178 286 C 154 304, 174 334, 224 316 C 242 309, 254 298, 265 289" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+    
+    <g transform="translate(279, 277) rotate(-36)">
+      <path d="M 15 0 L 5 -2.5 L -4 -14 L -8 -14 L -3 -2.5 L -11 -2 L -14 -6 L -17 -6 L -15 0 L -17 6 L -14 6 L -11 2 L -3 2.5 L -8 14 L -4 14 L 5 2.5 Z" fill="#FFFFFF" />
+    </g>
+  </g>
+
+  
+  <g id="moon-ring">
+    <circle cx="315" cy="307" r="18" fill="#0E172A" />
+    <circle cx="315" cy="307" r="17" fill="none" stroke="#33C6EC" stroke-width="5" />
+    <path d="M 303 319 A 17 17 0 0 1 327 295" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" />
+  </g>
+
+  
+  <g id="target-reticle">
+    <circle cx="324" cy="182" r="27" fill="#0E172A" />
+    <circle cx="324" cy="182" r="23" fill="none" stroke="#FFFFFF" stroke-width="5" />
+    <line x1="324" y1="147" x2="324" y2="217" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+    <line x1="289" y1="182" x2="359" y2="182" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+    
+    <path d="M 324 166 Q 324 182 340 182 Q 324 182 324 198 Q 324 182 308 182 Q 324 182 324 166 Z" fill="#FFFFFF" />
+  </g>
+
+  
+  <g id="stars">
+    
+    <path d="M 218 176 Q 218 185 227 185 Q 218 185 218 194 Q 218 185 209 185 Q 218 185 218 176 Z" fill="#F5BC38" />
+    <path d="M 192 211 Q 192 222 203 222 Q 192 222 192 233 Q 192 222 181 222 Q 192 222 192 211 Z" fill="#F5BC38" />
+    <path d="M 346 280 Q 346 288 354 288 Q 346 288 346 296 Q 346 288 338 288 Q 346 288 346 280 Z" fill="#F5BC38" />
+
+    
+    <path d="M 348 147 Q 348 154 355 154 Q 348 154 348 161 Q 348 154 341 154 Q 348 154 348 147 Z" fill="#FFFFFF" />
+    <path d="M 205 328 Q 205 334 211 334 Q 205 334 205 340 Q 205 334 199 334 Q 205 334 205 328 Z" fill="#FFFFFF" />
+  </g>
 </svg>

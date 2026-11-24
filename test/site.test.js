@@ -168,3 +168,32 @@ test('viewer has a Layers button and panel wired to the shared layer list', () =
   assert.match(app, /FarGemsLogic\.sweepAngle/);
   assert.match(app, /\$\('#layersBtn'\)\.onclick/);
 });
+
+test('logo: icon.svg is the FarGems logo, with no scripts or external links', () => {
+  const svg = read('icon.svg');
+  assert.match(svg, /<svg[^>]*viewBox="0 0 512 512"/);
+  assert.match(svg, /aria-label="FarGems Logo"/);
+  assert.ok(!/<script/i.test(svg), 'no script elements');
+  assert.ok(!/on[a-z]+=/i.test(svg), 'no event handler attributes');
+  assert.ok(!/(xlink:)?href="https?:/i.test(svg), 'no external references');
+});
+
+test('logo: landing and viewer headers show the logo beside the wordmark', () => {
+  assert.match(read('index.html'), /<img class="logo logo-lg" src="icon\.svg" alt="FarGems logo"/);
+  assert.match(read('viewer.html'), /<img class="logo logo-sm" src="icon\.svg" alt="FarGems logo"/);
+});
+
+test('logo: PNG icons carry no provenance metadata chunks', () => {
+  for (const f of ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) {
+    const buf = fs.readFileSync(path.join(ROOT, f));
+    let i = 8;
+    const types = [];
+    while (i < buf.length) {
+      const n = buf.readUInt32BE(i);
+      types.push(buf.subarray(i + 4, i + 8).toString('latin1'));
+      i += 12 + n;
+    }
+    assert.ok(!types.includes('caBX'), `${f} has no caBX chunk`);
+    assert.ok(!types.some((t) => /^(tEXt|zTXt|iTXt)$/.test(t)), `${f} has no text chunks`);
+  }
+});
