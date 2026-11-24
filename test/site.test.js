@@ -125,9 +125,10 @@ test('PNG icons have the PNG signature and expected dimensions', () => {
   }
 });
 
-test('CNAME and .nojekyll exist for GitHub Pages', () => {
-  assert.equal(read('CNAME').trim(), 'fargems.com');
+test('.nojekyll exists for GitHub Pages and no custom domain is committed', () => {
   assert.ok(exists('.nojekyll'));
+  // The project is open source: hosts set their own custom domain, so the repo ships no CNAME file.
+  assert.ok(!exists('CNAME'), 'CNAME must not be committed');
 });
 
 test('JavaScript files parse', () => {

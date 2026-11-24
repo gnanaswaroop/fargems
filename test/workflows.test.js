@@ -51,7 +51,8 @@ test('Pages artifact copies every file the pages precache, and no private folder
     const covered = copied.some((c) => f === c || f.startsWith(c + '/'));
     assert.ok(covered, `${f} is precached but not copied to the site`);
   }
-  assert.ok(copied.includes('CNAME') && copied.includes('.nojekyll'), 'custom domain and Pages config published');
+  assert.ok(copied.includes('.nojekyll'), 'Pages config (.nojekyll) published');
+  assert.ok(!copied.includes('CNAME'), 'no custom domain file is published');
 
   // Only files that exist, and never tests, scripts, tmp or workflow files.
   for (const f of copied) assert.ok(exists(f), `copied file missing: ${f}`);
