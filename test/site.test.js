@@ -142,3 +142,29 @@ test('both pages offer the sample location and the scripts wire it to the shared
   assert.match(read('landing.js'), /O\.SAMPLE_LOCATION/);
   assert.match(read('app.js'), /FarGemsOnboarding\.SAMPLE_LOCATION/);
 });
+
+test('landing page always shows the about section, inside the main column, with key facts', () => {
+  const html = read('index.html');
+  const m = html.match(/<section id="about"[^>]*>/);
+  assert.ok(m, 'about section present');
+  assert.ok(!/\shidden[\s>]/.test(m[0]), 'about section is not hidden');
+  const mainOpen = html.indexOf('<main');
+  const mainClose = html.indexOf('</main>');
+  assert.ok(html.indexOf('id="about"') > mainOpen && html.indexOf('id="about"') < mainClose, 'inside main');
+  for (const fact of ['What it shows', 'Layers and radar', 'Where the data comes from', 'Privacy', 'Limits', 'CelesTrak', 'astronomy-engine', 'stay on your device']) {
+    assert.ok(html.includes(fact), `about section mentions: ${fact}`);
+  }
+});
+
+test('viewer has a Layers button and panel wired to the shared layer list', () => {
+  const html = read('viewer.html');
+  assert.match(html, /id="layersBtn"/);
+  assert.match(html, /id="layersPanel"[^>]*hidden/);
+  assert.match(html, /id="layerList"/);
+  const app = read('app.js');
+  assert.match(app, /FarGemsLogic\.toggleLayer/);
+  assert.match(app, /FarGemsLogic\.defaultLayers/);
+  assert.match(app, /FarGemsLogic\.sweepWedge/);
+  assert.match(app, /FarGemsLogic\.sweepAngle/);
+  assert.match(app, /\$\('#layersBtn'\)\.onclick/);
+});
