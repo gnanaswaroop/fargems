@@ -116,3 +116,12 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 
 /* the two pages slide inside this box, so the off-screen page is clipped at the content edge */
 .pager-view { overflow: hidden; }
+
+/* AR view: the camera fills the screen, the canvas draws over it, a small card shows the selected object */
+.ar { position: fixed; inset: 0; z-index: 50; background: #000; }
+.ar[hidden] { display: none; }
+.ar-video, .ar-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ar-video { object-fit: cover; }
+.ar-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+.ar-detail { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); max-height: 38vh; overflow: auto; background: rgba(7, 11, 20, .85); }
+body.ar-on { overflow: hidden; }
