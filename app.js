@@ -442,6 +442,7 @@ async function toggleCompass() {
 function bindUI() {
   $('#locBtn').onclick = openSheet;
   $('#geoBtn').onclick = locate;
+  $('#sampleBtn').onclick = () => { const s = FarGemsOnboarding.SAMPLE_LOCATION; setLoc(s.lat, s.lon); };
   $('#closeSheet').onclick = () => { $('#sheet').hidden = true; };
   $('#manualForm').onsubmit = e => {
     e.preventDefault();
