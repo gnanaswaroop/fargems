@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html viewer.html landing.js app.js sw.js style.css manifest.webmanifest \
-            icon.svg icon-192.png icon-512.png apple-touch-icon.png CNAME .nojekyll lib _site/
+            icon.svg icon-192.png icon-512.png apple-touch-icon.png .nojekyll lib _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
