@@ -88,15 +88,17 @@ async function refreshAircraft() {
   const la = state.loc.lat.toFixed(3), lo = state.loc.lon.toFixed(3);
   const proxy = window.FarGemsLogic.aircraftProxyUrl(AIRCRAFT_PROXY, state.loc.lat, state.loc.lon, 150);
   const sources = proxy ? [{ name: 'FarGems proxy', url: () => proxy, parse: parseV2 }] : AC_PROVIDERS;
+  let lastErr = null;
   for (const p of sources) {
     try {
       const list = p.parse(await getJSON(p.url(la, lo, 150)));
       state.aircraft = list; state.aircraftAt = Date.now();
       state.status.air = { src: p.name, n: list.length, t: state.aircraftAt };
       state.dirty = true; return;
-    } catch { /* try next provider */ }
+    } catch (e) { lastErr = e; /* try next provider */ }
   }
-  state.status.air = { err: true, t: state.status.air?.t };
+  // HTTP 503 from the proxy means the owner switched it off (see ENABLED in worker/aircraft-proxy.mjs)
+  state.status.air = { err: true, paused: !!proxy && !!lastErr && lastErr.message === 'HTTP 503', t: state.status.air?.t };
 }
 function lookGd(lat, lon, altKm) {
   const ecf = satellite.geodeticToEcf({ latitude: lat * D2R, longitude: lon * D2R, height: altKm });
@@ -353,7 +355,7 @@ function renderHud() {
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
   if (state.loc) out.push(`<span>${state.loc.lat.toFixed(2)}°, ${state.loc.lon.toFixed(2)}°</span>`);
-  if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} visible of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
+  if (s.air) out.push(s.air.err ? (s.air.paused ? '<span class="bad">Aircraft: feed switched off for now</span>' : '<span class="bad">Aircraft: feed unreachable</span>') : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} visible of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');

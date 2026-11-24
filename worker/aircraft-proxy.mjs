@@ -9,6 +9,8 @@
 // Configuration (set as Worker variables, not in the repository):
 //   ALLOWED_ORIGINS  comma-separated list of site origins allowed to read the data,
 //                    e.g. "https://example.com,https://example.org". Local origins are always allowed.
+//   ENABLED          kill switch. Set to "false" (or 0, off, no) and the worker answers 503 at once, without
+//                    contacting any provider or reading its cache. Remove it or set "true" to turn the worker back on.
 
 const UPSTREAM = [
   { name: 'adsb.lol', url: (lat, lon, r) => 'https://api.adsb.lol/v2/point/' + lat + '/' + lon + '/' + r },
@@ -44,6 +46,11 @@ export function parseQuery(url) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(r) || r <= 0) return null;
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
   return { lat, lon, r };
+}
+
+// True when the owner has switched the worker off with the ENABLED variable.
+export function isDisabled(env) {
+  return ['0', 'false', 'off', 'no', 'disabled'].includes(String(env && env.ENABLED != null ? env.ENABLED : '').trim().toLowerCase());
 }
 
 function allowedOrigins(env) {
@@ -129,6 +136,8 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (request.method !== 'GET') return json(405, { error: 'method not allowed' }, { ...cors, Allow: 'GET, OPTIONS' });
+
+  if (isDisabled(env)) return json(503, { error: 'proxy switched off', disabled: true }, { ...cors, 'Retry-After': '3600' });
 
   const url = new URL(request.url);
   if (url.pathname === '/route') return handleRoute(url, cors, fetchImpl, cache);
