@@ -47,6 +47,7 @@ const state = {
   tempC: null, unit: (() => { try { return window.FarGemsLogic.parseUnit(localStorage.getItem('fg.unit')); } catch { return 'C'; } })(),
   objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
   sweep: 0, lastT: 0, // radar sweep angle (degrees) and last animation frame time
+  view: { zoom: 1, panX: 0, panY: 0 }, // radar zoom and pan (see lib/logic.js)
   passes: [], dirty: true, hits: [], status: {}
 };
 
@@ -237,7 +238,9 @@ function draw() {
   const dpr = window.devicePixelRatio || 1;
   if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = W * dpr; }
   const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, W);
-  const cx = W / 2, cy = W / 2, R = W / 2 - 26;
+  // The dome is centred on the zoom pan and scaled by the zoom level. At 1x it is unchanged.
+  const V = state.view;
+  const cx = W / 2 + V.panX, cy = W / 2 + V.panY, R = (W / 2 - 26) * V.zoom;
   const rot = state.compass ? state.heading : state.rot, sgn = state.flip ? 1 : -1;
   const P = (az, el) => { const r = (90 - el) / 90 * R, th = (az - rot) * D2R; return { x: cx + sgn * r * Math.sin(th), y: cy - r * Math.cos(th) }; };
 
@@ -420,22 +423,75 @@ function startCompass() {
   state.compass = true; state.dirty = true;
 }
 function bindUI() {
-  const cv = $('#sky'); let down = null;
-  cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => {
-    if (!down) return; const dx = e.clientX - down.x;
-    if (Math.abs(dx) > 6) down.moved = true;
-    if (down.moved && !state.compass) { state.rot = norm360(state.rot + (state.flip ? -1 : 1) * dx * 0.4); down.x = e.clientX; state.dirty = true; }
+  const cv = $('#sky');
+  const pointers = new Map(); // active touches or mouse buttons, by pointer id
+  let down = null, pinchDist = 0;
+  const canvasW = () => Math.round(cv.clientWidth);
+  const zoomTo = (factor, px, py) => {
+    const W = canvasW(); if (!W) return;
+    state.view = window.FarGemsLogic.zoomAt(state.view, state.view.zoom * factor, px, py, W);
+    state.dirty = true;
+  };
+  const resetView = () => { state.view = window.FarGemsLogic.resetView(); state.rot = 0; state.dirty = true; };
+  const dist = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) down = { x: e.clientX, y: e.clientY, moved: false };
+    if (pointers.size === 2) { pinchDist = dist(); down = { moved: true }; } // two fingers: pinch, not tap
   });
-  cv.addEventListener('pointerup', e => {
-    if (down && !down.moved) {
+  cv.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    const r = cv.getBoundingClientRect();
+    const prev = { x: p.x, y: p.y };
+    p.x = e.clientX; p.y = e.clientY;
+    if (pointers.size >= 2) {
+      const d = dist();
+      const f = window.FarGemsLogic.pinchFactor(pinchDist, d);
+      const mid = [...pointers.values()].reduce((m, q) => ({ x: m.x + q.x / 2, y: m.y + q.y / 2 }), { x: 0, y: 0 });
+      zoomTo(f, mid.x - r.left, mid.y - r.top);
+      pinchDist = d;
+      return;
+    }
+    if (!down) return;
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    if (Math.abs(e.clientX - down.x) > 6 || Math.abs(e.clientY - down.y) > 6) down.moved = true;
+    if (!down.moved) return;
+    if (state.view.zoom > 1) {
+      // zoomed in: drag pans the view
+      state.view = window.FarGemsLogic.panBy(state.view, dx, dy, canvasW());
+      state.dirty = true;
+    } else if (!state.compass) {
+      // at 1x: drag rotates the sky, as before
+      state.rot = norm360(state.rot + (state.flip ? -1 : 1) * (e.clientX - prev.x) * 0.4);
+      state.dirty = true;
+    }
+  });
+  const endPointer = e => {
+    const wasTap = pointers.size === 1 && down && !down.moved;
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = 0;
+    if (wasTap) {
       const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
       let best = null, bd = 1e9;
       for (const h of state.hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < h.r && d < bd) { best = h; bd = d; } }
       state.sel = best ? best.id : null; state.dirty = true; renderDetail();
     }
-    down = null;
-  });
+    if (pointers.size === 0) down = null;
+  };
+  cv.addEventListener('pointerup', endPointer);
+  cv.addEventListener('pointercancel', endPointer);
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = cv.getBoundingClientRect();
+    zoomTo(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // Buttons: zoom about the centre of the dome, and reset.
+  const centre = () => { const W = canvasW(); return { x: W / 2 + state.view.panX, y: W / 2 + state.view.panY }; };
+  $('#zoomIn').onclick = () => { const c = centre(); zoomTo(1.5, c.x, c.y); };
+  $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
+  $('#zoomReset').onclick = resetView;
   window.addEventListener('resize', () => { state.dirty = true; });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshAircraft(); tick(); } });
 }

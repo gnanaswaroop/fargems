@@ -93,3 +93,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .logo-sm { margin-right: 8px; position: relative; top: -1px; }
 .brand { display: flex; align-items: center; }
 .brand.big { display: block; }
+
+/* ---------- radar zoom controls ---------- */
+.zoombar { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; }
+.zoombar .btn { padding: 6px 10px; font-size: 14px; background: rgba(15,22,38,.85); }
