@@ -1,5 +1,5 @@
-/* FarGems landing: asks for location and compass up front, then opens the sky view.
- * Logic that can be tested lives in lib/onboarding.js. */
+/* FarGems landing: asks for location and compass, then shows the page in its "ready" state.
+ * It also offers to install the app. Decisions live in lib/onboarding.js (tested). */
 (() => {
   'use strict';
   const O = window.FarGemsOnboarding;
@@ -11,7 +11,15 @@
     catch { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; }
   })();
 
-  const els = { allow: $('#allowBtn'), msg: $('#msg'), loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'), form: $('#manualForm'), input: $('#manualLoc') };
+  const els = {
+    allow: $('#allowBtn'), allowAgain: $('#allowAgainBtn'), sample: $('#sampleBtn'), msg: $('#msg'),
+    loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'),
+    form: $('#manualForm'), input: $('#manualLoc'),
+    installCard: $('#installCard'), installText: $('#installText'), installBtn: $('#installBtn'),
+  };
+
+  let attempted = false;   // the visitor has answered the permission prompts this visit
+  let deferredInstall = null;
 
   // Resolve with {lat, lon} or null. Never rejects.
   function requestLocation() {
@@ -25,51 +33,46 @@
     });
   }
 
-  function showOpen(msg) {
-    els.open.hidden = false;
-    els.msg.textContent = msg;
+  // Draw the page from the current state, so every change goes through one place.
+  function render() {
+    const hasLocation = !!O.readLocation(storage);
+    const compass = O.readCompass(storage) || (O.compassNeedsPermission(window) ? null : 'na');
+    const s = O.landingState({ hasLocation, attempted, compass });
+    els.allow.hidden = !s.showAllow;
+    els.allow.disabled = false;
+    els.sample.hidden = !s.showSample;
+    els.allowAgain.hidden = !s.showAllowAgain;
+    els.open.hidden = !s.showOpen;
+    els.form.hidden = !s.showForm;
+    els.loc.textContent = hasLocation ? 'Allowed' : (attempted ? 'Not shared' : 'Not asked yet');
+    els.compass.textContent = s.compassText;
+    if (s.phase === 'ready') els.msg.textContent = 'You are set. Open the sky view to see what is above you.';
+    else if (s.phase === 'manual') els.msg.textContent = 'Enter your coordinates below to continue.';
+    else els.msg.textContent = '';
+    renderInstall();
   }
 
-  function showCompassState(state) {
-    const text = {
-      granted: 'Allowed',
-      denied: 'Not allowed. The sky view still works: drag to rotate.',
-      na: 'Not needed on this device',
-    }[state] || 'Not asked yet';
-    els.compass.textContent = text;
-  }
-
-  // The tap handler must start the compass request synchronously (iOS rejects it otherwise).
-  els.allow.addEventListener('click', () => {
+  // Ask for both permissions. The compass request must start synchronously inside the tap (iOS).
+  function askPermissions() {
+    attempted = true;
     els.allow.disabled = true;
     els.msg.textContent = 'Waiting for your answer…';
-
     const compassP = O.compassNeedsPermission(window)
       ? DeviceOrientationEvent.requestPermission().then((r) => (r === 'granted' ? 'granted' : 'denied'), () => 'denied')
       : Promise.resolve('na');
     const locP = requestLocation();
-
     Promise.all([compassP, locP]).then(([compass, loc]) => {
       O.storeCompass(storage, compass);
-      showCompassState(compass);
-
-      if (loc && O.storeLocation(storage, loc.lat, loc.lon)) {
-        els.loc.textContent = 'Allowed';
-        els.msg.textContent = 'Opening the sky view…';
-        setTimeout(() => { location.href = O.startTarget(storage) || 'viewer.html'; }, 800);
-        els.open.hidden = false;
-        return;
-      }
-      els.loc.textContent = 'Not shared';
-      els.form.hidden = false;
-      els.allow.hidden = true;
-      els.msg.textContent = 'Enter your coordinates below to continue.';
-      els.input.focus();
+      if (loc) O.storeLocation(storage, loc.lat, loc.lon);
+      render();
     });
-  });
+  }
 
-  // Sample location: lets visitors see the sky view without sharing their own position.
-  $('#sampleBtn').addEventListener('click', () => {
+  els.allow.addEventListener('click', askPermissions);
+  els.allowAgain.addEventListener('click', askPermissions);
+
+  // The sample location opens the sky view directly, with no permissions needed.
+  els.sample.addEventListener('click', () => {
     const s = O.SAMPLE_LOCATION;
     if (O.storeLocation(storage, s.lat, s.lon)) location.href = 'viewer.html';
     else els.msg.textContent = 'Could not save the sample location on this device.';
@@ -82,20 +85,30 @@
       els.msg.textContent = 'Use "latitude, longitude", e.g. 22.57, 88.36';
       return;
     }
-    location.href = 'viewer.html';
+    render();
   });
 
-  // On a return visit, show what is already allowed instead of asking again.
-  function init() {
-    const saved = O.readLocation(storage);
-    const savedCompass = O.readCompass(storage);
-    if (saved) els.loc.textContent = 'Allowed';
-    if (savedCompass) showCompassState(savedCompass);
-    else if (!O.compassNeedsPermission(window)) showCompassState('na');
-    if (saved) {
-      els.allow.textContent = 'Allow again';
-      showOpen('Your location is saved on this device.');
-    }
+  // Install: browsers that fire beforeinstallprompt get a button. iOS gets instructions instead.
+  const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; renderInstall(); });
+  window.addEventListener('appinstalled', () => { deferredInstall = null; renderInstall(); });
+
+  function renderInstall() {
+    const mode = O.installMode({ standalone, ios, hasPrompt: !!deferredInstall });
+    els.installCard.hidden = mode === 'hidden' || mode === 'none';
+    els.installBtn.hidden = mode !== 'prompt';
+    if (mode === 'prompt') els.installText.textContent = 'Add FarGems to your home screen for a full-screen app.';
+    if (mode === 'ios') els.installText.textContent = 'On iPhone or iPad: tap Share, then Add to Home Screen.';
   }
-  init();
+
+  els.installBtn.addEventListener('click', async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall = null;
+    renderInstall();
+  });
+
+  render();
 })();
