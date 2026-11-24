@@ -41,9 +41,11 @@ const TLE_GROUPS = ['stations', 'visual'];
 /* ---------- state ---------- */
 const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: false,
-  filters: { air: true, sat: true, sky: true, met: true, star: true },
+  // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
+  filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
   objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
+  sweep: 0, lastT: 0, // radar sweep angle (degrees) and last animation frame time
   passes: [], dirty: true, hits: [], status: {}
 };
 
@@ -238,18 +240,27 @@ function draw() {
   g.addColorStop(1, `rgb(${mix([14, 22, 44], [120, 170, 215], k)})`);
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
   ctx.strokeStyle = 'rgba(160,180,210,.28)'; ctx.lineWidth = 1;
-  for (const el of [0, 30, 60]) { ctx.beginPath(); ctx.arc(cx, cy, (90 - el) / 90 * R, 0, 7); ctx.stroke(); }
+  if (state.filters.grid) for (const el of [0, 30, 60]) { ctx.beginPath(); ctx.arc(cx, cy, (90 - el) / 90 * R, 0, 7); ctx.stroke(); }
   ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(160,180,210,.6)'; ctx.textAlign = 'left';
-  ctx.fillText('30°', cx + 3, cy - (60 / 90) * R + 12); ctx.fillText('60°', cx + 3, cy - (30 / 90) * R + 12);
+  if (state.filters.grid) { ctx.fillText('30°', cx + 3, cy - (60 / 90) * R + 12); ctx.fillText('60°', cx + 3, cy - (30 / 90) * R + 12); }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '600 13px system-ui';
   [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, az]) => {
     const p = P(az, -9); ctx.fillStyle = t === 'N' ? '#ff8a80' : '#aab6cc'; ctx.fillText(t, p.x, p.y);
   });
   ctx.textBaseline = 'alphabetic';
 
+  if (state.filters.radar) { // radar sweep: a fading wedge plus a bright line, turning clockwise
+    for (const s of window.FarGemsLogic.sweepWedge(state.sweep, 60, 24)) {
+      ctx.fillStyle = `rgba(90,209,230,${s.alpha.toFixed(3)})`; ctx.beginPath(); ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, R, (s.from - 90) * D2R, (s.to - 90) * D2R); ctx.closePath(); ctx.fill();
+    }
+    const a = (state.sweep - 90) * D2R;
+    ctx.strokeStyle = 'rgba(90,209,230,.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a)); ctx.stroke();
+  }
   state.hits = [];
   const F = state.filters, sel = state.sel;
-  const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.font = '11px system-ui'; ctx.fillText(o.name, p.x + dx, p.y + dy); };
+  const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { if (!F.labels) return; ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.font = '11px system-ui'; ctx.fillText(o.name, p.x + dx, p.y + dy); };
   const hit = (o, p, r) => state.hits.push({ id: o.id, x: p.x, y: p.y, r: Math.max(r, 14) });
 
   for (const o of state.objs) { // stars
@@ -292,7 +303,17 @@ function draw() {
   const so = sel && state.byId.get(sel);
   if (so && so.el >= -1) { const p = P(so.az, Math.max(0, so.el)); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7); ctx.stroke(); }
 }
-function loop() { if (state.dirty) draw(); requestAnimationFrame(loop); }
+// Animation loop: redraws when something changed, and every frame while the radar sweep is on.
+function loop(t) {
+  const dt = state.lastT ? t - state.lastT : 0;
+  state.lastT = t;
+  if (state.filters.radar) {
+    state.sweep = window.FarGemsLogic.sweepAngle(state.sweep, dt);
+    state.dirty = true;
+  }
+  if (state.dirty) draw();
+  requestAnimationFrame(loop);
+}
 
 /* ---------- UI ---------- */
 function moonName() {
@@ -394,6 +415,12 @@ function renderDetail() {
   } else rows = here;
   el.innerHTML = `<h3>${title}</h3><dl>${rows}</dl>`;
 }
+// Layers panel: one checkbox per layer, in the shared layer list order.
+function renderLayers() {
+  const L = window.FarGemsLogic;
+  $('#layerList').innerHTML = L.LAYER_KEYS.map(k =>
+    `<label class="layer-row"><input type="checkbox" data-layer="${esc(k)}"${state.filters[k] ? ' checked' : ''}> ${esc(L.LAYER_LABELS[k])}</label>`).join('');
+}
 function renderAll() { renderHud(); renderChips(); renderStatus(); renderLists(); renderDetail(); renderPasses(); }
 
 /* ---------- location ---------- */
@@ -454,7 +481,15 @@ function bindUI() {
   $('#compassBtn').onclick = toggleCompass;
   $('#flipBtn').onclick = () => { state.flip = !state.flip; $('#flipBtn').textContent = state.flip ? 'E/W: mirrored' : 'E/W: chart'; state.dirty = true; };
   $('#northBtn').onclick = () => { state.rot = 0; state.dirty = true; };
-  $('#chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { state.filters[b.dataset.f] = !state.filters[b.dataset.f]; state.dirty = true; renderChips(); renderLists(); } };
+  $('#layersBtn').onclick = () => { const p = $('#layersPanel'); p.hidden = !p.hidden; $('#layersBtn').classList.toggle('on', !p.hidden); };
+  $('#layerList').onchange = e => {
+    const k = e.target.dataset.layer;
+    if (!k) return;
+    state.filters = window.FarGemsLogic.toggleLayer(state.filters, k);
+    state.dirty = true; renderChips(); renderLists();
+  };
+  renderLayers();
+  $('#chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { state.filters[b.dataset.f] = !state.filters[b.dataset.f]; state.dirty = true; renderChips(); renderLayers(); renderLists(); } };
   $('#lists').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { state.sel = b.dataset.id; state.dirty = true; renderLists(); renderDetail(); $('#detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } };
   const cv = $('#sky'); let down = null;
   cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture(e.pointerId); });

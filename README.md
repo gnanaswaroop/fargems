@@ -39,7 +39,7 @@ It needs `openssl` on your PATH to create a local certificate once (stored in `t
 
 Choices are stored on the device only (`fg.loc`, `fg.compass`).
 
-## Data sources (all CORS-enabled, no keys)
+## Data sources (no keys)
 
 | Layer | Source | Notes |
 |---|---|---|
@@ -50,6 +50,8 @@ Choices are stored on the device only (`fg.loc`, `fg.compass`).
 | Cloud cover | Open-Meteo | Optional. |
 
 ## Known limits
+
+- **Aircraft feeds are blocked in browsers.** adsb.lol and airplanes.live send no CORS header, and OpenSky allows only its own origin, so a page on fargems.com cannot read them. The app then shows "Aircraft: feed unreachable". Fixing this needs a small proxy that adds the header (for example a Cloudflare Worker).
 
 - **ADS-B coverage:** community feeds have gaps, and military or blocked aircraft may not appear.
 - **Compass accuracy:** typically 5–20° off. The "North up" button plus drag-to-rotate is the fallback.
