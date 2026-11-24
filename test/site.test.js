@@ -213,3 +213,13 @@ test('logo: PNG icons carry no provenance metadata chunks', () => {
     assert.ok(!types.some((t) => /^(tEXt|zTXt|iTXt)$/.test(t)), `${f} has no text chunks`);
   }
 });
+
+test('temperature: the viewer has a unit toggle and requests the temperature', () => {
+  const html = read('viewer.html');
+  assert.match(html, /id="unitBtn"/);
+  const app = read('app.js');
+  assert.match(app, /temperature_2m/, 'Open-Meteo request includes the temperature');
+  assert.match(app, /state\.tempC = j\.current\?\.temperature_2m/);
+  assert.match(app, /FarGemsLogic\.formatTemp\(state\.tempC, state\.unit\)/);
+  assert.match(app, /localStorage\.setItem\('fg\.unit'/, 'the unit choice is remembered');
+});
