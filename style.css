@@ -72,8 +72,10 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .layers h3 { margin: 0 0 4px; font-size: 15px; }
 .layer-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
 @media (max-width: 380px) { .layer-list { grid-template-columns: 1fr; } }
-.layer-row { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
-.layer-row input { width: 16px; height: 16px; accent-color: var(--accent); }
+/* Each layer is one row: a checkbox and its label, left-aligned on one line.
+   The global `input` rule (full-width text box) must not reach these checkboxes. */
+.layer-row { display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: 8px; font-size: 14px; color: var(--text); text-align: left; cursor: pointer; min-height: 28px; }
+.layer-row input[type="checkbox"] { flex: 0 0 auto; width: 16px; height: 16px; min-width: 0; padding: 0; margin: 0; border: 0; background: none; font: inherit; accent-color: var(--accent); }
 
 /* ---------- about section (landing) ---------- */
 .about { text-align: left; margin-top: 24px; }
