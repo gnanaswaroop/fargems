@@ -23,25 +23,40 @@
 </header>
 
 <main>
-  <section class="skywrap">
-    <canvas id="sky" aria-label="Radar view of objects above you"></canvas>
-    <div class="zoombar" role="group" aria-label="Zoom the radar">
-      <button id="zoomIn" class="btn" type="button" aria-label="Zoom in">＋</button>
-      <button id="zoomOut" class="btn" type="button" aria-label="Zoom out">−</button>
-      <button id="zoomReset" class="btn" type="button">Reset view</button>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button id="tabRadar" class="tab on" type="button" role="tab" aria-selected="true">Radar</button>
+    <button id="tabNearby" class="tab" type="button" role="tab" aria-selected="false">Nearby</button>
+  </nav>
+  <div class="pager-view">
+  <div id="pager" class="pager">
+    <div class="page" id="pageRadar">
+    <section class="skywrap">
+      <canvas id="sky" aria-label="Radar view of objects above you"></canvas>
+      <div class="zoombar" role="group" aria-label="Zoom the radar">
+        <button id="zoomIn" class="btn" type="button" aria-label="Zoom in">＋</button>
+        <button id="zoomOut" class="btn" type="button" aria-label="Zoom out">−</button>
+        <button id="zoomReset" class="btn" type="button">Reset view</button>
+      </div>
+      <div id="hud" class="hud"></div>
+    </section>
+
+    <div id="status" class="status" aria-live="polite"></div>
+
+    <section id="noLocation" class="card" hidden>
+      <p>Set your location to see what is overhead.</p>
+      <a class="btn primary wide" href="settings.html">Set location</a>
+    </section>
+
+    <div id="detail" class="card detail" aria-live="polite"></div>
+    <div id="passes" class="card" hidden></div>
     </div>
-    <div id="hud" class="hud"></div>
-  </section>
-
-  <div id="status" class="status" aria-live="polite"></div>
-
-  <section id="noLocation" class="card" hidden>
-    <p>Set your location to see what is overhead.</p>
-    <a class="btn primary wide" href="settings.html">Set location</a>
-  </section>
-
-  <div id="detail" class="card detail" aria-live="polite"></div>
-  <div id="passes" class="card" hidden></div>
+    <div class="page" id="pageNearby">
+      <h2 class="nearby-title">Nearby in the sky</h2>
+      <p class="muted small">Nearest first. Swipe back to the radar, or tap an object to see its details there.</p>
+      <ol id="nearbyList" class="nearby-list"></ol>
+    </div>
+  </div>
+  </div>
 
   <footer class="muted small">
     Aircraft: adsb.lol / airplanes.live / OpenSky · Satellites: CelesTrak · Sky maths: satellite.js, astronomy-engine · Clouds: Open-Meteo.
