@@ -15,61 +15,33 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<!-- Sky view. The landing page at index.html asks for permissions first. -->
+<body class="viewer">
+<!-- Sky view: the radar and the selected object. Settings live on settings.html. -->
 <header>
   <div class="brand"><img class="logo logo-sm" src="icon.svg" alt="FarGems logo" width="34" height="34">Far<b>Gems</b></div>
-  <button id="locBtn" class="pill" type="button" aria-label="Change location">⌖ <span id="locLabel">Set location</span></button>
+  <a class="pill" href="settings.html">Settings</a>
 </header>
 
 <main>
   <section class="skywrap">
-    <canvas id="sky" aria-label="Sky map of objects above you"></canvas>
+    <canvas id="sky" aria-label="Radar view of objects above you"></canvas>
     <div id="hud" class="hud"></div>
   </section>
 
-  <div class="controls">
-    <button id="compassBtn" class="btn" type="button">Compass</button>
-    <button id="flipBtn" class="btn" type="button">E/W: chart</button>
-    <button id="northBtn" class="btn" type="button">North up</button>
-    <button id="unitBtn" class="btn" type="button" aria-label="Switch temperature between Celsius and Fahrenheit">°C</button>
-    <button id="layersBtn" class="btn" type="button" aria-controls="layersPanel">Layers</button>
-  </div>
+  <div id="status" class="status" aria-live="polite"></div>
 
-  <div id="layersPanel" class="card layers" hidden>
-    <h3>Layers</h3>
-    <p class="muted small">Turn map layers on or off. The radar sweep turns clockwise, like a radar screen.</p>
-    <div id="layerList" class="layer-list"></div>
-  </div>
-  <div id="chips" class="chips"></div>
-  <div id="detail" class="card" hidden></div>
+  <section id="noLocation" class="card" hidden>
+    <p>Set your location to see what is overhead.</p>
+    <a class="btn primary wide" href="settings.html">Set location</a>
+  </section>
+
+  <div id="detail" class="card detail" aria-live="polite"></div>
   <div id="passes" class="card" hidden></div>
-  <div id="status" class="status"></div>
-  <div id="lists"></div>
 
-  <footer>
+  <footer class="muted small">
     Aircraft: adsb.lol / airplanes.live / OpenSky · Satellites: CelesTrak · Sky maths: satellite.js, astronomy-engine · Clouds: Open-Meteo.
-    Runs entirely in your browser; your location never leaves your device except as coordinates in data requests.
   </footer>
 </main>
-
-<div id="sheet" class="sheet">
-  <div class="sheet-card">
-    <h2>Where are you?</h2>
-    <p>FarGems needs your position to work out what is overhead.</p>
-    <button id="geoBtn" class="btn primary" type="button">Use my location</button>
-    <form id="manualForm">
-      <label for="manualLoc">…or enter latitude, longitude</label>
-      <div class="row-inline">
-        <input id="manualLoc" inputmode="decimal" autocomplete="off" placeholder="e.g. 22.57, 88.36">
-        <button class="btn" type="submit">Set</button>
-      </div>
-    </form>
-    <button id="closeSheet" class="link" type="button" hidden>Close</button>
-    <p id="sheetMsg" class="muted"></p>
-    <button id="sampleBtn" class="link" type="button">View a sample location instead</button>
-  </div>
-</div>
 
 <div id="toast" class="toast" role="status" hidden></div>
 <noscript><p style="padding:1rem">FarGems needs JavaScript.</p></noscript>
