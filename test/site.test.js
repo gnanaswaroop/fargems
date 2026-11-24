@@ -174,7 +174,9 @@ test('logo: icon.svg is the FarGems logo, transparent, cropped, with no scripts 
   const svg = read('icon.svg');
   assert.match(svg, /<svg[^>]*aria-label="FarGems Logo"/);
   // Transparent: no full-canvas background rectangle.
-  assert.ok(!/<rect[^>]*width="512"[^>]*height="512"/.test(svg), 'no full-canvas background rect');
+  // The mask's own white rectangle is not painted background, so check outside the mask.
+  const outsideMask = svg.replace(/<mask[\s\S]*?<\/mask>/g, '');
+  assert.ok(!/<rect[^>]*width="512"[^>]*height="512"/.test(outsideMask), 'no full-canvas background rect');
   // Cropped: a square viewBox around the artwork, not the old 512 canvas.
   const vb = svg.match(/viewBox="([\d.\s-]+)"/)[1].trim().split(/\s+/).map(Number);
   assert.equal(vb[2], vb[3], 'viewBox is square');
@@ -184,13 +186,12 @@ test('logo: icon.svg is the FarGems logo, transparent, cropped, with no scripts 
   assert.ok(!/(xlink:)?href="https?:/i.test(svg), 'no external references');
 });
 
-test('logo: knock-out discs use the site background colour, so the logo matches the page', () => {
-  const svg = read('icon.svg').toLowerCase();
-  const css = read('style.css');
-  const siteBg = css.match(/--bg:\s*(#[0-9a-f]{6})/i)[1].toLowerCase();
-  assert.ok(!svg.includes('#0e172a'), 'old logo background colour is gone');
-  const discs = [...svg.matchAll(/fill="(#[0-9a-f]{6})"/g)].map((m) => m[1]);
-  assert.ok(discs.includes(siteBg), `discs use the site background ${siteBg}`);
+test('logo: cut-outs are real holes (a mask), so no background colour is painted', () => {
+  const svg = read('icon.svg');
+  // No painted background colour anywhere, so the logo is transparent on any page colour.
+  assert.ok(!/#070b14/i.test(svg), 'no painted background colour');
+  assert.match(svg, /<mask id="cut"/, 'cut-out mask defined');
+  assert.equal((svg.match(/mask="url\(#cut\)"/g) || []).length, 2, 'both diamond outlines use the mask');
 });
 
 test('logo: landing and viewer headers show the logo beside the wordmark', () => {
