@@ -23,14 +23,18 @@ It needs `openssl` on your PATH to create a local certificate once (stored in `t
 
 `.github/workflows/pages.yml` runs the tests and then publishes the site to GitHub Pages on every push to `main`. In repo settings, set Pages → Build and deployment → Source to **GitHub Actions**. `ci.yml` runs the tests on every pull request.
 
-## Deploy to fargems.com (GitHub Pages)
+## Hosting
 
-1. Push these files to the root of `gnanaswaroop/fargems` (branch `main`).
-2. Repo → Settings → Pages → Source: `main` / root. Custom domain: `fargems.com`. Tick "Enforce HTTPS" once the certificate is issued.
-3. At your DNS provider:
-   - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
-   - `CNAME` for `www` → `gnanaswaroop.github.io`
-4. Cloudflare Pages, Netlify and Vercel also work, since the app is only static files.
+FarGems is plain static files, so any static host works: GitHub Pages, Netlify, Cloudflare Pages, Vercel, or your own web server.
+
+With GitHub Pages:
+
+1. Fork or clone the repository.
+2. In Settings → Pages, set Build and deployment → Source to **GitHub Actions**.
+3. Push to `main`. `.github/workflows/pages.yml` runs the tests and publishes the site.
+4. To use your own domain, add it under Settings → Pages → Custom domain, and point its DNS at your Pages site. GitHub explains the DNS records in its Pages documentation.
+
+HTTPS is required for location and compass on phones. GitHub Pages and most static hosts provide it.
 
 ## Pages
 
@@ -51,7 +55,7 @@ Choices are stored on the device only (`fg.loc`, `fg.compass`).
 
 ## Known limits
 
-- **Aircraft feeds are blocked in browsers.** adsb.lol and airplanes.live send no CORS header, and OpenSky allows only its own origin, so a page on fargems.com cannot read them. The app then shows "Aircraft: feed unreachable". Fixing this needs a small proxy that adds the header (for example a Cloudflare Worker).
+- **Aircraft feeds are blocked in browsers.** adsb.lol and airplanes.live send no CORS header, and OpenSky allows only its own origin, so a page on another website cannot read them. The app then shows "Aircraft: feed unreachable". Fixing this needs a small proxy that adds the header (for example a Cloudflare Worker).
 
 - **ADS-B coverage:** community feeds have gaps, and military or blocked aircraft may not appear.
 - **Compass accuracy:** typically 5–20° off. The "North up" button plus drag-to-rotate is the fallback.
