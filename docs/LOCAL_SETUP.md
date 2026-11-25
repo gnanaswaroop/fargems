@@ -39,6 +39,7 @@ location, compass, camera and the service worker only work on a **secure context
 
 The first page is the landing page (`index.html`). It asks for permission and sends you on to the sky view
 (`viewer.html`). If you only want to look around, use "Try a sample location" in the menu at the top right of the landing page.
+The menu also has Settings, About, GitHub and Install app.
 
 > **Stale pages while developing.** The service worker caches the app so it works offline. It fetches your own files
 > network-first, so edits normally show on reload, but if something looks old: DevTools, Application, Service Workers,
@@ -154,7 +155,7 @@ If you put a CDN or Cloudflare zone in front of the site, remember it can keep o
 |---|---|---|
 | `npm test` | everything that can run anywhere (runs in CI on every pull request) | Node |
 | `npm run test:live` | real data at five places: aircraft, sunrise and sunset, Moon, weather, the ISS | internet; `AIRCRAFT_PROXY_URL` for the aircraft part |
-| `npm run test:android` | compass on a real Android (Chrome) emulator with virtual sensors | `adb`, one running emulator with Chrome |
+| `npm run test:android` | compass and camera (AR) view on a real Android (Chrome) emulator with virtual sensors | `adb`, one running emulator with Chrome |
 
 Live data test:
 

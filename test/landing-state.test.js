@@ -41,5 +41,5 @@ test('installMode: hidden when already installed, a prompt when the browser offe
   assert.equal(O.installMode({ standalone: true, ios: false, hasPrompt: true }), 'hidden', 'already installed');
   assert.equal(O.installMode({ standalone: false, ios: false, hasPrompt: true }), 'prompt');
   assert.equal(O.installMode({ standalone: false, ios: true, hasPrompt: false }), 'ios', 'iOS has no install prompt');
-  assert.equal(O.installMode({ standalone: false, ios: false, hasPrompt: false }), 'none', 'nothing to offer yet');
+  assert.equal(O.installMode({ standalone: false, ios: false, hasPrompt: false }), 'manual', 'no browser prompt yet: point to the browser menu');
 });
