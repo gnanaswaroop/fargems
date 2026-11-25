@@ -58,7 +58,7 @@
   });
 
   // Display choices.
-  $('#flipToggle').checked = storage.getItem('fg.flip') === '1';
+  $('#flipToggle').checked = storage.getItem('fg.flip') !== '0';
   $('#flipToggle').addEventListener('change', (e) => storage.setItem('fg.flip', e.target.checked ? '1' : '0'));
   $('#visOnlyToggle').checked = L.parseVisOnly(storage.getItem('fg.visOnly'));
   $('#visOnlyToggle').addEventListener('change', (e) => storage.setItem('fg.visOnly', e.target.checked ? '1' : '0'));
