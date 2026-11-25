@@ -60,6 +60,7 @@ It calls the real providers and keeps answers in memory. Try it:
 http://localhost:8787/aircraft?lat=47.6&lon=-122.3     aircraft around a point
 http://localhost:8787/route?callsign=AIC144            where a flight is going
 http://localhost:8787/tle?group=stations               space station element sets
+http://localhost:8787/locate                           the rough place for your address (only on Cloudflare, empty on a local run)
 http://localhost:8787/status                           which providers are healthy right now
 ```
 
