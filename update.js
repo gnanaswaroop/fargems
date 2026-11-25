@@ -8,7 +8,11 @@
   const current = U.parseBuild((window.FARGEMS_CONFIG || {}).build);
   let shown = false, lastCheck = 0;
 
-  function showBar() {
+  // The build the visitor last reloaded for, kept for the tab session: if the reload did not help, do not ask again.
+  const KEY = 'fg.reloadedFor';
+  function remembered() { try { return sessionStorage.getItem(KEY) || ''; } catch { return ''; } }
+
+  function showBar(latest) {
     if (shown || !document.body) return;
     shown = true;
     const bar = document.createElement('div');
@@ -18,6 +22,7 @@
     const reload = document.createElement('button');
     reload.type = 'button'; reload.className = 'btn primary'; reload.textContent = 'Reload';
     reload.addEventListener('click', () => {
+      try { if (latest) sessionStorage.setItem(KEY, latest); } catch { /* private mode */ }
       const go = () => location.reload();
       try { navigator.serviceWorker.getRegistration().then((r) => (r ? r.update() : null)).then(go, go); } catch { go(); }
     });
@@ -36,7 +41,8 @@
     try {
       const res = await fetch(U.versionUrl(now), { cache: 'no-store' });
       if (!res.ok) return;
-      if (U.isStale(current, (await res.json()).build)) showBar();
+      const latest = (await res.json()).build;
+      if (U.isStale(current, latest) && !U.alreadyTried(remembered(), latest)) showBar(latest);
     } catch { /* offline: try again later */ }
   }
 

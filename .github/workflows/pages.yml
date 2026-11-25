@@ -48,6 +48,9 @@ jobs:
           if [ -n "$PAGES_DOMAIN" ]; then echo "$PAGES_DOMAIN" > _site/CNAME; fi
           # Fill in the address for search engines (canonical links, sitemap) without keeping it in git.
           node scripts/seo.js _site "$PAGES_DOMAIN"
+          # Put the build in the address of every script and stylesheet, so a CDN that keeps old copies cannot serve them
+          # to a page from this build (otherwise the "new version available" bar can stay on after a reload).
+          node scripts/stamp.js _site "$GITHUB_SHA"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
