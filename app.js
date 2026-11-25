@@ -391,13 +391,24 @@ const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced
 function moonName() {
   try { return moonPhaseName(Astronomy.MoonPhase(new Date())); } catch { return 'Moon'; }
 }
+// Writing a container again throws away any text the visitor has selected in it, and the page refreshes itself every two
+// seconds. So a container is only written when its content actually changed, and not while someone is selecting text in it
+// (the next refresh catches up).
+function setHtml(el, html) {
+  if (!el || el.__html === html) return;
+  const sel = window.getSelection && window.getSelection();
+  if (sel && !sel.isCollapsed && sel.rangeCount && el.contains(sel.anchorNode)) return;
+  el.__html = html; el.innerHTML = html;
+}
+const hasSelection = () => { const s = window.getSelection && window.getSelection(); return !!(s && !s.isCollapsed && String(s).trim()); };
+
 function renderHud() {
   const parts = [];
   if (state.sunAlt != null) parts.push(`${sunPhase(state.sunAlt)} · Sun ${Math.round(state.sunAlt)}°`);
   if (state.moonIllum != null) parts.push(`${moonName()} ${Math.round(state.moonIllum * 100)}%`);
   if (state.cloud != null) parts.push(`Cloud ${Math.round(state.cloud)}%`);
   if (state.tempC != null) parts.push(L.formatTemp(state.tempC, state.unit));
-  $('#hud').innerHTML = parts.map(esc).join(' · ');
+  setHtml($('#hud'), parts.map(esc).join(' · '));
 }
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
@@ -406,14 +417,14 @@ function renderStatus() {
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');
-  $('#status').innerHTML = out.join(' ');
+  setHtml($('#status'), out.join(' '));
 }
 function renderPasses() {
   const el = $('#passes');
   if (!state.passes.length) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = '<h3>Next station passes (≥10°)</h3><dl>' + state.passes.map(p =>
-    `<dt>${esc(p.name)}</dt><dd>${esc(fmtDay(p.start))} · max ${Math.round(p.max)}° · ${dir16(p.riseAz)} → ${p.setAz != null ? dir16(p.setAz) : '…'}</dd>`).join('') + '</dl>';
+  setHtml(el, '<h3>Next station passes (≥10°)</h3><dl>' + state.passes.map(p =>
+    `<dt>${esc(p.name)}</dt><dd>${esc(fmtDay(p.start))} · max ${Math.round(p.max)}° · ${dir16(p.riseAz)} → ${p.setAz != null ? dir16(p.setAz) : '…'}</dd>`).join('') + '</dl>');
 }
 function riseSet(name) {
   try {
@@ -446,7 +457,7 @@ function routeText(a) {
 }
 function renderDetail() {
   // The same card shows under the radar and over the camera picture.
-  const put = (h) => { $('#detail').innerHTML = h; $('#arDetail').innerHTML = h; };
+  const put = (h) => { setHtml($('#detail'), h); setHtml($('#arDetail'), h); };
   const o = state.sel && state.byId.get(state.sel);
   if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
@@ -476,7 +487,21 @@ function renderDetail() {
   put(`<h3>${title}</h3><dl>${rows}</dl>`);
 }
 // Nearby list: aircraft, satellites, Sun, Moon, planets and stars, nearest first.
-// Each row gives the distance and where to look (with your heading when the compass is on).
+// Small icons for the nearby list: one per kind of object, drawn to match the radar (amber plane, cyan satellite diamond,
+// the Sun, a crescent Moon, coloured planets, grey stars). They are decoration only: the type is also written in words.
+const NEARBY_ICONS = {
+  air: () => '<svg viewBox="-18 -18 36 36"><g transform="rotate(-45)"><path d="M 15 0 L 5 -2.5 L -4 -14 L -8 -14 L -3 -2.5 L -11 -2 L -14 -6 L -17 -6 L -15 0 L -17 6 L -14 6 L -11 2 L -3 2.5 L -8 14 L -4 14 L 5 2.5 Z" fill="#ffb454"/></g></svg>',
+  sat: () => '<svg viewBox="-18 -18 36 36"><path d="M0 -8 L8 0 L0 8 L-8 0 Z" fill="#5ad1e6"/><path d="M-16 0H-9M9 0H16" stroke="#5ad1e6" stroke-width="2.5" stroke-linecap="round"/></svg>',
+  station: () => '<svg viewBox="-18 -18 36 36"><path d="M0 -8 L8 0 L0 8 L-8 0 Z" fill="#fff"/><path d="M-16 -4V4M-12 -4V4M12 -4V4M16 -4V4M-9 0H9" stroke="#5ad1e6" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  sun: () => '<svg viewBox="-18 -18 36 36"><circle r="6.5" fill="#ffe08a"/><g stroke="#ffe08a" stroke-width="2.6" stroke-linecap="round"><path d="M0 -10V-14M0 10V14M-10 0H-14M10 0H14M7 -7L10 -10M-7 7L-10 10M7 7L10 10M-7 -7L-10 -10"/></g></svg>',
+  moon: (o) => `<svg viewBox="-18 -18 36 36"><path d="M5 -11 A12 12 0 1 0 5 11 A9.5 9.5 0 0 1 5 -11 Z" fill="${esc((o && o.color) || '#e6ecf5')}"/></svg>`,
+  planet: (o) => `<svg viewBox="-18 -18 36 36"><circle r="7" fill="${esc((o && o.color) || '#ffe08a')}"/>${o && o.name === 'Saturn' ? '<ellipse rx="14" ry="4" transform="rotate(-20)" fill="none" stroke="#e6ecf5" stroke-width="2"/>' : ''}</svg>`,
+  star: () => '<svg viewBox="-18 -18 36 36"><path d="M0 -10 L2.9 -3.3 L10 -3.1 L4.4 1.7 L6.2 8.7 L0 4.9 L-6.2 8.7 L-4.4 1.7 L-10 -3.1 L-2.9 -3.3 Z" fill="#aab6cc"/></svg>',
+  met: () => '<svg viewBox="-18 -18 36 36"><circle r="9" fill="none" stroke="#d58cff" stroke-width="2" stroke-dasharray="4 3"/><path d="M-5 0H5M0 -5V5" stroke="#d58cff" stroke-width="2" stroke-linecap="round"/></svg>',
+};
+
+// Each row has an icon for the kind of object, its name and kind, the distance, and where to look (with your heading when
+// the compass is on). Rows are plain text blocks, not buttons, so their text can be selected and copied.
 function renderNearby() {
   const el = $('#nearbyList');
   if (!el) return;
@@ -484,12 +509,15 @@ function renderNearby() {
   const heading = state.compass ? state.heading : null;
   const items = state.objs.filter(o => ['air', 'sat', 'body', 'star'].includes(o.kind) && (o.el >= -1 || o.kind === 'body'));
   const sorted = H.sortNearest(items).slice(0, 60);
-  if (!sorted.length) { el.innerHTML = '<li class="muted">Nothing above the horizon right now.</li>'; return; }
-  el.innerHTML = sorted.map(o =>
-    `<li><button class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" type="button">` +
-    `<span class="nm">${esc(o.name)}</span>` +
-    `<span class="meta">${esc(H.formatDistance(o.distKm))}</span>` +
-    `<span class="where">${esc(H.describeDirection(o.az, o.el, heading))}</span></button></li>`).join('');
+  if (!sorted.length) { setHtml(el, '<li class="muted">Nothing above the horizon right now.</li>'); return; }
+  setHtml(el, sorted.map(o => {
+    const t = H.typeOf(o);
+    return `<li><div class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
+      `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
+      `<span class="nm">${esc(o.name)}</span>` +
+      `<span class="meta">${esc(H.formatDistance(o.distKm))}</span>` +
+      `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}</span></div></li>`;
+  }).join(''));
 }
 function renderAll() { renderHud(); renderStatus(); renderDetail(); renderPasses(); renderNearby(); }
 
@@ -684,11 +712,13 @@ function bindUI() {
   // Tabs and swipes. Swipes that start on the radar are left alone, because dragging there rotates the sky.
   $('#tabRadar').onclick = () => setPage('radar');
   $('#tabNearby').onclick = () => setPage('nearby');
-  $('#nearbyList').onclick = e => {
+  const pickRow = (e) => {
     const b = e.target.closest('[data-id]');
-    if (!b) return;
+    if (!b || hasSelection()) return; // dragging across a row to select its text is not a tap
     state.sel = b.dataset.id; state.dirty = true; renderNearby(); renderDetail(); setPage('radar');
   };
+  $('#nearbyList').onclick = pickRow;
+  $('#nearbyList').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickRow(e); } };
   const pager = $('#pager'); let sw = null;
   pager.addEventListener('pointerdown', e => {
     if (e.target.closest('#sky, .zoombar')) return;
@@ -696,6 +726,7 @@ function bindUI() {
   });
   pager.addEventListener('pointerup', e => {
     if (!sw) return;
+    if (hasSelection()) { sw = null; return; } // a drag that selected text is not a swipe
     const dir = window.FarGemsLogic.swipeDirection(e.clientX - sw.x, e.clientY - sw.y);
     sw = null;
     if (dir === 'left') setPage('nearby');
