@@ -15,6 +15,7 @@ main{max-width:640px;margin:0 auto;padding:0 14px 40px}
 .link{background:none;border:0;color:var(--muted);text-decoration:underline;font:inherit;cursor:pointer;padding:8px 0}
 .skywrap{position:relative}
 #sky{width:100%;aspect-ratio:1;max-width:560px;display:block;margin:0 auto;touch-action:pan-y;border-radius:50%}
+.hud.facing{left:auto;right:0;text-align:right}
 .hud{position:absolute;left:0;top:0;font-size:12px;color:var(--muted);line-height:1.5;pointer-events:none;text-shadow:0 1px 2px #000}
 .controls{display:flex;gap:8px;justify-content:center;margin:10px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
