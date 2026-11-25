@@ -36,6 +36,7 @@
         <button id="zoomIn" class="btn" type="button" aria-label="Zoom in">＋</button>
         <button id="zoomOut" class="btn" type="button" aria-label="Zoom out">−</button>
         <button id="zoomReset" class="btn" type="button">Reset view</button>
+        <button id="arBtn" class="btn" type="button" aria-label="Open the camera view">AR</button>
       </div>
       <div id="hud" class="hud"></div>
     </section>
@@ -63,6 +64,14 @@
   </footer>
 </main>
 
+<!-- AR view: camera picture with objects drawn over it. Opens from the AR button or when the phone is raised. -->
+<div id="ar" class="ar" hidden>
+  <video id="arVideo" class="ar-video" playsinline muted autoplay></video>
+  <canvas id="arCanvas" class="ar-canvas" aria-label="Camera view with sky objects marked"></canvas>
+  <button id="arClose" class="btn ar-close" type="button" aria-label="Close the camera view">✕</button>
+  <div id="arDetail" class="card detail ar-detail" aria-live="polite"></div>
+</div>
+
 <div id="toast" class="toast" role="status" hidden></div>
 <noscript><p style="padding:1rem">FarGems needs JavaScript.</p></noscript>
 
@@ -71,6 +80,8 @@
 <script src="config.js"></script>
 <script src="lib/logic.js"></script>
 <script src="lib/onboarding.js"></script>
+<script src="lib/ar.js"></script>
+<script src="ar-view.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
