@@ -113,3 +113,13 @@ test('the manifest declares round "any" icons and a separate maskable icon, and 
   assert.match(read('.github/workflows/pages.yml'), /icon-maskable-512\.png/);
   assert.match(read('sw.js'), /'icon-maskable-512\.png'/);
 });
+
+test('the sky view keeps its text apart: its own row for the Sun, Moon and facing lines, names placed without colliding, status that can wrap', () => {
+  const app = read('app.js'), css = read('style.css'), html = read('viewer.html');
+  assert.match(html, /<div class="hudrow">\s*<div id="hud" class="hud"><\/div>\s*<div id="facing" class="hud facing" hidden><\/div>\s*<\/div>\s*<section class="skywrap">/, 'above the radar, not on it');
+  assert.doesNotMatch(css, /\.hud\{position:absolute/);
+  assert.match(app, /const placeLabels = \(\) => \{/, 'object names are placed after drawing, most important first');
+  assert.match(app, /labelQ\.sort\(\(a, b\) => a\.prio - b\.prio\)/);
+  assert.match(app, /fixed\.push\(/, 'names keep clear of the ring and compass labels');
+  assert.match(app, /\$\('#status'\)\.innerHTML = out\.join\(' '\)/, 'the status items can wrap onto a new line instead of running off the edge');
+});

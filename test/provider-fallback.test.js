@@ -35,7 +35,7 @@ function router(rules) {
   return { fetchImpl, calls, hits: (needle) => calls.filter((u) => u.includes(needle)).length };
 }
 const OK_AC = { body: '{"ac":[{"hex":"abc123","lat":1,"lon":2}]}' };
-const AC = '/aircraft?lat=17.46&lon=78.33';
+const AC = '/aircraft?lat=17.44&lon=78.38';
 
 test('parseRetryAfter reads seconds and HTTP dates', async () => {
   const { parseRetryAfter } = await W;

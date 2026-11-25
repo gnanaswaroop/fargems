@@ -11,16 +11,16 @@ beforeEach(async () => (await W).resetHealth());
 
 test('cellKey groups nearby points into the same cache cell', async () => {
   const { cellKey } = await W;
-  assert.equal(cellKey(17.46, 78.33, 150), cellKey(17.47, 78.34, 150), 'points in one 0.25 degree cell share a key');
-  assert.notEqual(cellKey(17.46, 78.33, 150), cellKey(17.9, 78.33, 150), 'a point in another cell does not');
-  assert.notEqual(cellKey(17.46, 78.33, 150), cellKey(17.46, 78.33, 100), 'radius is part of the key');
+  assert.equal(cellKey(17.44, 78.38, 150), cellKey(17.45, 78.39, 150), 'points in one 0.25 degree cell share a key');
+  assert.notEqual(cellKey(17.44, 78.38, 150), cellKey(17.9, 78.38, 150), 'a point in another cell does not');
+  assert.notEqual(cellKey(17.44, 78.38, 150), cellKey(17.44, 78.38, 100), 'radius is part of the key');
 });
 
 test('parseQuery accepts valid coordinates and clamps the radius', async () => {
   const { parseQuery } = await W;
-  assert.deepEqual(parseQuery(new URL('https://x/aircraft?lat=17.46&lon=78.33&r=150')), { lat: 17.46, lon: 78.33, r: 150 });
-  assert.equal(parseQuery(new URL('https://x/aircraft?lat=17.46&lon=78.33')).r, 150, 'default radius');
-  assert.equal(parseQuery(new URL('https://x/aircraft?lat=17.46&lon=78.33&r=9999')).r, 250, 'radius is capped');
+  assert.deepEqual(parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38&r=150')), { lat: 17.44, lon: 78.38, r: 150 });
+  assert.equal(parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38')).r, 150, 'default radius');
+  assert.equal(parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38&r=9999')).r, 250, 'radius is capped');
 });
 
 test('parseQuery rejects missing, non-numeric or out-of-range coordinates', async () => {
@@ -68,7 +68,7 @@ test('handle returns the first provider that answers, with CORS and a short cach
   const { handle } = await W;
   const cache = fakeCache();
   const { fetchImpl, calls } = fakeFetch([{ body: '{"ac":[{"hex":"abc123"}]}' }]);
-  const res = await handle(GET('?lat=17.46&lon=78.33&r=150'), ENV, { fetchImpl, cache });
+  const res = await handle(GET('?lat=17.44&lon=78.38&r=150'), ENV, { fetchImpl, cache });
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), 'https://fargems.example');
   assert.match(res.headers.get('Cache-Control'), /max-age=30/);
@@ -79,7 +79,7 @@ test('handle returns the first provider that answers, with CORS and a short cach
 test('handle falls back to the next provider when one fails', async () => {
   const { handle } = await W;
   const { fetchImpl, calls } = fakeFetch([{ status: 429, body: 'slow down' }, { body: '{"ac":[]}' }]);
-  const res = await handle(GET('?lat=17.46&lon=78.33'), ENV, { fetchImpl, cache: fakeCache() });
+  const res = await handle(GET('?lat=17.44&lon=78.38'), ENV, { fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 200);
   assert.match(calls[1].url, /opendata\.adsb\.fi/, 'adsb.fi is the next provider');
 });
@@ -88,9 +88,9 @@ test('handle serves a cached area without calling any provider again', async () 
   const { handle } = await W;
   const cache = fakeCache();
   const first = fakeFetch([{ body: '{"ac":[]}' }]);
-  await handle(GET('?lat=17.46&lon=78.33'), ENV, { fetchImpl: first.fetchImpl, cache });
+  await handle(GET('?lat=17.44&lon=78.38'), ENV, { fetchImpl: first.fetchImpl, cache });
   const second = fakeFetch([]); // would throw if called
-  const res = await handle(GET('?lat=17.47&lon=78.34'), ENV, { fetchImpl: second.fetchImpl, cache });
+  const res = await handle(GET('?lat=17.45&lon=78.39'), ENV, { fetchImpl: second.fetchImpl, cache });
   assert.equal(res.status, 200, 'nearby point is served from the same cell');
   assert.equal(second.calls.length, 0, 'no upstream request for a cached cell');
 });
@@ -98,7 +98,7 @@ test('handle serves a cached area without calling any provider again', async () 
 test('handle identifies the project to providers without a personal contact', async () => {
   const { handle } = await W;
   const { fetchImpl, calls } = fakeFetch([{ body: '{"ac":[]}' }]);
-  await handle(GET('?lat=17.46&lon=78.33'), ENV, { fetchImpl, cache: fakeCache() });
+  await handle(GET('?lat=17.44&lon=78.38'), ENV, { fetchImpl, cache: fakeCache() });
   assert.match(calls[0].ua, /FarGems/);
   assert.match(calls[0].ua, /github\.com\/gnanaswaroop\/fargems/);
   assert.ok(!/@/.test(calls[0].ua), 'no email address in the user agent');
@@ -109,7 +109,7 @@ test('handle returns 400 for bad parameters and 502 when every provider fails', 
   const bad = await handle(GET('?lat=oops&lon=1'), ENV, { fetchImpl: fakeFetch([]).fetchImpl, cache: fakeCache() });
   assert.equal(bad.status, 400);
   const down = fakeFetch([{ status: 500 }, { status: 500 }]);
-  const res = await handle(GET('?lat=17.46&lon=78.33'), ENV, { fetchImpl: down.fetchImpl, cache: fakeCache() });
+  const res = await handle(GET('?lat=17.44&lon=78.38'), ENV, { fetchImpl: down.fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 502);
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), 'https://fargems.example', 'errors still carry CORS so the page can read them');
 });
