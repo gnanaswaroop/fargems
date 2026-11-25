@@ -107,7 +107,7 @@ export function parseRetryAfter(value, now = Date.now()) {
   return Number.isFinite(t) ? Math.max(0, (t - now) / 1000) : null;
 }
 
-// How long to leave a provider alone after a failure. `fails` counts failures in a row, including this one.
+// How long to leave a provider alone after a failure. "fails" counts failures in a row, including this one.
 export function cooldownMs(failure, fails) {
   const s = failure.status;
   if (s === 401 || s === 403) return 3600e3;                                  // blocked: do not keep knocking
@@ -146,7 +146,7 @@ async function attempt(fetchImpl, url, { timeoutMs = PROVIDER_TIMEOUT_MS, now = 
 /* ---------- the provider chain ---------- */
 
 // providers: [{ name, get(args, ctx) -> { ok, body, ... } | { ok: false, ... }, isEmpty?(body) }]
-// Returns { ok: true, body, provider, tried } or { ok: false, tried }. `tried` lists what happened with each provider.
+// Returns { ok: true, body, provider, tried } or { ok: false, tried }. "tried" lists what happened with each provider.
 export async function runProviders(providers, args, { fetchImpl, health = sharedHealth, now = Date.now, timeoutMs = PROVIDER_TIMEOUT_MS } = {}) {
   const tried = [];
   const t0 = now();
@@ -202,7 +202,7 @@ function openSkyUrl(lat, lon, r) {
   return 'https://opensky-network.org/api/states/all?lamin=' + f(Math.max(-90, la - dLat)) + '&lomin=' + f(lo - dLon) + '&lamax=' + f(Math.min(90, la + dLat)) + '&lomax=' + f(lo + dLon);
 }
 
-// A provider that is one URL whose text is turned into the answer by `parse`.
+// A provider that is one URL whose text is turned into the answer by "parse".
 function urlProvider(name, urlFor, parse, extra = {}) {
   return {
     name,
