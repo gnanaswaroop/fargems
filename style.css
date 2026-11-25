@@ -72,8 +72,13 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .about-link a,.back a{color:var(--accent)}
 .back{margin:0 0 6px;font-size:14px}
 .tagline{text-align:center;margin:0 0 4px;font-size:18px;font-weight:500;color:var(--text)}
-.topnav{display:flex;justify-content:flex-end;gap:16px;font-size:14px;margin:0 0 4px}
-.topnav a,.foot a{color:var(--muted)}
+.foot a{color:var(--muted)}
+.menu{position:relative;display:flex;justify-content:flex-end;margin:0 0 4px}
+.menu-btn{width:40px;height:36px;padding:0;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:22px;line-height:1;cursor:pointer}
+.menu-btn[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.menu-list{position:absolute;right:0;top:calc(100% + 4px);z-index:5;margin:0;padding:6px;list-style:none;min-width:140px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.menu-list a{display:block;padding:10px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:15px}
+.menu-list a:hover,.menu-list a:focus-visible{background:rgba(90,209,230,.12);color:var(--accent);outline:none}
 .foot{text-align:center;margin:18px 0 0;font-size:13px;color:var(--muted)}
 .hero{display:block;width:min(78vw,260px);height:auto;margin:10px auto 6px;filter:drop-shadow(0 0 22px rgba(90,209,230,.18))}
 .hero-sweep{transform-origin:120px 120px;animation:hero-spin 7s linear infinite}
@@ -154,3 +159,62 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .ar-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
 .ar-detail { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); max-height: 38vh; overflow: auto; background: rgba(7, 11, 20, .85); }
 body.ar-on { overflow: hidden; }
+
+/* ---------- compact home page: the main actions fit on one phone screen ---------- */
+.landing .welcome{padding:8px 16px 20px;font-size:14px}
+.top{display:flex;align-items:center;justify-content:space-between;margin:0 0 4px}
+.top .brand{font-size:24px}
+.logo-md{margin-right:8px}
+.top .menu{margin:0}
+.landing .tagline{font-size:16px;margin:2px 0 8px}
+.hero-row{display:flex;align-items:center;gap:14px;margin:0 0 10px}
+.hero-row .hero{width:112px;flex:none;margin:0}
+.hero-row .lead{margin:0;text-align:left;font-size:13.5px;line-height:1.4}
+.landing .card{padding:12px}
+.landing .perms h2{font-size:15px;margin:0 0 6px}
+.landing .perm-list{gap:6px;margin:0 0 10px}
+.landing .perm-list li{gap:0 10px}
+.landing .perm-why{font-size:12px}
+.landing .btn.primary{padding:9px 14px}
+.landing .btn.wide{margin-top:6px}
+.landing a.btn.go{margin:10px 0 6px}
+.landing .link{padding:4px 0;font-size:13px}
+.landing .muted.small{font-size:12px;margin:6px 0}
+.landing .peek{grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0 0}
+.landing .peek-item{padding:8px 4px;text-align:center;justify-items:center;gap:2px}
+.landing .peek-item b{font-size:11.5px;line-height:1.2}
+.landing .peek-icon{font-size:20px}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.landing .steps{margin:14px 0 0}
+.landing .steps h2{font-size:15px;margin:0 0 6px}
+.landing .steps ol{gap:6px}
+.landing .steps li{font-size:12.5px;line-height:1.35;padding-left:32px}
+.landing .steps li::before{width:22px;height:22px;font-size:12px}
+.landing .about-link{margin:12px 0 0;font-size:13px}
+.landing .foot{margin:8px 0 0;font-size:12px}
+.landing .install h2{font-size:15px}
+.landing .install{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;margin-top:8px}
+.landing .install h2{margin:0;grid-column:1}
+.landing .install p{margin:0;grid-column:1;font-size:12px}
+.landing .install .btn{grid-column:2;grid-row:1 / span 2;width:auto;margin:0;padding:8px 12px;white-space:nowrap}
+.landing .steps summary{cursor:pointer;font-weight:600;font-size:15px;padding:6px 0;list-style-position:inside}
+.landing .steps[open] summary{margin-bottom:6px}
+.landing .steps h2{display:none}
+.hero-row .hero{width:96px}
+.landing .perm-list li{align-items:baseline}
+.landing .welcome > p.muted.small{font-size:11.5px;line-height:1.35}
+.landing .perm-state{grid-row:1;grid-column:2}
+.landing .perm-why{grid-row:2}
+
+/* ---------- very simple home page ---------- */
+.hero-link{display:block;flex:none;border-radius:50%;-webkit-tap-highlight-color:transparent}
+.hero-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.hero-row .hero{width:72px}
+.menu-list li{display:block}
+.menu-list li[hidden],.menu-list button[hidden]{display:none}
+.menu-item{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:8px;background:none;color:var(--text);font:inherit;font-size:15px;cursor:pointer}
+.menu-item:hover,.menu-item:focus-visible{background:rgba(90,209,230,.12);color:var(--accent);outline:none}
+.landing a.btn.go{padding:13px 16px;font-size:17px;margin:12px 0 8px}
+.landing .privacy-note{margin:8px 0 0}
+.landing .steps{margin:6px 0 0}
+.menu-list{white-space:nowrap}

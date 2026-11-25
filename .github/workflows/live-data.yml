@@ -1,0 +1,28 @@
+# Checks the real data feeds the app depends on, at several places in the world: aircraft (through the proxy),
+# sunrise and sunset, the Moon, weather, and the ISS. It runs every day and on demand.
+# It is separate from CI on purpose: public feeds change by the minute and sometimes go down, so a bad day for a
+# feed must never block a pull request. A failed run is the signal to look. A feed that is simply down is skipped.
+name: Live data
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check the live feeds
+        env:
+          # The same repository variable the site is built with. Without it the aircraft checks are skipped.
+          AIRCRAFT_PROXY_URL: ${{ vars.AIRCRAFT_PROXY_URL }}
+        run: npm run test:live
