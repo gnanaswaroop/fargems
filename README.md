@@ -19,6 +19,16 @@ npm run serve:https -- 9443  # custom port
 
 It needs `openssl` on your PATH to create a local certificate once (stored in `tmp/certs`, which git ignores).
 
+### Live data check
+
+`npm test` never touches the network. A separate check looks at the real data the app depends on, in Seattle, New York, London, Hyderabad and Sydney: aircraft (through the proxy), sunrise and sunset against an independent service, the Moon's phase, weather, and the ISS.
+
+```
+AIRCRAFT_PROXY_URL=<the proxy address the site is built with> npm run test:live
+```
+
+It runs every day and on demand in GitHub Actions (the Live data workflow, using the repository variable `AIRCRAFT_PROXY_URL`). It is kept apart from CI on purpose: a feed having a bad day must never block a pull request. A feed that is down is skipped with the reason; a feed that answers with wrong-looking data fails the run.
+
 ## Deployment
 
 `.github/workflows/pages.yml` runs the tests and then publishes the site to GitHub Pages on every push to `main`. In repo settings, set Pages → Build and deployment → Source to **GitHub Actions**. `ci.yml` runs the tests on every pull request.
