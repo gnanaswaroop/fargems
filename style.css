@@ -279,20 +279,22 @@ a.brand{color:inherit;text-decoration:none}
   .landing .hero-row .hero { width: min(34vw, 40dvh, 300px); }
   .landing .actions .card { margin-bottom: 10px; }
 
-  /* sky view: the radar on the left, the selected object beside it, the nearby list on the right; no tabs, no swiping */
+  /* sky view: the radar on the left; on the right the selected object, the station passes and, below them, the nearby list
+     filling the rest of the height (it is moved into this column by app.js); no tabs, no swiping */
   body.viewer { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
   body.viewer header, body.viewer main { max-width: 1320px; width: 100%; }
   body.viewer main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 10px; }
   body.viewer .tabs, body.viewer main > footer { display: none; }
   body.viewer .pager-view { flex: 1; min-height: 0; overflow: visible; }
-  body.viewer .pager { width: 100%; height: 100%; transform: none !important; transition: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); column-gap: 16px; }
+  body.viewer .pager { width: 100%; height: 100%; transform: none !important; transition: none; display: block; }
   body.viewer .page { width: auto; min-height: 0; }
-  body.viewer .pager:not(.nearby) #pageNearby, body.viewer .pager.nearby #pageRadar { max-height: none; visibility: visible; }
-  body.viewer #pageRadar { overflow: visible; }
-  body.viewer #pageRadar { --rs: min(calc(100dvh - 215px), 640px, calc(100vw - 600px)); display: grid; grid-template-columns: var(--rs) minmax(200px, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 16px; align-content: start; }
+  body.viewer .pager.nearby #pageRadar { max-height: none; visibility: visible; }
+  body.viewer #pageRadar { overflow: visible; height: 100%; }
+  body.viewer #pageRadar { --rs: min(calc(100dvh - 215px), 640px, calc(100vw - 420px)); display: grid; grid-template-columns: var(--rs) minmax(260px, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 16px; align-content: start; }
   body.viewer #pageRadar > .hudrow, body.viewer #pageRadar > .skywrap, body.viewer #pageRadar > .status, body.viewer #pageRadar > #noLocation { grid-column: 1; }
-  body.viewer #pageRadar > .side { grid-column: 2; grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
+  body.viewer #pageRadar > .side { grid-column: 2; grid-row: 1 / -1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  body.viewer .side > #detail, body.viewer .side > #passes { flex: none; margin: 0; }
   body.viewer #sky { max-width: var(--rs); }
-  body.viewer #pageNearby { overflow-y: auto; }
+  body.viewer .side > #pageNearby { flex: 1; min-height: 0; width: auto; overflow-y: auto; max-height: none; visibility: visible; }
   body.viewer #pageNearby .nearby-title { margin-top: 0; }
 }

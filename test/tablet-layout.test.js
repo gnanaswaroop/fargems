@@ -24,9 +24,10 @@ test('landscape tablets: the sky view puts radar, details and the nearby list si
   assert.match(css, /body\.viewer \{ height: 100dvh; overflow: hidden;/);
   assert.match(css, /body\.viewer \.tabs, body\.viewer main > footer \{ display: none; \}/, 'no tabs: both lists are shown');
   assert.match(css, /transform: none !important/, 'no swiping between pages');
-  assert.match(css, /--rs: min\(calc\(100dvh - 215px\), 640px, calc\(100vw - 600px\)\)/, 'the radar is sized by the screen height, and leaves room for the columns beside it');
-  assert.match(css, /#pageRadar > \.side \{ grid-column: 2; grid-row: 1 \/ -1;[^}]*overflow-y: auto/);
-  assert.match(css, /body\.viewer #pageNearby \{ overflow-y: auto; \}/, 'a long list scrolls inside its column');
+  assert.match(css, /--rs: min\(calc\(100dvh - 215px\), 640px, calc\(100vw - 420px\)\)/, 'the radar is sized by the screen height, and leaves room for the column beside it');
+  assert.match(css, /#pageRadar > \.side \{ grid-column: 2; grid-row: 1 \/ -1;[^}]*display: flex; flex-direction: column/, 'one column beside the radar');
+  assert.match(css, /body\.viewer \.side > #pageNearby \{ flex: 1; min-height: 0;[^}]*overflow-y: auto/, 'the nearby list fills the rest of the column and scrolls inside it');
+  assert.match(read('app.js'), /const placeNearby = \(\) => \{ const to = wide\.matches \? document\.querySelector\('\.side'\) : \$\('#pager'\)/, 'the nearby list moves under the details on a wide screen');
   const side = html.match(/<div class="side">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="page" id="pageNearby">/);
   assert.ok(side && side[1].includes('id="detail"') && side[1].includes('id="passes"'), 'detail and passes sit in the side column');
 });
