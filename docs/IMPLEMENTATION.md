@@ -409,6 +409,7 @@ file a page loads is in the precache list.
 | Local proxy | `test/dev-worker.test.js` | every pull request |
 | Pages, links, service worker list, SEO tags, landing page structure | `test/site.test.js`, `test/seo.test.js`, `test/landing-page.test.js` | every pull request |
 | Camera view on an Android emulator (compass starts by itself, the AR button keeps the view open, raising the phone opens it, laying it flat closes it) | `e2e/android/ar.e2e.js` (`npm run test:android`) | by hand, with an emulator |
+| The app in Safari's engine (WebKit) with an iPhone profile: the motion permission asked inside the tap, `webkitCompassHeading` turned into a true heading, iPhone install steps, camera view and layout | `e2e/ios/safari.e2e.js` (`npm run test:ios`) | every pull request, in the `iOS Safari (WebKit)` workflow |
 | Real data at five places | `e2e/live/live-data.e2e.js` (`npm run test:live`) | daily on GitHub, and by hand |
 | Compass on an Android emulator with virtual sensors | `e2e/android/compass.e2e.js` (`npm run test:android`) | by hand, with an emulator |
 
@@ -417,6 +418,8 @@ heading, then reads the "Facing" line the app shows and checks it equals the mag
 place the app was told it is in.
 
 ## 13. Known limits
+
+- **No real iPhone in the tests.** The iOS test runs Safari's engine on a desktop with an iPhone profile. It adds the iPhone-only motion permission and `webkitCompassHeading` the way iOS provides them, so it checks the app's iPhone logic and layout, but not the real compass, the real camera, or the way iOS treats a home-screen app. Those need a real iPhone.
 
 - **The camera view has not been run on a real phone.** It is covered by maths tests and the emulator, but the iPhone
   heading (`webkitCompassHeading` while the phone is upright), the assumed 63° field of view, and ignoring phone roll are
