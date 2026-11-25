@@ -130,8 +130,9 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .brand.big { display: block; }
 
 /* ---------- radar zoom controls ---------- */
-.zoombar { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; }
-.zoombar .btn { padding: 6px 10px; font-size: 14px; background: rgba(15,22,38,.85); }
+/* The radar controls sit in a row just under the radar, so they never cover it. */
+.zoombar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0 0; }
+.zoombar .btn { padding: 8px 14px; font-size: 14px; background: var(--card); }
 
 /* ---------- radar and nearby pages ---------- */
 .tabs { display: flex; gap: 8px; margin: 8px 0; }
@@ -142,11 +143,17 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .page { width: 50%; flex: none; min-width: 0; }
 .nearby-title { font-size: 17px; margin: 8px 0 4px; }
 .nearby-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
-.nearby-row { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; text-align: left; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; cursor: pointer; }
+.nearby-row { width: 100%; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 2px 10px; user-select: text; -webkit-user-select: text; text-align: left; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; cursor: pointer; }
 .nearby-row.sel { border-color: var(--accent); }
 .nearby-row .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nearby-row .meta { color: var(--muted); font-size: 13px; text-align: right; white-space: nowrap; }
-.nearby-row .where { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
+.nearby-row .where { grid-column: 2 / -1; color: var(--muted); font-size: 13px; }
+.nearby-row .ico { grid-row: 1 / span 2; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.04); }
+.nearby-row .ico svg { width: 24px; height: 24px; }
+.nearby-row .tag { display: inline-block; padding: 0 7px; margin-right: 4px; border-radius: 999px; border: 1px solid var(--line); font-size: 11px; color: var(--text); }
+.nearby-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* the sky view's text can be selected and copied */
+#detail, #status, #hud, .nearby-list, #passes { user-select: text; -webkit-user-select: text; }
 
 
 /* the two pages slide inside this box, so the off-screen page is clipped at the content edge */
