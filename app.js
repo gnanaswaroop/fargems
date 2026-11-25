@@ -460,7 +460,12 @@ function routeText(a) {
 function renderDetail() {
   // The same card shows under the radar and over the camera picture.
   const put = (h) => { setHtml($('#detail'), h); setHtml($('#arDetail'), h); };
-  const o = state.sel && state.byId.get(state.sel);
+  const H = window.FarGemsLogic;
+  let o = state.sel && state.byId.get(state.sel), nearest = false;
+  if (!o) { // nothing picked: show the nearest flight or satellite above the horizon
+    o = H.sortNearest(state.objs.filter(x => (x.kind === 'air' || x.kind === 'sat') && x.el >= 0))[0];
+    nearest = !!o;
+  }
   if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '';
@@ -468,16 +473,13 @@ function renderDetail() {
   if (o.kind === 'air') {
     const a = o.ac;
     title += a.type ? ` <small class="muted">${esc(a.type)}</small>` : '';
-    rows = here + kv('Altitude', `${Math.round(o.altFt).toLocaleString()} ft (FL${String(Math.round(o.altFt / 100)).padStart(3, '0')})`)
-      + kv('Speed', `${Math.round(a.gs)} kt · ${Math.round(a.gs * 1.852)} km/h`) + kv('Heading', `${Math.round(a.track)}° ${dir16(a.track)}`)
-      + kv('Vertical', a.vr ? `${a.vr > 0 ? '+' : ''}${Math.round(a.vr)} ft/min` : 'level') + kv('Distance', `${Math.round(o.range)} km`)
-      + kv('Flying to', routeText(a))
-      + kv('Registration', esc(a.reg)) + kv('ICAO hex', esc(a.id.toUpperCase()))
+    rows = kv('Flying to', routeText(a)) + here + kv('Altitude', `${Math.round(o.altFt).toLocaleString()} ft`)
+      + kv('Speed', `${Math.round(a.gs * 1.852)} km/h`) + kv('Distance', `${Math.round(o.range)} km`)
       + (a.call ? kv('Track', `<a href="https://www.flightaware.com/live/flight/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">FlightAware ↗</a>`) : '');
   } else if (o.kind === 'sat') {
-    rows = here + kv('Altitude', `${Math.round(o.altKm)} km`) + kv('Speed', `${o.speed.toFixed(2)} km/s`) + kv('Distance', `${Math.round(o.range)} km`)
-      + kv('Lighting', o.visible ? 'Sunlit against a dark sky — visible to the eye' : o.sunlit ? 'Sunlit, but the sky is too bright' : 'In Earth’s shadow')
-      + kv('NORAD ID', o.norad) + kv('More', `<a href="https://www.n2yo.com/satellite/?s=${o.norad}" target="_blank" rel="noopener">N2YO ↗</a>`);
+    rows = here + kv('Altitude', `${Math.round(o.altKm)} km`) + kv('Distance', `${Math.round(o.range)} km`)
+      + kv('Lighting', o.visible ? 'Sunlit, visible to the eye' : o.sunlit ? 'Sunlit, but the sky is too bright' : 'In Earth’s shadow')
+      + kv('More', `<a href="https://www.n2yo.com/satellite/?s=${o.norad}" target="_blank" rel="noopener">N2YO ↗</a>`);
   } else if (o.kind === 'body') {
     rows = here + kv('Magnitude', o.mag != null ? o.mag.toFixed(1) : null) + kv('Illuminated', o.phase != null && o.name !== 'Sun' ? Math.round(o.phase * 100) + '%' : null) + kv('Today', riseSet(o.name));
   } else if (o.kind === 'met') {
@@ -486,7 +488,30 @@ function renderDetail() {
       + kv('Moon', state.moonIllum != null ? `${Math.round(state.moonIllum * 100)}% lit — a bright Moon hides faint meteors` : null)
       + kv('Tip', 'Look about 40° away from the radiant, dark site, no phone light.');
   } else rows = here;
-  put(`<h3>${title}</h3><dl>${rows}</dl>`);
+  // A Wikipedia page, when there is one: the link at once, the opening of the article when it has arrived.
+  const wt = H.wikiTitle(o), wk = wt && wikiInfo(wt);
+  const link = wt && !(wk && wk.miss) ? `<a class="wiki" href="${H.wikiUrl(wt)}" target="_blank" rel="noopener">Read about ${esc(wt.replace(/ \(.*\)$/, ''))} on Wikipedia ↗</a>` : '';
+  const lead = nearest ? `<p class="muted small">Nearest ${o.kind === 'air' ? 'flight' : 'satellite'}. Tap anything else on the radar to switch.</p>` : '';
+  const blurb = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
+  const more = link ? `<p class="wikirow">${link}</p>` : '';
+  setHtml($('#detail'), `<h3>${title}</h3>${lead}<dl>${rows}</dl>${blurb}${more}`);
+  setHtml($('#arDetail'), `<h3>${title}</h3><dl>${rows}</dl>${more}`);
+}
+
+// What Wikipedia says about an article, fetched once the first time an object is looked at. An article that does not exist
+// is remembered as a miss, so its link goes away. The page works without it: the link is shown while the answer is awaited.
+const wikiCache = new Map();
+function wikiInfo(title) {
+  const hit = wikiCache.get(title);
+  if (hit) return hit.info;
+  const entry = { info: null };
+  wikiCache.set(title, entry);
+  fetch(window.FarGemsLogic.wikiSummaryUrl(title), { headers: { Accept: 'application/json' } })
+    .then(r => (r.ok ? r.json() : Promise.reject(new Error('missing'))))
+    .then(j => { entry.info = j && j.type === 'standard' ? { extract: j.extract } : { miss: true }; })
+    .catch(e => { if (e && e.message === 'missing') entry.info = { miss: true }; else wikiCache.delete(title); }) // offline: ask again later
+    .finally(() => { if (entry.info) renderDetail(); });
+  return null;
 }
 // Nearby list: aircraft, satellites, Sun, Moon, planets and stars, nearest first.
 // Small icons for the nearby list: one per kind of object, drawn to match the radar (amber plane, cyan satellite diamond,
@@ -512,13 +537,14 @@ function renderNearby() {
   const items = state.objs.filter(o => ['air', 'sat', 'body', 'star'].includes(o.kind) && (o.el >= -1 || o.kind === 'body'));
   const sorted = H.sortNearest(items).slice(0, 60);
   if (!sorted.length) { setHtml(el, '<li class="muted">Nothing above the horizon right now.</li>'); return; }
+  const wikiTitle = (o) => H.wikiTitle(o);
   setHtml(el, sorted.map(o => {
     const t = H.typeOf(o);
     return `<li><div class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
       `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
       `<span class="nm">${esc(o.name)}</span>` +
       `<span class="meta">${esc(H.formatDistance(o.distKm))}</span>` +
-      `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}</span></div></li>`;
+      `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}${wikiTitle(o) ? ` <a class="wiki" href="${H.wikiUrl(wikiTitle(o))}" target="_blank" rel="noopener" aria-label="${esc(o.name)} on Wikipedia">Wikipedia ↗</a>` : ''}</span></div></li>`;
   }).join(''));
 }
 function renderAll() { renderHud(); renderStatus(); renderDetail(); renderPasses(); renderNearby(); }
@@ -718,7 +744,7 @@ function bindUI() {
   $('#tabNearby').onclick = () => setPage('nearby');
   const pickRow = (e) => {
     const b = e.target.closest('[data-id]');
-    if (!b || hasSelection()) return; // dragging across a row to select its text is not a tap
+    if (!b || e.target.closest('a') || hasSelection()) return; // a link opens its page; dragging across a row to select its text is not a tap
     state.sel = b.dataset.id; state.dirty = true; renderNearby(); renderDetail(); setPage('radar');
   };
   $('#nearbyList').onclick = pickRow;

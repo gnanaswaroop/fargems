@@ -51,7 +51,7 @@ test('the page does not throw away selected text: unchanged content is not rewri
   assert.match(app, /!sel\.isCollapsed && sel\.rangeCount && el\.contains\(sel\.anchorNode\)\) return;/);
   for (const re of [/setHtml\(\$\('#hud'\)/, /setHtml\(\$\('#status'\)/, /setHtml\(\$\('#detail'\)/, /setHtml\(el, '<h3>Next station passes/, /setHtml\(el, sorted\.map/]) assert.match(app, re);
   assert.doesNotMatch(app, /\$\('#(hud|status|detail|arDetail)'\)\.innerHTML = (?!'<span class="bad">)/, 'no direct rewrites of the refreshed containers');
-  assert.match(app, /if \(!b \|\| hasSelection\(\)\) return;/, 'selecting across a row is not a tap');
+  assert.match(app, /if \(!b \|\| e\.target\.closest\('a'\) \|\| hasSelection\(\)\) return;/, 'a link is not a tap on the row, and selecting across a row is not a tap either');
   assert.match(app, /if \(hasSelection\(\)\) \{ sw = null; return; \}/, 'a drag that selected text is not a swipe');
 });
 
