@@ -21,7 +21,17 @@
     loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'),
     form: $('#manualForm'), input: $('#manualLoc'),
     installCard: $('#installCard'), installText: $('#installText'), installBtn: $('#installBtn'),
+    menuBtn: $('#menuBtn'), menuList: $('#menuList'),
   };
+
+  // The "..." menu at the top right (About, GitHub). Closes on a tap elsewhere, on Escape, and when a link is used.
+  function setMenu(open) {
+    els.menuList.hidden = !open;
+    els.menuBtn.setAttribute('aria-expanded', String(open));
+  }
+  els.menuBtn.addEventListener('click', (e) => { e.stopPropagation(); setMenu(els.menuList.hidden); });
+  document.addEventListener('click', (e) => { if (!els.menuList.hidden && !els.menuList.contains(e.target)) setMenu(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !els.menuList.hidden) { setMenu(false); els.menuBtn.focus(); } });
 
   let attempted = false;   // the visitor has answered the permission prompts this visit
   let deferredInstall = null;

@@ -71,8 +71,13 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .about-link a,.back a{color:var(--accent)}
 .back{margin:0 0 6px;font-size:14px}
 .tagline{text-align:center;margin:0 0 4px;font-size:18px;font-weight:500;color:var(--text)}
-.topnav{display:flex;justify-content:flex-end;gap:16px;font-size:14px;margin:0 0 4px}
-.topnav a,.foot a{color:var(--muted)}
+.foot a{color:var(--muted)}
+.menu{position:relative;display:flex;justify-content:flex-end;margin:0 0 4px}
+.menu-btn{width:40px;height:36px;padding:0;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:22px;line-height:1;cursor:pointer}
+.menu-btn[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.menu-list{position:absolute;right:0;top:calc(100% + 4px);z-index:5;margin:0;padding:6px;list-style:none;min-width:140px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.menu-list a{display:block;padding:10px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-size:15px}
+.menu-list a:hover,.menu-list a:focus-visible{background:rgba(90,209,230,.12);color:var(--accent);outline:none}
 .foot{text-align:center;margin:18px 0 0;font-size:13px;color:var(--muted)}
 .hero{display:block;width:min(78vw,260px);height:auto;margin:10px auto 6px;filter:drop-shadow(0 0 22px rgba(90,209,230,.18))}
 .hero-sweep{transform-origin:120px 120px;animation:hero-spin 7s linear infinite}
