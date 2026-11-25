@@ -48,7 +48,7 @@ test('after permission is given the visitor goes straight to the sky view', () =
 test('the home page title and description are worth clicking, and the permission text is kept out of snippets', () => {
   const html = read('index.html');
   const title = html.match(/<title>([^<]+)/)[1];
-  assert.equal(title, 'FarGems: Live Sky Map of Planes, ISS, Satellites and Planets');
+  assert.equal(title, 'FarGems: Augmented Reality Sky Map of Planes, ISS and Satellites');
   assert.doesNotMatch(title, /allow|permission|compass/i);
   assert.ok(title.length <= 70);
   for (const tag of ['og:title', 'twitter:title']) assert.ok(html.includes(`"${tag}" content="${title}"`) || html.includes(`property="${tag}" content="${title}"`), tag);
@@ -60,4 +60,20 @@ test('the radar letters N, E, S and W sit a fixed distance outside the rim, so a
   const app = read('app.js');
   assert.match(app, /rl = R \+ 14, p = \{ x: cx \+ sgn \* rl \* Math\.sin\(th\)/);
   assert.doesNotMatch(app, /P\(az, -9\)/);
+});
+
+test('augmented reality is named where a search would find it: title, description, headline text, FAQ and structured data', () => {
+  const home = read('index.html'), about = read('about.html');
+  assert.match(home.match(/<title>([^<]+)/)[1], /Augmented Reality/);
+  assert.match(home.match(/name="description" content="([^"]+)"/)[1], /augmented reality/);
+  assert.match(home.match(/<p class="lead">([^<]+)/)[1], /augmented reality/);
+  assert.match(home, /"featureList": \[[^\]]*Augmented reality camera view/);
+  assert.match(about, /<dt>What is the AR view\?<\/dt><dd>Augmented reality shows/);
+  assert.match(about, /"name": "What is the AR view\?"/, 'the structured data carries the same question');
+  assert.match(about.match(/<h1[^>]*>[\s\S]*?<\/p>/)[0], /augmented reality \(AR\)/);
+});
+
+test('an iPad that reports itself as a Mac (iPadOS Safari) is still treated as an iPad for the install steps', () => {
+  const js = read('landing.js');
+  assert.match(js, /const ios = \/iphone\|ipad\|ipod\/i\.test\(navigator\.userAgent\) \|\| \(navigator\.platform === 'MacIntel' && navigator\.maxTouchPoints > 1\);/);
 });

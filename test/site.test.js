@@ -25,7 +25,7 @@ const PAGES = ['index.html', 'about.html', 'viewer.html', 'settings.html'];
 test('landing page is index.html and the sky view is viewer.html', () => {
   assert.ok(exists('index.html'));
   assert.ok(exists('viewer.html'));
-  assert.match(read('index.html'), /<title>FarGems: Live Sky Map of Planes, ISS, Satellites and Planets<\/title>/);
+  assert.match(read('index.html'), /<title>FarGems: Augmented Reality Sky Map of Planes, ISS and Satellites<\/title>/);
   assert.match(read('viewer.html'), /<title>FarGems — sky view<\/title>/);
 });
 
