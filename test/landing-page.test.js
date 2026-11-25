@@ -19,12 +19,12 @@ test('hero motion stops for visitors who prefer reduced motion', () => {
   assert.match(read('landing.js'), /prefers-reduced-motion: reduce[\s\S]*pauseAnimations/);
 });
 
-test('landing page shows what is in the sky and how it works, and keeps the permission controls', () => {
-  const html = read('index.html');
-  assert.equal((html.match(/class="peek-item"/g) || []).length, 4);
-  assert.match(html, /id="stepsTitle"/);
-  assert.equal((html.match(/<ol>[\s\S]*?<\/ol>/)[0].match(/<li>/g) || []).length, 3);
-  for (const id of ['allowBtn', 'sampleBtn', 'openLink', 'manualForm', 'installCard']) assert.ok(html.includes(`id="${id}"`), id);
+test('the home page is simple, keeps the permission controls, and the explanations live on the About page', () => {
+  const html = read('index.html'), about = read('about.html');
+  for (const id of ['allowBtn', 'sampleBtn', 'allowAgainBtn', 'openLink', 'manualForm', 'installCard', 'permsCard', 'heroLink']) assert.ok(html.includes(`id="${id}"`), id);
+  for (const gone of ['class="peek"', 'class="steps"', '<footer', 'class="about-link"']) assert.ok(!html.includes(gone), `home page no longer has ${gone}`);
+  assert.match(about, /<h3>How it works<\/h3>\s*<div class="steps">[\s\S]*<ol>/);
+  assert.equal((about.match(/<ol>[\s\S]*?<\/ol>/)[0].match(/<li>/g) || []).length, 3);
 });
 
 test('about lives on its own page, linked from the landing page', () => {
@@ -61,16 +61,27 @@ test('About and GitHub sit in a "..." menu at the top right, which opens, closes
   assert.match(js, /menuList\.contains\(e\.target\)/, 'a tap outside closes it');
 });
 
-test('the home page is compact: the main actions share one phone screen and the extras are folded away', () => {
+test('the home page is compact and plain: top row, small radar that launches, then one action', () => {
   const html = read('index.html'), css = read('style.css');
   assert.match(html, /<header class="top">[\s\S]*class="brand"[\s\S]*class="menu"[\s\S]*<\/header>/, 'logo and menu share the top row');
-  assert.match(html, /<div class="hero-row">[\s\S]*<svg class="hero"[\s\S]*<p class="lead">[\s\S]*<\/div>/, 'picture and intro side by side');
-  assert.match(html, /<details class="steps">\s*<summary id="stepsTitle">How it works<\/summary>[\s\S]*<ol>/, 'steps start folded');
-  assert.doesNotMatch(html, /class="about-link"/, 'no second About link (the menu and footer have it)');
-  assert.equal((html.match(/class="sr"/g) || []).length, 4, 'card descriptions stay readable for screen readers and search');
-  assert.match(css, /\.sr\{position:absolute/);
+  assert.match(html, /<div class="hero-row">\s*<a id="heroLink" class="hero-link" href="viewer\.html"[^>]*aria-label="Open the sky view">\s*<svg class="hero"[\s\S]*<p class="lead">/, 'the small radar is a link to the sky view, beside the intro');
+  assert.match(css, /\.hero-row \.hero\{width:72px\}/, 'radar is small');
   assert.match(css, /\.landing \.install\{display:grid;grid-template-columns:1fr auto/, 'install card is one short row');
   assert.match(css, /\.landing \.perm-state\{grid-row:1;grid-column:2\}/, 'each permission is name and state on one line');
-  assert.match(css, /\.landing \.peek\{grid-template-columns:repeat\(4,1fr\)/, 'four small tiles in one row');
-  assert.match(css, /\.hero-row \.hero\{width:96px/);
+});
+
+test('the small links are tucked into the ... menu: About, GitHub, sample location, change permissions', () => {
+  const menu = read('index.html').match(/<ul id="menuList"[\s\S]*?<\/ul>/)[0];
+  for (const needle of ['href="about.html"', 'github.com/gnanaswaroop/fargems', 'id="sampleBtn"', 'id="allowAgainBtn"']) assert.ok(menu.includes(needle), needle);
+  const body = read('index.html').split('</header>')[1];
+  assert.doesNotMatch(body, /id="sampleBtn"|id="allowAgainBtn"/, 'not left lying in the page');
+});
+
+test('once permissions are granted the card is hidden and only the launch button (or the radar) remains', () => {
+  const js = read('landing.js');
+  assert.match(js, /els\.perms\.hidden = s\.phase === 'ready'/);
+  assert.match(js, /els\.hero\.addEventListener\('click'/);
+  assert.match(js, /phase === 'ask'\) \{ e\.preventDefault\(\); askPermissions\(\)/, 'before permissions the radar asks for them');
+  assert.match(js, /phase !== 'ready'/, 'install offer waits until the app is set up');
+  assert.match(js, /els\.sample\.parentElement\.hidden/);
 });

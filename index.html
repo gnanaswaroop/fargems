@@ -57,11 +57,14 @@
       <ul id="menuList" class="menu-list" hidden>
         <li><a href="about.html">About</a></li>
         <li><a href="https://github.com/gnanaswaroop/fargems" rel="noopener">GitHub</a></li>
+      <li><button id="sampleBtn" class="menu-item" type="button">Try a sample location</button></li>
+      <li><button id="allowAgainBtn" class="menu-item" type="button" hidden>Change permissions</button></li>
       </ul>
     </nav>
   </header>
   <h1 class="tagline">Look up. Know what you are looking at.</h1>
   <div class="hero-row">
+    <a id="heroLink" class="hero-link" href="viewer.html" aria-label="Open the sky view">
     <svg class="hero" viewBox="0 0 240 240" role="img" aria-label="A radar-style sky map with an aircraft, a satellite, the Moon and a planet">
       <defs>
         <radialGradient id="heroSky" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#0b1530"/><stop offset="1" stop-color="#16294f"/></radialGradient>
@@ -79,10 +82,11 @@
       <circle class="hero-blip" cx="78" cy="152" r="6" fill="#ffe08a"/>
       <circle cx="164" cy="82" r="3.5" fill="#d9c8a6"/><circle class="hero-blip hero-blip2" cx="164" cy="82" r="3.5" fill="none" stroke="#d9c8a6"/>
     </svg>
+    </a>
     <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
   </div>
 
-  <section class="card perms" aria-labelledby="permsTitle">
+  <section id="permsCard" class="card perms" aria-labelledby="permsTitle">
     <h2 id="permsTitle">Two permissions</h2>
     <ul class="perm-list">
       <li>
@@ -98,8 +102,7 @@
     </ul>
     <button id="allowBtn" class="btn primary wide" type="button">Allow location and compass</button>
     <p id="msg" class="muted small" role="status"></p>
-    <button id="sampleBtn" class="link" type="button">No location? View a sample location instead</button>
-    <button id="allowAgainBtn" class="link" type="button" hidden>Change permissions</button>
+    <p class="muted small privacy-note">Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.</p>
   </section>
 
   <form id="manualForm" class="card manual" hidden>
@@ -117,25 +120,9 @@
     <p id="installText" class="muted small"></p>
     <button id="installBtn" class="btn wide" type="button" hidden>Install the app</button>
   </section>
-  <p class="muted small">Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.</p>
 
-  <section class="peek" aria-label="What you can find in the sky">
-    <div class="peek-item"><span class="peek-icon air">&#x2708;&#xFE0E;</span><b>Aircraft</b><span class="sr">Tap one to see where it is heading.</span></div>
-    <div class="peek-item"><span class="peek-icon sat">&#x25C6;</span><b>Satellites</b><span class="sr">The ISS and about 100 bright ones, with next passes.</span></div>
-    <div class="peek-item"><span class="peek-icon moon">&#x263D;</span><b>Sun, Moon, planets</b><span class="sr">Where they are, and when they rise and set.</span></div>
-    <div class="peek-item"><span class="peek-icon met">&#x2736;</span><b>Meteor showers</b><span class="sr">Which are active, and where they radiate from.</span></div>
-  </section>
 
-  <details class="steps">
-    <summary id="stepsTitle">How it works</summary>
-    <ol>
-      <li><b>Hold the phone flat.</b> A radar map shows the whole sky. It turns as you turn, so N, E, S and W always point the real way.</li>
-      <li><b>Spot something.</b> Only flights close enough and high enough to see by eye are drawn. Tap one for its details.</li>
-      <li><b>Raise the phone.</b> Point it at the sky and the camera view labels what you are looking at, and an arrow guides you to the one you picked.</li>
-    </ol>
-  </details>
 
-  <footer class="foot"><a href="about.html">About</a> · <a href="about.html">Data sources</a> · <a href="about.html">Privacy</a> · <a href="https://github.com/gnanaswaroop/fargems">GitHub</a></footer>
 </main>
 
 <script src="lib/onboarding.js"></script>
