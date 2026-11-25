@@ -2,9 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>FarGems — allow location and compass</title>
+<title>FarGems — what's flying and shining above you</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="FarGems shows aircraft, satellites, planets, the Moon and meteor showers above you. Allow location and compass to start.">
+<meta name="description" content="Free sky map for your phone: see the aircraft, satellites, planets, Moon and meteor showers above you right now, or point your camera to identify them.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="__SITE_URL__/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FarGems">
+<meta property="og:title" content="FarGems — what's flying and shining above you">
+<meta property="og:description" content="Free sky map for your phone: see the aircraft, satellites, planets, Moon and meteor showers above you right now, or point your camera to identify them.">
+<meta property="og:url" content="__SITE_URL__/">
+<meta property="og:image" content="__SITE_URL__/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A radar-style sky map with an aircraft, a satellite and the Moon, and the words FarGems">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FarGems — what's flying and shining above you">
+<meta name="twitter:description" content="Free sky map for your phone: see the aircraft, satellites, planets, Moon and meteor showers above you right now, or point your camera to identify them.">
+<meta name="twitter:image" content="__SITE_URL__/og-image.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebApplication",
+ "url": "__SITE_URL__/",
+ "name": "FarGems",
+ "description": "Free sky map for your phone: see the aircraft, satellites, planets, Moon and meteor showers above you right now, or point your camera to identify them.",
+ "applicationCategory": "UtilitiesApplication",
+ "operatingSystem": "Any device with a web browser",
+ "browserRequirements": "Needs location access. Compass and camera are optional.",
+ "isAccessibleForFree": true,
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ }
+}
+</script>
 <meta name="theme-color" content="#070b14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -17,8 +50,9 @@
 </head>
 <body class="landing">
 <main class="welcome">
+  <nav class="topnav" aria-label="Site"><a href="about.html">About</a><a href="https://github.com/gnanaswaroop/fargems">GitHub</a></nav>
   <div class="brand big"><img class="logo logo-lg" src="icon.svg" alt="FarGems logo" width="112" height="112">Far<b>Gems</b></div>
-  <p class="tagline">Look up. Know what you are looking at.</p>
+  <h1 class="tagline">Look up. Know what you are looking at.</h1>
   <svg class="hero" viewBox="0 0 240 240" role="img" aria-label="A radar-style sky map with an aircraft, a satellite, the Moon and a planet">
     <defs>
       <radialGradient id="heroSky" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#0b1530"/><stop offset="1" stop-color="#16294f"/></radialGradient>
@@ -92,6 +126,7 @@
   </section>
 
   <p class="about-link"><a href="about.html">About FarGems: what it shows, where the data comes from, privacy</a></p>
+  <footer class="foot"><a href="about.html">About</a> · <a href="about.html">Data sources</a> · <a href="about.html">Privacy</a> · <a href="https://github.com/gnanaswaroop/fargems">GitHub</a></footer>
 </main>
 
 <script src="lib/onboarding.js"></script>

@@ -70,7 +70,10 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .about-link{text-align:center;margin:22px 0 0;font-size:14px}
 .about-link a,.back a{color:var(--accent)}
 .back{margin:0 0 6px;font-size:14px}
-.tagline{text-align:center;margin:0 0 4px;font-size:18px;color:var(--text)}
+.tagline{text-align:center;margin:0 0 4px;font-size:18px;font-weight:500;color:var(--text)}
+.topnav{display:flex;justify-content:flex-end;gap:16px;font-size:14px;margin:0 0 4px}
+.topnav a,.foot a{color:var(--muted)}
+.foot{text-align:center;margin:18px 0 0;font-size:13px;color:var(--muted)}
 .hero{display:block;width:min(78vw,260px);height:auto;margin:10px auto 6px;filter:drop-shadow(0 0 22px rgba(90,209,230,.18))}
 .hero-sweep{transform-origin:120px 120px;animation:hero-spin 7s linear infinite}
 .hero-blip{transform-box:fill-box;transform-origin:center;animation:hero-pulse 3.2s ease-out infinite}
@@ -103,7 +106,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 
 /* ---------- about section (landing) ---------- */
 .about { text-align: left; margin-top: 24px; }
-.about h2 { margin: 0 0 8px; font-size: 17px; }
+.about h1, .about h2 { margin: 0 0 8px; font-size: 17px; }
 .about h3 { margin: 14px 0 4px; font-size: 14px; color: var(--accent); }
 .about p, .about li { font-size: 14px; color: var(--text); }
 .about ul { margin: 4px 0 0; padding-left: 18px; }
