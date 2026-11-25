@@ -1,0 +1,29 @@
+# Runs the app in Safari's engine (WebKit) with an iPhone profile on every pull request and push to main.
+# It is not a real iPhone (no real compass), so the test adds the iPhone-only motion permission and compass heading the
+# way Safari on iOS provides them. See e2e/ios/safari.e2e.js for what it covers and what it cannot.
+name: iOS Safari (WebKit)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  safari:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the test browser
+        working-directory: e2e/ios
+        run: |
+          npm ci
+          npx playwright install --with-deps webkit
+      - name: Run the iPhone Safari test
+        run: node --test --test-reporter=spec e2e/ios/safari.e2e.js
