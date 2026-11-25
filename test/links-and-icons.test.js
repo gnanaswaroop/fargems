@@ -45,9 +45,12 @@ test('the pages link to each other so nobody is stranded', () => {
   assert.ok(to('about.html').includes('index.html'), 'About: back');
 });
 
-test('the About page has a proper Back button that returns to where the visitor came from', () => {
-  const html = read('about.html'), css = read('style.css'), js = read('nav.js');
-  assert.match(html, /<a class="back-link" href="index\.html" data-back>&larr; Back<\/a>/);
+test('About and Settings share one Back button that returns to where the visitor came from', () => {
+  const html = read('about.html'), css = read('style.css'), js = read('nav.js'), settings = read('settings.html');
+  assert.match(html, /<p class="back"><a class="back-link" href="index\.html" data-back>&larr; Back<\/a><\/p>/);
+  assert.match(settings, /<main class="settings-main">\s*<p class="back"><a class="back-link" href="viewer\.html" data-back>&larr; Back<\/a><\/p>/, 'the same button, first in the page');
+  assert.doesNotMatch(settings, /Back to sky view/, 'no second wording');
+  assert.ok(settings.includes('<script src="nav.js"></script>'));
   assert.match(css, /\.back-link\{display:inline-flex[^}]*border-radius:999px/, 'a pill button, not a bare underlined link');
   assert.match(js, /history\.back\(\)/);
   assert.match(js, /origin === location\.origin/, 'only goes back to a page of this site');
