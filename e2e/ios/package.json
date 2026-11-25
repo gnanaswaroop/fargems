@@ -1,0 +1,8 @@
+{
+  "name": "fargems-ios-e2e",
+  "private": true,
+  "description": "Safari (WebKit) test with an iPhone profile. Kept apart so the app itself needs no packages.",
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}
