@@ -9,6 +9,8 @@
 // Configuration (set as Worker variables, not in the repository):
 //   ALLOWED_ORIGINS  comma-separated list of site origins allowed to read the data,
 //                    e.g. "https://example.com,https://example.org". Local origins are always allowed.
+//   ENABLED          kill switch. Set to "false" (or 0, off, no) and the worker answers 503 at once, without
+//                    contacting any provider or reading its cache. Remove it or set "true" to turn the worker back on.
 
 const UPSTREAM = [
   { name: 'adsb.lol', url: (lat, lon, r) => 'https://api.adsb.lol/v2/point/' + lat + '/' + lon + '/' + r },
@@ -24,7 +26,8 @@ const DEFAULT_RADIUS = 150;
 const MAX_RADIUS = 250;
 const ROUTE_CACHE_SECONDS = 1800;     // a flight keeps its route for hours, so share one lookup between all visitors
 const ROUTE_MISS_CACHE_SECONDS = 600; // flights with no known route are remembered for less time
-const ROUTE_UPSTREAM = 'https://api.adsb.lol/api/0/routeset';
+// adsbdb.com is a free flight-route database that needs no key.
+const ROUTE_UPSTREAM = 'https://api.adsbdb.com/v0/callsign/';
 
 // Cells group nearby points so one upstream request serves all of them.
 export function cellKey(lat, lon, r) {
@@ -43,6 +46,11 @@ export function parseQuery(url) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(r) || r <= 0) return null;
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
   return { lat, lon, r };
+}
+
+// True when the owner has switched the worker off with the ENABLED variable.
+export function isDisabled(env) {
+  return ['0', 'false', 'off', 'no', 'disabled'].includes(String(env && env.ENABLED != null ? env.ENABLED : '').trim().toLowerCase());
 }
 
 function allowedOrigins(env) {
@@ -83,18 +91,18 @@ async function fetchUpstream(q, fetchImpl) {
 // Reduce one airport record to the fields the app shows.
 function airport(a) {
   if (!a || typeof a !== 'object') return null;
-  const out = { iata: a.iata || '', icao: a.icao || '', name: a.name || '', city: a.location || '', country: a.countryiso2 || '' };
-  if (typeof a.lat === 'number' && typeof a.lon === 'number') { out.lat = a.lat; out.lon = a.lon; }
+  const out = { iata: a.iata_code || '', icao: a.icao_code || '', name: a.name || '', city: a.municipality || '', country: a.country_iso_name || '' };
+  if (typeof a.latitude === 'number' && typeof a.longitude === 'number') { out.lat = a.latitude; out.lon = a.longitude; }
   return out.iata || out.icao || out.name ? out : null;
 }
 
-// Turn the provider's route answer (an array with one entry per flight) into { callsign, origin, destination }.
-// The first airport is where the flight started and the last is where it is going. Unknown routes give nulls.
+// Turn adsbdb's answer ({ response: { flightroute: { origin, destination } } }) into { callsign, origin, destination }.
+// Unknown flights (the provider answers with a text message) give nulls.
 export function normalizeRoute(upstream, callsign) {
-  const entry = Array.isArray(upstream) ? upstream[0] : upstream;
-  const airports = entry && Array.isArray(entry._airports) ? entry._airports.map(airport).filter(Boolean) : [];
-  if (!entry || entry.plausible === false || airports.length < 2) return { callsign, origin: null, destination: null };
-  return { callsign, origin: airports[0], destination: airports[airports.length - 1] };
+  const fr = upstream && upstream.response && typeof upstream.response === 'object' ? upstream.response.flightroute : null;
+  const origin = fr ? airport(fr.origin) : null, destination = fr ? airport(fr.destination) : null;
+  if (!origin || !destination) return { callsign, origin: null, destination: null };
+  return { callsign, origin, destination };
 }
 
 // Callsigns are letters and digits, 2 to 8 long. Anything else is refused before it is sent upstream.
@@ -103,13 +111,10 @@ export function parseCallsign(url) {
   return /^[A-Z0-9]{2,8}$/.test(c) ? c : null;
 }
 
-async function fetchRoute(callsign, lat, lon, fetchImpl) {
+async function fetchRoute(callsign, fetchImpl) {
   try {
-    const res = await fetchImpl(ROUTE_UPSTREAM, {
-      method: 'POST',
-      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ planes: [{ callsign, lat, lng: lon }] }),
-    });
+    const res = await fetchImpl(ROUTE_UPSTREAM + callsign, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } });
+    if (res.status === 404) return { callsign, origin: null, destination: null }; // flight not in the database
     if (!res.ok) return null;
     return normalizeRoute(JSON.parse(await res.text()), callsign);
   } catch {
@@ -131,6 +136,8 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (request.method !== 'GET') return json(405, { error: 'method not allowed' }, { ...cors, Allow: 'GET, OPTIONS' });
+
+  if (isDisabled(env)) return json(503, { error: 'proxy switched off', disabled: true }, { ...cors, 'Retry-After': '3600' });
 
   const url = new URL(request.url);
   if (url.pathname === '/route') return handleRoute(url, cors, fetchImpl, cache);
@@ -171,10 +178,6 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
 async function handleRoute(url, cors, fetchImpl, cache) {
   const callsign = parseCallsign(url);
   if (!callsign) return json(400, { error: 'callsign is required (letters and digits, 2 to 8 long)' }, cors);
-  const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-    return json(400, { error: 'lat and lon are required numbers' }, cors);
-  }
   // Cached by callsign alone: every visitor looking at the same flight shares one lookup.
   const cacheKey = new Request('https://cache.local/route/' + callsign);
   const hit = await cache.match(cacheKey);
@@ -184,7 +187,7 @@ async function handleRoute(url, cors, fetchImpl, cache) {
     headers.set('X-Cache', 'HIT');
     return new Response(hit.body, { status: 200, headers });
   }
-  const route = await fetchRoute(callsign, lat, lon, fetchImpl);
+  const route = await fetchRoute(callsign, fetchImpl);
   if (!route) return json(502, { error: 'route data unavailable' }, cors);
   const known = !!(route.origin && route.destination);
   const ttl = known ? ROUTE_CACHE_SECONDS : ROUTE_MISS_CACHE_SECONDS;

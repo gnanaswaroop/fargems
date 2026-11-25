@@ -43,6 +43,7 @@ const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: false,
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
+  ori: { alpha: null, beta: null, gamma: null, compassHeading: null, absolute: false },
   visOnly: (() => { try { return window.FarGemsLogic.parseVisOnly(localStorage.getItem('fg.visOnly')); } catch { return true; } })(),
   flightRangeKm: (() => { try { return window.FarGemsLogic.parseFlightRange(localStorage.getItem('fg.flightRange')); } catch { return window.FarGemsLogic.DEFAULT_FLIGHT_RANGE_KM; } })(),
   routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
@@ -89,15 +90,17 @@ async function refreshAircraft() {
   const la = state.loc.lat.toFixed(3), lo = state.loc.lon.toFixed(3);
   const proxy = window.FarGemsLogic.aircraftProxyUrl(AIRCRAFT_PROXY, state.loc.lat, state.loc.lon, 150);
   const sources = proxy ? [{ name: 'FarGems proxy', url: () => proxy, parse: parseV2 }] : AC_PROVIDERS;
+  let lastErr = null;
   for (const p of sources) {
     try {
       const list = p.parse(await getJSON(p.url(la, lo, 150)));
       state.aircraft = list; state.aircraftAt = Date.now();
       state.status.air = { src: p.name, n: list.length, t: state.aircraftAt };
       state.dirty = true; return;
-    } catch { /* try next provider */ }
+    } catch (e) { lastErr = e; /* try next provider */ }
   }
-  state.status.air = { err: true, t: state.status.air?.t };
+  // HTTP 503 from the proxy means the owner switched it off (see ENABLED in worker/aircraft-proxy.mjs)
+  state.status.air = { err: true, paused: !!proxy && !!lastErr && lastErr.message === 'HTTP 503', t: state.status.air?.t };
 }
 function lookGd(lat, lon, altKm) {
   const ecf = satellite.geodeticToEcf({ latitude: lat * D2R, longitude: lon * D2R, height: altKm });
@@ -354,7 +357,7 @@ function renderHud() {
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
   if (state.loc) out.push(`<span>${state.loc.lat.toFixed(2)}°, ${state.loc.lon.toFixed(2)}°</span>`);
-  if (s.air) out.push(s.air.err ? '<span class="bad">Aircraft: feed unreachable</span>' : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} within ${state.flightRangeKm} km of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
+  if (s.air) out.push(s.air.err ? (s.air.paused ? '<span class="bad">Aircraft: feed switched off for now</span>' : '<span class="bad">Aircraft: feed unreachable</span>') : `<span>Aircraft: ${esc(s.air.src)} · ${state.visOnly ? `${state.airVisible} within ${state.flightRangeKm} km of ${s.air.n}` : `${s.air.n} nearby`} · ${ago(now - s.air.t)} ago</span>`);
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');
@@ -382,10 +385,10 @@ function routeText(a) {
   const url = H.routeProxyUrl(base, a.call, a.lat, a.lon);
   if (!url) return `Not available here. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
   const r = state.routes.get(a.call);
-  if (!r) {
-    state.routes.set(a.call, { state: 'loading' });
-    getJSON(url).then(data => state.routes.set(a.call, { state: 'done', data }))
-      .catch(() => state.routes.set(a.call, { state: 'failed' }))
+  if (!H.routeEntryFresh(r, Date.now())) {
+    state.routes.set(a.call, { state: 'loading', at: Date.now() });
+    getJSON(url).then(data => state.routes.set(a.call, { state: 'done', data, at: Date.now() }))
+      .catch(() => state.routes.set(a.call, { state: 'failed', at: Date.now() }))
       .finally(() => { if (state.sel === 'air:' + a.id) renderDetail(); });
     return 'Looking up…';
   }
@@ -397,8 +400,10 @@ function routeText(a) {
   return esc(H.describeAirport(d)) + far + (o ? `<br><small class="muted">from ${esc(H.describeAirport(o))}</small>` : '');
 }
 function renderDetail() {
-  const el = $('#detail'), o = state.sel && state.byId.get(state.sel);
-  if (!o) { el.innerHTML = '<p class="muted">Tap an object on the radar to see its details.</p>'; return; }
+  // The same card shows under the radar and over the camera picture.
+  const put = (h) => { $('#detail').innerHTML = h; $('#arDetail').innerHTML = h; };
+  const o = state.sel && state.byId.get(state.sel);
+  if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '';
   const here = kv('Sky position', `${Math.round(o.el)}° up · ${dir16(o.az)} (${Math.round(o.az)}°)`);
@@ -423,7 +428,7 @@ function renderDetail() {
       + kv('Moon', state.moonIllum != null ? `${Math.round(state.moonIllum * 100)}% lit — a bright Moon hides faint meteors` : null)
       + kv('Tip', 'Look about 40° away from the radiant, dark site, no phone light.');
   } else rows = here;
-  el.innerHTML = `<h3>${title}</h3><dl>${rows}</dl>`;
+  put(`<h3>${title}</h3><dl>${rows}</dl>`);
 }
 // Nearby list: aircraft, satellites, Sun, Moon, planets and stars, nearest first.
 // Each row gives the distance and where to look (with your heading when the compass is on).
@@ -464,6 +469,10 @@ function setLoc(lat, lon) {
 
 /* ---------- compass & interaction ---------- */
 function onOri(e) {
+  const ori = state.ori; // raw angles for the AR view
+  if (typeof e.beta === 'number') { ori.beta = e.beta; ori.gamma = e.gamma || 0; }
+  if (typeof e.webkitCompassHeading === 'number') ori.compassHeading = e.webkitCompassHeading;
+  if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) { ori.alpha = e.alpha; ori.absolute = true; }
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) h = norm360(360 - e.alpha);
@@ -480,6 +489,64 @@ function startCompass() {
     startCompass.bound = true;
   }
   state.compass = true; state.dirty = true;
+}
+/* ---------- AR view ---------- */
+// The camera picture with objects over it. It opens from the AR button, and by itself when the phone is
+// raised to look at the sky (once the camera has been allowed). Laying the phone flat closes it.
+let arView = null;
+const arState = { auto: null, opening: false };
+function initAR() {
+  if (!window.FarGemsARView || !window.FarGemsAR) return;
+  arState.auto = window.FarGemsAR.newAutoState();
+  arView = window.FarGemsARView.create({
+    root: $('#ar'), video: $('#arVideo'), canvas: $('#arCanvas'), closeBtn: $('#arClose'),
+    getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
+    onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
+    onClose: () => { arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
+  });
+  $('#arBtn').onclick = openAR;
+  setInterval(autoAR, 300);
+}
+async function openAR() {
+  if (!arView || arView.isOpen() || arState.opening) return; // one attempt at a time
+  arState.opening = true;
+  try {
+    // iPhone asks for the compass inside a tap, so ask here before the camera.
+    const O = window.FarGemsOnboarding;
+    if (!state.compass) {
+      if (O.compassNeedsPermission(window)) {
+        const r = await DeviceOrientationEvent.requestPermission();
+        O.storeCompass(localStorage, r === 'granted' ? 'granted' : 'denied');
+        if (r === 'granted') startCompass(); else toast('Compass permission is needed for AR. You can allow it in Settings.');
+      } else startCompass();
+    }
+    await arView.open();
+    try { localStorage.setItem('fg.camera', 'granted'); } catch { /* storage blocked */ }
+    renderDetail();
+  } catch (e) {
+    const why = e && e.code === 'denied' ? 'Camera permission was refused. Allow it in your browser settings to use AR.'
+      : e && e.code === 'unsupported' ? 'This browser cannot open the camera here (it needs https).' : 'Could not start the camera.';
+    toast(why, 5000);
+    // Do not retry by itself: wait until the phone has been laid flat once. A refused camera is forgotten.
+    arState.auto = window.FarGemsAR.suppress(arState.auto);
+    if (e && e.code === 'denied') { try { localStorage.removeItem('fg.camera'); } catch { /* blocked */ } }
+  } finally {
+    arState.opening = false;
+  }
+}
+// Called every 300 ms: open or close the camera view from how the phone is held.
+function autoAR() {
+  if (!arView || state.ori.beta == null) return;
+  const AR = window.FarGemsAR;
+  const pose = AR.cameraPose(state.ori.alpha, state.ori.beta, state.ori.gamma);
+  let granted = false; try { granted = localStorage.getItem('fg.camera') === 'granted'; } catch { /* blocked */ }
+  const r = AR.autoStep(arState.auto, {
+    pitch: pose.pitch, now: Date.now(), isOpen: arView.isOpen(), opening: arState.opening, cameraGranted: granted,
+    compassOn: state.compass, onRadarPage: !$('#pager').classList.contains('nearby'),
+  });
+  arState.auto = r.state;
+  if (r.action === 'close') arView.close();
+  else if (r.action === 'open') openAR();
 }
 function bindUI() {
   const cv = $('#sky');
@@ -551,6 +618,7 @@ function bindUI() {
   $('#zoomIn').onclick = () => { const c = centre(); zoomTo(1.5, c.x, c.y); };
   $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
   $('#zoomReset').onclick = resetView;
+  initAR();
   // Tabs and swipes. Swipes that start on the radar are left alone, because dragging there rotates the sky.
   $('#tabRadar').onclick = () => setPage('radar');
   $('#tabNearby').onclick = () => setPage('nearby');
