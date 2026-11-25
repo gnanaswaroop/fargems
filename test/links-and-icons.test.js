@@ -121,5 +121,5 @@ test('the sky view keeps its text apart: its own row for the Sun, Moon and facin
   assert.match(app, /const placeLabels = \(\) => \{/, 'object names are placed after drawing, most important first');
   assert.match(app, /labelQ\.sort\(\(a, b\) => a\.prio - b\.prio\)/);
   assert.match(app, /fixed\.push\(/, 'names keep clear of the ring and compass labels');
-  assert.match(app, /\$\('#status'\)\.innerHTML = out\.join\(' '\)/, 'the status items can wrap onto a new line instead of running off the edge');
+  assert.match(app, /setHtml\(\$\('#status'\), out\.join\(' '\)\)/, 'the status items can wrap onto a new line instead of running off the edge');
 });

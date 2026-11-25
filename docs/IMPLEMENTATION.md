@@ -222,6 +222,13 @@ right (or mirrored if the setting says so).
 - Pinch or the +/− buttons zoom; dragging pans when zoomed in. At 1× with the compass off, dragging rotates the sky.
 - The status line says where each kind of data came from and how old it is, and says plainly when a feed is unreachable
   or switched off.
+- The zoom, reset and AR buttons sit in a row just under the radar, so they never cover it.
+- **Nearby tab:** a list, nearest first. Each row has a small icon for the kind of object (plane, satellite, space station,
+  Sun, Moon, planet, star), its name, the kind in words, the distance and where to look. Tapping a row opens the object on
+  the radar.
+- **Selecting text.** The page refreshes its text every two seconds. A container is only rewritten when its content changed,
+  and never while the visitor has text selected in it, so selecting and copying works. Rows are text blocks rather than
+  buttons (a button's text cannot be selected), and a drag that selects text is not treated as a tap or a swipe.
 
 ## 7. The camera (AR) view
 
