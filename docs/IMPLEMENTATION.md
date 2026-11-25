@@ -306,6 +306,7 @@ upstream request, which is what keeps free feeds from throttling us.
 | `/aircraft?lat=&lon=&r=` | `{ ac: [...] }` in the readsb v2 format | 30 s | 3 min |
 | `/route?callsign=` | `{ callsign, origin, destination }` | 30 min (10 min when unknown) | 24 h |
 | `/tle?group=stations\|visual` | element sets as plain text | 6 h | 3 days |
+| `/locate` | `{ lat, lon, city, region, country }`: the city Cloudflare knows for the visitor's network address, rounded to about 1 km | never cached or stored (`private, no-store`) | — |
 | `/status` | which providers are healthy now | never cached | — |
 
 The aircraft area is rounded to a 0.25° cell and the query goes to the centre of the cell, so every visitor in the cell gets
@@ -476,3 +477,22 @@ already open, though, keeps running the old code until it is reloaded, so it has
 - A copy run locally has no build id and never shows the bar.
 
 If a CDN sits in front of the site it can keep old copies of the files for hours. Purge the changed files after a deploy.
+
+## 15. Pins, sharing and a place from the network
+
+- **Pins.** Every row of the nearby list has a star, and the detail card has a Pin button. Pinned object ids are kept in
+  `localStorage` (`fg.pins`, at most 30, newest first). Pinned objects lead the nearby list and are always named on the radar
+  with a star. An aircraft is pinned by its hex id, so the pin matters only while that flight is overhead.
+- **Share.** The detail card's Share button calls `navigator.share` when the browser has it and otherwise copies the text. The text
+  says what the object is and where to look (angle and compass direction, never coordinates), adds the Wikipedia link when
+  there is one, and ends with the address of the site taken from where it is served.
+- **Wikipedia.** `wikiTitle` in `lib/logic.js` maps planets, the Sun and Moon, the bright stars, meteor showers, space stations,
+  constellations and common aircraft types to an article. The detail card asks Wikipedia's summary endpoint once per article,
+  shows the opening, and hides the link when the article does not exist.
+- **A place when none was shared.** With no saved location the viewer first uses the exact position if the browser already allows
+  it. Otherwise it asks the relay's `/locate` (Cloudflare gives the Worker a city for the network address), shows the sky for
+  that city with a note saying it is a guess, and does **not** save it, so the permission flow still works and the guess goes away
+  once a real location exists. With no relay configured, or when the relay cannot tell, the card asks for a location as before.
+- **Names on the radar.** A name is placed only where all four corners of its box are inside the circle and the canvas and clear
+  of other names. Long names are cut with an ellipsis (a selected object's name is cut to what fits across the radar). An
+  important name with no free spot is moved toward the middle until it fits.
