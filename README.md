@@ -19,6 +19,17 @@ npm run serve:https -- 9443  # custom port
 
 It needs `openssl` on your PATH to create a local certificate once (stored in `tmp/certs`, which git ignores).
 
+### Compass test on an Android emulator
+
+`npm test` runs everywhere. A second, opt-in test checks the compass on a real Android (Chrome) emulator, using its virtual sensors:
+
+```
+npm run test:android         # needs adb on the PATH and one running emulator with Chrome
+E2E_LOG=1 npm run test:android   # print progress; set ANDROID_SERIAL to pick a device
+```
+
+It serves the app from your machine, points the emulator's virtual phone at known magnetic headings in Seattle, New York and Hyderabad, and checks that the "Facing" line shows the true heading (magnetic plus declination) and that the radar draws N in the right place. It takes a few minutes, because the emulator's sensors settle slowly, and it skips itself when no emulator is running.
+
 ## Deployment
 
 `.github/workflows/pages.yml` runs the tests and then publishes the site to GitHub Pages on every push to `main`. In repo settings, set Pages → Build and deployment → Source to **GitHub Actions**. `ci.yml` runs the tests on every pull request.

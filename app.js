@@ -484,6 +484,14 @@ function onOri(e) {
   h = window.FarGemsDeclination.trueHeading(h, state.declination); // the sky is laid out from true north, the compass reads magnetic
   let d = norm360(h - state.heading + 180) - 180;
   state.heading = norm360(state.heading + d * 0.25); state.dirty = true;
+  showFacing();
+}
+// The way the top of the phone faces, in true-north degrees, so the compass can be checked against a known direction.
+function showFacing() {
+  const deg = Math.round(state.heading) % 360, el = $('#facing');
+  if (!el || el.dataset.deg === String(deg)) return;
+  el.dataset.deg = String(deg); el.hidden = false;
+  el.textContent = `Facing ${window.FarGemsLogic.dir16(deg)} ${deg}° (true)`;
 }
 // The compass is switched on in settings. The sky view only starts it when permission was already granted there.
 function startCompass() {

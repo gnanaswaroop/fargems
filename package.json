@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test",
+    "test:android": "node --test e2e/android/compass.e2e.js",
     "serve": "python -m http.server 8080 --bind 0.0.0.0",
     "serve:https": "node scripts/serve-https.js"
   },
