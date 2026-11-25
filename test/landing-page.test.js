@@ -27,8 +27,17 @@ test('landing page shows what is in the sky and how it works, and keeps the perm
   for (const id of ['allowBtn', 'sampleBtn', 'openLink', 'manualForm', 'installCard']) assert.ok(html.includes(`id="${id}"`), id);
 });
 
+test('about lives on its own page, linked from the landing page', () => {
+  const landing = read('index.html');
+  assert.match(landing, /href="about\.html"/);
+  assert.doesNotMatch(landing, /id="about"/, 'the long text is no longer on the landing page');
+  assert.match(read('about.html'), /href="index\.html"/, 'a way back');
+  assert.match(read('sw.js'), /'about\.html'/);
+  assert.match(read('.github/workflows/pages.yml'), /about\.html/);
+});
+
 test('the about text matches what the app now does', () => {
-  const html = read('index.html');
+  const html = read('about.html');
   assert.match(html, /Camera view/);
   assert.match(html, /where they are flying to/);
   assert.match(html, /adsbdb/);

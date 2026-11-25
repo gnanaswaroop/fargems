@@ -19,7 +19,7 @@ const localRefs = (page) => {
     .filter((r) => !/^(https?:|data:|#|mailto:)/.test(r))
     .filter((r) => r !== 'viewer.html'); // navigation target, not an asset
 };
-const PAGES = ['index.html', 'viewer.html', 'settings.html'];
+const PAGES = ['index.html', 'about.html', 'viewer.html', 'settings.html'];
 
 test('landing page is index.html and the sky view is viewer.html', () => {
   assert.ok(exists('index.html'));
@@ -137,8 +137,8 @@ test('JavaScript files parse', () => {
   }
 });
 
-test('landing page always shows the about section, inside the main column, with key facts', () => {
-  const html = read('index.html');
+test('about page shows the about section, inside the main column, with key facts', () => {
+  const html = read('about.html');
   const m = html.match(/<section id="about"[^>]*>/);
   assert.ok(m, 'about section present');
   assert.ok(!/\shidden[\s>]/.test(m[0]), 'about section is not hidden');

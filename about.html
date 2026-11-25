@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About FarGems</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="What FarGems shows, where its data comes from, how it treats your location, and its limits.">
+<meta name="theme-color" content="#070b14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="landing">
+<main class="welcome">
+  <p class="back"><a href="index.html">&larr; Back to FarGems</a></p>
+  <div class="brand big"><img class="logo logo-lg" src="icon.svg" alt="FarGems logo" width="112" height="112">Far<b>Gems</b></div>
+
+  <section id="about" class="card about" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">About FarGems</h2>
+    <p>FarGems is a sky map for your location. It shows what is above you right now, drawn as a radar-style view with a sweep you can turn off.</p>
+
+    <h3>What it shows</h3>
+    <ul>
+      <li><b>Aircraft</b> you can actually see from where you stand (25 km away by default, and you can change that), with altitude, speed, heading and where they are flying to.</li>
+      <li><b>Satellites</b>, including the ISS, Tiangong and about 100 of the brightest, with their next passes.</li>
+      <li><b>The Sun, Moon and planets</b>, with rise and set times and the Moon's phase.</li>
+      <li><b>Bright stars</b> and the <b>radiants</b> of active meteor showers.</li>
+      <li><b>Cloud cover</b> for your area, when available.</li>
+    </ul>
+
+    <h3>Layers and radar</h3>
+    <p>Open <b>Layers</b> in the sky view to switch each layer on or off: the object layers, altitude rings and compass, names, and the radar sweep. The sweep is off if your device asks for reduced motion. With the compass on, the map turns as you turn, so N, E, S and W always point the real way and the top of the screen is the way you face.</p>
+
+    <h3>Camera view</h3>
+    <p>Raise your phone to point at the sky and the camera view opens, labelling what is there. Hold it flat or tilted to read and you stay on the radar. The camera picture never leaves your phone.</p>
+
+    <h3>Where the data comes from</h3>
+    <dl>
+      <dt>Aircraft</dt><dd>adsb.lol, airplanes.live and OpenSky, with flight routes from adsbdb</dd>
+      <dt>Satellites</dt><dd>CelesTrak orbit data, with positions calculated in your browser</dd>
+      <dt>Sun, Moon, planets, stars</dt><dd>Calculated in your browser with astronomy-engine</dd>
+      <dt>Meteor showers</dt><dd>A built-in table of approximate dates and radiants</dd>
+      <dt>Clouds</dt><dd>Open-Meteo</dd>
+    </dl>
+
+    <h3>Privacy</h3>
+    <p>Your location and compass stay on your device. The app sends your coordinates only to the public data services above, to fetch data for your area. Aircraft requests pass through a small relay that forwards only a rounded area to the feeds and stores nothing about you. There are no accounts and no tracking.</p>
+
+    <h3>Limits</h3>
+    <ul>
+      <li>Aircraft come from community feeds, so some aircraft are missing or delayed.</li>
+      <li>The compass is usually 5–20° off, and results vary by phone.</li>
+      <li>Meteor shower dates and radiants are approximate, and individual meteors can't be tracked.</li>
+    </ul>
+
+    <p class="muted small">Project page: <a href="https://github.com/gnanaswaroop/fargems">github.com/gnanaswaroop/fargems</a>.</p>
+  </section>
+</main>
+</body>
+</html>

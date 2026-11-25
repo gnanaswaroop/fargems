@@ -140,9 +140,10 @@ test('autoStep closes an open view once the phone has been flat for a moment, an
   assert.deepEqual(run([{ pitch: -80, now: 1000 }, { pitch: -80, now: 3000 }]).actions, [null, null]);
 });
 
-test('the radar keeps north at the top with the compass on, and draws the facing wedge instead', () => {
+test('with the compass on the map turns with the phone, and east is on the right like a map', () => {
   const app = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'app.js'), 'utf8');
-  assert.match(app, /const rot = state\.compass \? 0 : state\.rot/);
-  assert.doesNotMatch(app, /state\.compass \? state\.heading : state\.rot/);
-  assert.match(app, /P\(state\.heading \+ d, 0\)/);
+  assert.match(app, /const rot = state\.compass \? state\.heading : state\.rot/);
+  assert.match(app, /sgn = \(state\.compass \|\| state\.flip\) \? 1 : -1/);
+  assert.match(app, /state\.flip = storedValue\('fg\.flip'\) !== '0'/);
+  assert.doesNotMatch(app, /facing wedge|the way you are facing: a soft wedge/);
 });
