@@ -62,9 +62,12 @@ const libDate = async (ms) => new (await lib('astronomy', ASTRONOMY_URL)).Date_(
 
 for (const p of PLACES) {
   test(`aircraft near ${p.name} are real and sensible`, { skip: PROXY ? false : 'AIRCRAFT_PROXY_URL is not set' }, async (t) => {
-    const res = await getOrSkip(t, L.aircraftProxyUrl(PROXY, p.lat, p.lon, 150), { headers: { Origin: ORIGIN } });
-    if (!res) return;
-    assert.equal(res.status, 200, 'proxy answers');
+    // The proxy is ours: when it cannot get aircraft from ANY provider it answers 502, and that is a failure to look at,
+    // not a feed to skip. Only a deliberate switch-off (503 with disabled: true) is skipped.
+    let res;
+    try { res = await get(L.aircraftProxyUrl(PROXY, p.lat, p.lon, 150), { headers: { Origin: ORIGIN } }); } catch (e) { assert.fail('the proxy did not answer: ' + e.name); }
+    if (res.status === 503 && (await res.clone().json().catch(() => ({}))).disabled) return t.skip('the proxy is switched off');
+    assert.equal(res.status, 200, `proxy answered HTTP ${res.status}: ${res.status >= 500 ? JSON.stringify(await res.clone().json().catch(() => ({}))) : ''}`);
     const list = L.parseV2(await res.json());
     if (p.busy) assert.ok(list.length >= 5, `${p.name} should be busy, got ${list.length}`);
     const ids = new Set();
@@ -125,11 +128,19 @@ for (const p of PLACES) {
   });
 }
 
-test('CelesTrak gives fresh ISS elements, and the ISS is at a believable height and speed', async (t) => {
-  const res = await getOrSkip(t, 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle');
-  if (!res) return;
-  const text = await res.text();
-  if (!/^1 \d{5}/m.test(text)) return t.skip('CelesTrak did not return element sets (' + text.slice(0, 40).replace(/\s+/g, ' ') + ')');
+test('satellite elements are fresh, and the ISS is at a believable height and speed', async (t) => {
+  // Through the proxy (which has fallbacks for when CelesTrak is down) when there is one, else straight from CelesTrak.
+  const sources = [L.tleProxyUrl(PROXY, 'stations'), 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle'].filter(Boolean);
+  let text = '', via = '';
+  for (const url of sources) {
+    try {
+      const res = await get(url, { headers: { Origin: ORIGIN } });
+      const body = res.ok ? await res.text() : '';
+      if (/^1 \d{5}/m.test(body)) { text = body; via = new URL(url).host + (res.headers.get('x-provider') ? ' (' + res.headers.get('x-provider') + ')' : ''); break; }
+    } catch { /* try the next source */ }
+  }
+  if (!text) return t.skip('no source of element sets answered (the proxy and CelesTrak are both unavailable)');
+  t.diagnostic('element sets from ' + via);
   const sat = await satellite();
   const sats = L.parseTLE(text, 'stations', (l1, l2) => sat.twoline2satrec(l1, l2));
   assert.ok(sats.length >= 3, `parsed ${sats.length} space stations`);

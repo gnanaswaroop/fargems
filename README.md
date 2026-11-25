@@ -1,6 +1,11 @@
 # FarGems
 
-Live sky view of what is above you: aircraft, satellites (ISS, Tiangong and ~100 bright ones), Sun, Moon, planets, bright stars and active meteor showers. A static PWA with no backend. Every data request goes from the browser straight to a public API.
+Live sky view of what is above you: aircraft, satellites (ISS, Tiangong and ~100 bright ones), Sun, Moon, planets, bright stars and active meteor showers. A static PWA. Sky maths runs in the browser; aircraft, routes and satellite data come through a small data proxy (a Cloudflare Worker) that shares answers between visitors and falls back between providers when one throttles or fails. You can run that proxy locally with `npm run worker:dev`.
+
+## Documentation
+
+- [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md): set everything up on your own machine (site, data proxy, tests, phone, emulator, deploying your own).
+- [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md): how it all works: permissions, compass detection and correction, the radar and camera (AR) views, data providers and how the proxy copes with throttling, privacy, build and tests.
 
 ## Run locally
 
