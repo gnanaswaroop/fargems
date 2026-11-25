@@ -67,6 +67,9 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .welcome .manual{margin:16px 0 0;display:grid;gap:8px}
 .welcome .manual label{font-size:13px;color:var(--muted)}
 .welcome .card{margin:0 0 4px}
+.about-link{text-align:center;margin:22px 0 0;font-size:14px}
+.about-link a,.back a{color:var(--accent)}
+.back{margin:0 0 6px;font-size:14px}
 .tagline{text-align:center;margin:0 0 4px;font-size:18px;color:var(--text)}
 .hero{display:block;width:min(78vw,260px);height:auto;margin:10px auto 6px;filter:drop-shadow(0 0 22px rgba(90,209,230,.18))}
 .hero-sweep{transform-origin:120px 120px;animation:hero-spin 7s linear infinite}
