@@ -5,6 +5,11 @@
   const O = window.FarGemsOnboarding;
   const $ = (s) => document.querySelector(s);
 
+  // The hero picture moves; hold it still for visitors who ask their device for less motion.
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { const h = $('.hero'); if (h && h.pauseAnimations) h.pauseAnimations(); }
+  } catch { /* the picture just keeps moving */ }
+
   // localStorage can be blocked (private mode, some embedded browsers); fall back to memory.
   const storage = (() => {
     try { const k = '__fg_probe'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return localStorage; }
