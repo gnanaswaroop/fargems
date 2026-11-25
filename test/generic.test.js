@@ -9,8 +9,10 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'tmp']);
 const SKIP_FILES = new Set([path.join('test', 'generic.test.js')]);
-// The last pattern is the owner's home area. Tests, samples and docs use HITEC City in Hyderabad, or other cities, instead.
+// Tests, samples and docs use HITEC City in Hyderabad, or other cities, never the owner's home. Private patterns to keep out of the
+// repo (one regular expression per line) can go in the git-ignored tmp/private-patterns.txt; they are checked too.
 const BANNED = [/fargems\.com/i, /185\.199\.10[89]\.153|185\.199\.11[01]\.153/, /porkbun/i, /cloudflare account/i];
+try { for (const l of fs.readFileSync(path.join(ROOT, 'tmp', 'private-patterns.txt'), 'utf8').split(/\r?\n/)) if (l.trim()) BANNED.push(new RegExp(l.trim())); } catch (e) { /* no private patterns here */ }
 
 function files(dir = ROOT, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
