@@ -56,7 +56,7 @@ test('settings offer the visible-only choice and store it', () => {
 });
 
 test('routeProxyUrl builds the route URL next to the aircraft URL', () => {
-  assert.equal(L.routeProxyUrl('https://w.example/aircraft', 'ual1', 17.4609, 78.3278), 'https://w.example/route?callsign=UAL1&lat=17.461&lon=78.328');
+  assert.equal(L.routeProxyUrl('https://w.example/aircraft', 'ual1', 17.4436, 78.3772), 'https://w.example/route?callsign=UAL1&lat=17.444&lon=78.377');
   assert.equal(L.routeProxyUrl('', 'UAL1', 1, 2), null, 'no proxy, no route lookup');
   assert.equal(L.routeProxyUrl('https://w.example/aircraft', '', 1, 2), null, 'no callsign');
   assert.equal(L.routeProxyUrl('https://w.example/other', 'UAL1', 1, 2), null, 'unknown URL shape');
@@ -170,9 +170,9 @@ test('the default farthest flight is 25 km, and the setting is kept between 1 an
 
 test('a jet at cruise height overhead is shown with the default range, not hidden by its height', () => {
   // 11 km up and straight overhead: 11 km away in a straight line, but 0 km along the ground
-  assert.equal(L.isVisibleFlight(90, L.distanceKm(17.46, 78.33, 17.46, 78.33)), true);
+  assert.equal(L.isVisibleFlight(90, L.distanceKm(17.44, 78.38, 17.44, 78.38)), true);
   // the same jet 40 km away along the ground is not shown by default, and is when the range allows it
-  const far = L.distanceKm(17.46, 78.33, 17.46 + 0.36, 78.33);
+  const far = L.distanceKm(17.44, 78.38, 17.44 + 0.36, 78.38);
   assert.ok(far > 39 && far < 41);
   assert.equal(L.isVisibleFlight(15, far), false);
   assert.equal(L.isVisibleFlight(15, far, { maxRangeKm: 50 }), true);

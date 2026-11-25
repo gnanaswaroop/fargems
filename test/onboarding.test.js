@@ -103,14 +103,14 @@ test('startTarget sends the visitor to the viewer only once a location is known'
 });
 
 test('SAMPLE_LOCATION is the agreed sample coordinate pair and is frozen', () => {
-  assert.equal(O.SAMPLE_LOCATION.lat, 17.460864206181917);
-  assert.equal(O.SAMPLE_LOCATION.lon, 78.32779313373987);
+  assert.equal(O.SAMPLE_LOCATION.lat, 17.4435);
+  assert.equal(O.SAMPLE_LOCATION.lon, 78.3772);
   assert.ok(Object.isFrozen(O.SAMPLE_LOCATION));
 });
 
 test('SAMPLE_LOCATION passes the same validation as typed coordinates', () => {
   const s = memStorage();
   assert.equal(O.storeLocation(s, O.SAMPLE_LOCATION.lat, O.SAMPLE_LOCATION.lon), true);
-  assert.deepEqual(O.readLocation(s), { lat: 17.460864206181917, lon: 78.32779313373987 });
+  assert.deepEqual(O.readLocation(s), { lat: 17.4435, lon: 78.3772 });
   assert.equal(O.startTarget(s), 'viewer.html');
 });

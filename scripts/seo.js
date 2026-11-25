@@ -22,8 +22,8 @@ function fillPlaceholders(html, domain) {
   return html.split('\n').filter((line) => !line.includes(PLACEHOLDER)).join('\n');
 }
 
-function sitemapXml(domain) {
-  const urls = SITEMAP_PATHS.map((p) => `  <url><loc>https://${domain}${p}</loc></url>`).join('\n');
+function sitemapXml(domain, today = new Date().toISOString().slice(0, 10)) {
+  const urls = SITEMAP_PATHS.map((p) => `  <url><loc>https://${domain}${p}</loc><lastmod>${today}</lastmod></url>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 

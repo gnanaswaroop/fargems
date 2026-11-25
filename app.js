@@ -1,6 +1,6 @@
 'use strict';
 /* FarGems — client-only sky tracker.
- * Data: aircraft (adsb.lol → airplanes.live → OpenSky), satellites (CelesTrak TLE + satellite.js SGP4),
+ * Data: aircraft (through the proxy: adsb.lol → adsb.fi → OpenSky), satellites (CelesTrak TLE + satellite.js SGP4),
  * Sun/Moon/planets/stars (astronomy-engine), meteor showers (static table), clouds (Open-Meteo). */
 (() => {
 const $ = (s, r = document) => r.querySelector(s);
@@ -280,10 +280,15 @@ function draw() {
   ctx.strokeStyle = 'rgba(160,180,210,.28)'; ctx.lineWidth = 1;
   if (state.filters.grid) for (const el of [0, 30, 60]) { ctx.beginPath(); ctx.arc(cx, cy, (90 - el) / 90 * R, 0, 7); ctx.stroke(); }
   ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(160,180,210,.6)'; ctx.textAlign = 'left';
-  if (state.filters.grid) { ctx.fillText('30°', cx + 3, cy - (60 / 90) * R + 12); ctx.fillText('60°', cx + 3, cy - (30 / 90) * R + 12); }
+  const fixed = []; // text already on the dial, which object names keep clear of
+  if (state.filters.grid) {
+    ctx.fillText('30°', cx + 3, cy - (60 / 90) * R + 12); ctx.fillText('60°', cx + 3, cy - (30 / 90) * R + 12);
+    fixed.push({ x0: cx + 2, x1: cx + 26, y0: cy - (60 / 90) * R + 2, y1: cy - (60 / 90) * R + 15 }, { x0: cx + 2, x1: cx + 26, y0: cy - (30 / 90) * R + 2, y1: cy - (30 / 90) * R + 15 });
+  }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '600 13px system-ui';
   [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, az]) => {
     const p = P(az, -9); ctx.fillStyle = t === 'N' ? '#ff8a80' : '#aab6cc'; ctx.fillText(t, p.x, p.y);
+    fixed.push({ x0: p.x - 8, x1: p.x + 8, y0: p.y - 9, y1: p.y + 9 });
   });
   ctx.textBaseline = 'alphabetic';
 
@@ -298,7 +303,29 @@ function draw() {
   }
   state.hits = [];
   const F = state.filters, sel = state.sel;
-  const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { if (!F.labels) return; ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.font = '11px system-ui'; ctx.fillText(o.name, p.x + dx, p.y + dy); };
+  // Names are queued while the objects are drawn and placed afterwards, most important first, so that two names never
+  // sit on top of each other: each name tries a few spots around its object and is skipped if none is free (only
+  // minor ones: the selected object, the Sun, Moon and planets and the space stations always get a name).
+  const labelQ = [], LABEL_PRIO = { body: 1, sat: 2, air: 3, met: 4, star: 5 };
+  const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { if (!F.labels) return; labelQ.push({ o, p, dx, dy, col, prio: o.id === sel ? 0 : (LABEL_PRIO[o.kind] || 5) }); };
+  const placeLabels = () => {
+    ctx.font = '11px system-ui'; ctx.textBaseline = 'alphabetic';
+    const placed = [...fixed], overlaps = (r) => placed.some((q) => r.x0 < q.x1 && r.x1 > q.x0 && r.y0 < q.y1 && r.y1 > q.y0);
+    labelQ.sort((a, b) => a.prio - b.prio);
+    for (const L of labelQ) {
+      const w = ctx.measureText(L.o.name).width, spots = [
+        { x: L.p.x + L.dx, y: L.p.y + L.dy, a: 'left' }, { x: L.p.x + L.dx, y: L.p.y + L.dy + 16, a: 'left' },
+        { x: L.p.x - L.dx, y: L.p.y + L.dy, a: 'right' }, { x: L.p.x - L.dx, y: L.p.y + L.dy + 16, a: 'right' },
+        { x: L.p.x, y: L.p.y - 14, a: 'center' }, { x: L.p.x, y: L.p.y + 22, a: 'center' },
+      ];
+      const box = (c) => { const x0 = c.a === 'left' ? c.x : (c.a === 'right' ? c.x - w : c.x - w / 2); return { x0, x1: x0 + w, y0: c.y - 10, y1: c.y + 3 }; };
+      let pick = spots.find((c) => { const r = box(c); return r.x0 >= 2 && r.x1 <= W - 2 && r.y0 >= 0 && r.y1 <= W && !overlaps(r); });
+      if (!pick) { if (L.prio > 2) continue; pick = spots[0]; }
+      ctx.fillStyle = L.col; ctx.textAlign = pick.a; ctx.fillText(L.o.name, pick.x, pick.y);
+      placed.push(box(pick));
+    }
+    ctx.textAlign = 'left';
+  };
   const hit = (o, p, r) => state.hits.push({ id: o.id, x: p.x, y: p.y, r: Math.max(r, 14) });
 
   for (const o of state.objs) { // stars
@@ -340,6 +367,7 @@ function draw() {
     ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     label(o, p, r + 4, 4, '#fff'); hit(o, p, r + 8);
   }
+  placeLabels();
   const so = sel && state.byId.get(sel);
   if (so && so.el >= -1) { const p = P(so.az, Math.max(0, so.el)); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7); ctx.stroke(); }
 }
@@ -378,7 +406,7 @@ function renderStatus() {
   else out.push('<span>Aircraft: loading…</span>');
   if (s.sat) out.push(s.sat.err ? '<span class="bad">Satellites: data unreachable</span>' : `<span class="${now - s.sat.t > 10 * 864e5 ? 'bad' : ''}">Satellites: ${s.sat.n} tracked · elements ${ago(now - s.sat.t)} old</span>`);
   else out.push('<span>Satellites: loading…</span>');
-  $('#status').innerHTML = out.join('');
+  $('#status').innerHTML = out.join(' ');
 }
 function renderPasses() {
   const el = $('#passes');
