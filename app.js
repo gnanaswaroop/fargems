@@ -381,10 +381,10 @@ function routeText(a) {
   const url = H.routeProxyUrl(base, a.call, a.lat, a.lon);
   if (!url) return `Not available here. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
   const r = state.routes.get(a.call);
-  if (!r) {
-    state.routes.set(a.call, { state: 'loading' });
-    getJSON(url).then(data => state.routes.set(a.call, { state: 'done', data }))
-      .catch(() => state.routes.set(a.call, { state: 'failed' }))
+  if (!H.routeEntryFresh(r, Date.now())) {
+    state.routes.set(a.call, { state: 'loading', at: Date.now() });
+    getJSON(url).then(data => state.routes.set(a.call, { state: 'done', data, at: Date.now() }))
+      .catch(() => state.routes.set(a.call, { state: 'failed', at: Date.now() }))
       .finally(() => { if (state.sel === 'air:' + a.id) renderDetail(); });
     return 'Looking up…';
   }

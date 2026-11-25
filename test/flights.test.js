@@ -71,22 +71,21 @@ test('distanceKm and bearingTo agree with known geography', () => {
   assert.ok(Math.abs(L.bearingTo(0, 0, 0, 1) - 90) < 1e-6);
 });
 
-test('normalizeRoute takes the first airport as origin and the last as destination', async () => {
+const AP = (iata, name, city, lat, lon) => ({ iata_code: iata, icao_code: 'K' + iata, name, municipality: city, country_iso_name: 'IN', latitude: lat, longitude: lon });
+const ADSBDB = (o, d) => ({ response: { flightroute: { callsign: 'AIC144', origin: o, destination: d } } });
+
+test('normalizeRoute reads origin and destination from the adsbdb answer', async () => {
   const { normalizeRoute } = await W;
-  const up = [{ callsign: 'AIC144', plausible: true, _airports: [
-    { iata: 'DEL', icao: 'VIDP', name: 'Indira Gandhi International', location: 'Delhi', countryiso2: 'IN', lat: 28.56, lon: 77.1 },
-    { iata: 'HYD', icao: 'VOHS', name: 'Rajiv Gandhi International', location: 'Hyderabad', countryiso2: 'IN', lat: 17.24, lon: 78.43 },
-  ] }];
-  const r = normalizeRoute(up, 'AIC144');
-  assert.equal(r.origin.iata, 'DEL');
-  assert.equal(r.destination.iata, 'HYD');
-  assert.equal(r.destination.city, 'Hyderabad');
-  assert.equal(r.destination.lat, 17.24);
+  const r = normalizeRoute(ADSBDB(AP('EWR', 'Newark Liberty', 'New York', 40.69, -74.17), AP('BOM', 'Chhatrapati Shivaji', 'Mumbai', 19.09, 72.87)), 'AIC144');
+  assert.equal(r.origin.iata, 'EWR');
+  assert.equal(r.destination.iata, 'BOM');
+  assert.equal(r.destination.city, 'Mumbai');
+  assert.equal(r.destination.lat, 19.09);
 });
 
-test('normalizeRoute gives nulls for unknown, implausible or malformed routes', async () => {
+test('normalizeRoute gives nulls for unknown or malformed answers', async () => {
   const { normalizeRoute } = await W;
-  for (const up of [[], null, [{ _airports: [] }], [{ plausible: false, _airports: [{ iata: 'A' }, { iata: 'B' }] }], [{ _airports: [{ iata: 'A' }] }]]) {
+  for (const up of [null, {}, { response: 'unknown callsign' }, { response: { flightroute: null } }, ADSBDB(AP('A', 'A', 'A', 1, 1), null)]) {
     const r = normalizeRoute(up, 'X1');
     assert.equal(r.origin, null);
     assert.equal(r.destination, null);
@@ -112,40 +111,38 @@ function fakeCache() {
 }
 const ENV = { ALLOWED_ORIGINS: 'https://fargems.example' };
 const ROUTE = (q) => new Request('https://worker.example/route' + q, { headers: { Origin: 'https://fargems.example' } });
-const UPSTREAM_OK = JSON.stringify([{ plausible: true, _airports: [{ iata: 'DEL', name: 'Delhi' }, { iata: 'HYD', name: 'Hyderabad' }] }]);
+const UPSTREAM_OK = JSON.stringify(ADSBDB(AP('DEL', 'Delhi', 'Delhi', 28.5, 77.1), AP('HYD', 'Hyderabad', 'Hyderabad', 17.2, 78.4)));
 
 test('worker /route returns the destination, caches it, and shares it between visitors', async () => {
   const { handle } = await W;
   const cache = fakeCache();
   let calls = 0, sent;
   const fetchImpl = async (url, init) => { calls++; sent = { url, init }; return new Response(UPSTREAM_OK, { status: 200 }); };
-  const first = await handle(ROUTE('?callsign=aic144&lat=17.4&lon=78.3'), ENV, { fetchImpl, cache });
+  const first = await handle(ROUTE('?callsign=aic144'), ENV, { fetchImpl, cache });
   assert.equal(first.status, 200);
   assert.equal(first.headers.get('Access-Control-Allow-Origin'), 'https://fargems.example');
   assert.equal(first.headers.get('X-Cache'), 'MISS');
   assert.equal((await first.json()).destination.iata, 'HYD');
-  assert.equal(sent.init.method, 'POST');
-  assert.deepEqual(JSON.parse(sent.init.body).planes[0], { callsign: 'AIC144', lat: 17.4, lng: 78.3 });
+  assert.equal(sent.url, 'https://api.adsbdb.com/v0/callsign/AIC144');
   assert.match(sent.init.headers['User-Agent'], /FarGems/);
   const second = await handle(ROUTE('?callsign=AIC144&lat=18&lon=79'), ENV, { fetchImpl, cache });
   assert.equal(second.headers.get('X-Cache'), 'HIT');
   assert.equal(calls, 1, 'the second visitor did not cost an upstream request');
 });
 
-test('worker /route validates input and reports upstream failure', async () => {
+test('worker /route validates the callsign and reports upstream failure', async () => {
   const { handle } = await W;
   const noFetch = async () => { throw new Error('must not be called'); };
-  assert.equal((await handle(ROUTE('?callsign=%2E%2E&lat=1&lon=1'), ENV, { fetchImpl: noFetch, cache: fakeCache() })).status, 400);
-  assert.equal((await handle(ROUTE('?callsign=UAL1&lat=abc&lon=1'), ENV, { fetchImpl: noFetch, cache: fakeCache() })).status, 400);
-  const down = async () => new Response('', { status: 429 });
-  assert.equal((await handle(ROUTE('?callsign=UAL1&lat=1&lon=1'), ENV, { fetchImpl: down, cache: fakeCache() })).status, 502);
+  assert.equal((await handle(ROUTE('?callsign=%2E%2E'), ENV, { fetchImpl: noFetch, cache: fakeCache() })).status, 400);
+  assert.equal((await handle(ROUTE(''), ENV, { fetchImpl: noFetch, cache: fakeCache() })).status, 400);
+  const down = async () => new Response('', { status: 500 });
+  assert.equal((await handle(ROUTE('?callsign=UAL1'), ENV, { fetchImpl: down, cache: fakeCache() })).status, 502);
 });
 
-test('worker /route remembers flights with no known route, for a shorter time', async () => {
+test('worker /route remembers flights the database does not know, for a shorter time', async () => {
   const { handle } = await W;
-  const cache = fakeCache();
-  const fetchImpl = async () => new Response('[]', { status: 200 });
-  const res = await handle(ROUTE('?callsign=N123AB&lat=1&lon=1'), ENV, { fetchImpl, cache });
+  const fetchImpl = async () => new Response('{"response":"unknown callsign"}', { status: 404 });
+  const res = await handle(ROUTE('?callsign=N123AB'), ENV, { fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 200);
   assert.equal((await res.json()).destination, null);
   assert.match(res.headers.get('Cache-Control'), /max-age=600/);
@@ -153,4 +150,22 @@ test('worker /route remembers flights with no known route, for a shorter time', 
 
 test('tapping a flight beats a star drawn behind it', () => {
   assert.match(read('app.js'), /startsWith\('star:'\)/);
+});
+
+test('routeEntryFresh retries failed and unknown lookups later, and keeps known routes', () => {
+  const T = 1_000_000;
+  assert.equal(L.routeEntryFresh(undefined, T), false, 'nothing remembered: look it up');
+  assert.equal(L.routeEntryFresh({ state: 'loading', at: T - 5000 }, T), true, 'wait for the lookup in progress');
+  assert.equal(L.routeEntryFresh({ state: 'failed', at: T - 10_000 }, T), true, 'a fresh failure is not hammered');
+  assert.equal(L.routeEntryFresh({ state: 'failed', at: T - 61_000 }, T), false, 'a failure is retried after a minute');
+  assert.equal(L.routeEntryFresh({ state: 'done', at: T - 61_000, data: { destination: null } }, T), true);
+  assert.equal(L.routeEntryFresh({ state: 'done', at: T - 601_000, data: { destination: null } }, T), false, 'unknown is retried after ten minutes');
+  assert.equal(L.routeEntryFresh({ state: 'done', at: T - 86_400_000, data: { destination: { iata: 'BOM' } } }, T), true, 'a known route is kept');
+  assert.equal(L.routeEntryFresh({ state: 'weird', at: T }, T), false);
+});
+
+test('the app uses routeEntryFresh and stamps every route entry with a time', () => {
+  const app = read('app.js');
+  assert.match(app, /routeEntryFresh\(r, Date\.now\(\)\)/);
+  assert.equal((app.match(/state\.routes\.set\([^)]*at: Date\.now\(\)/g) || []).length, 3);
 });
