@@ -124,7 +124,8 @@
 
   // Install: browsers that fire beforeinstallprompt get a button. iOS gets instructions instead.
   const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  // iPadOS Safari reports itself as a Mac, so a Mac with a touch screen is an iPad.
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; renderInstall(); });
   window.addEventListener('appinstalled', () => { deferredInstall = null; renderInstall(); });
 

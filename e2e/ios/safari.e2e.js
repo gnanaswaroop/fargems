@@ -25,6 +25,9 @@ const HITEC = { latitude: 17.4435, longitude: 78.3772 }; // HITEC City, Hyderaba
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// What Safari on iPadOS 13 and later sends: it says it is a Mac, and the touch screen is the only hint.
+const DESKTOP_SAFARI_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15';
+
 let server, base, browser;
 
 test.before(async () => {
@@ -50,9 +53,9 @@ test.after(async () => {
 // A fresh iPhone page. `answer` is what the iPhone motion prompt will say when the visitor is asked.
 // `quiet`: the browser already allows location for the site (so the page can fetch it without asking). By default the
 // browser reports "ask", like a first visit, even though the test browser will answer when asked.
-async function iphone({ storage = {}, answer = 'granted', quiet = false } = {}) {
+async function iphone({ storage = {}, answer = 'granted', quiet = false, device = 'iPhone 14', desktopUA = false } = {}) {
   const context = await browser.newContext({
-    ...playwright.devices['iPhone 14'], serviceWorkers: 'block',
+    ...playwright.devices[device], ...(desktopUA ? { userAgent: DESKTOP_SAFARI_UA } : {}), serviceWorkers: 'block',
     geolocation: HITEC, permissions: ['geolocation'],
   });
   await context.addInitScript(({ storage, answer, quiet }) => {
@@ -148,6 +151,54 @@ test('iPad in landscape: the home page and the sky view fit the screen with no v
     assert.ok(box.side.left >= box.sky.right - 1 && box.nearby.left >= box.side.right - 1, 'radar, details and nearby list sit side by side');
     assert.ok(box.sky.width > 400, 'the radar uses the space');
     assert.equal(await page.isVisible('.tabs'), false, 'no tabs when both lists are shown');
+  } finally { await context.close(); }
+});
+
+// Every iPad profile Playwright knows (sizes, touch, the iPad user agent), in both orientations, on the real Safari engine.
+const IPADS = ['iPad (gen 5)', 'iPad (gen 6)', 'iPad (gen 7)', 'iPad (gen 11)', 'iPad Mini', 'iPad Pro 11'].flatMap((n) => [n, n + ' landscape']);
+for (const device of IPADS) {
+  test(`${device}: the iPad user agent, no sideways scroll on any page, and the layout fits the orientation`, { skip }, async () => {
+    const { page, context, errors } = await iphone({ device, storage: SAVED });
+    try {
+      assert.match(await page.evaluate(() => navigator.userAgent), /iPad/);
+      const landscape = /landscape/.test(device);
+      for (const f of ['index.html', 'about.html', 'settings.html', 'viewer.html']) {
+        await page.goto(`${base}/${f}`);
+        await page.waitForTimeout(300);
+        const m = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, vw: innerWidth, h: document.documentElement.scrollHeight, vh: innerHeight }));
+        assert.ok(m.w <= m.vw, `${f} scrolls sideways ${JSON.stringify(m)}`);
+        if (landscape && (f === 'index.html' || f === 'viewer.html')) assert.ok(m.h <= m.vh, `${f} scrolls up and down in landscape ${JSON.stringify(m)}`);
+        if (f === 'viewer.html') assert.equal(await page.isVisible('.tabs'), !landscape, landscape ? 'both lists shown, no tabs' : 'tabs in portrait');
+      }
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  });
+}
+
+test('iPad: tapping Allow asks for motion inside the tap and then opens the sky view', { skip }, async () => {
+  const { page, context } = await iphone({ device: 'iPad Pro 11 landscape' });
+  try {
+    await page.goto(base + '/index.html');
+    await page.tap('#allowBtn');
+    await page.waitForFunction(() => localStorage.getItem('fg.loc'), null, { timeout: 15000 });
+    assert.deepEqual((await page.evaluate(() => window.__ios.order)).slice(0, 2), ['motion', 'location']);
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.compass')), 'granted');
+    await page.waitForURL('**/viewer.html', { timeout: 15000 });
+  } finally { await context.close(); }
+});
+
+test('iPadOS Safari, which says it is a Mac, still gets the Add to Home Screen steps', { skip }, async () => {
+  const { page, context } = await iphone({ device: 'iPad Pro 11', desktopUA: true });
+  try {
+    // Safari on an iPad reports a Mac platform with a touch screen; this test browser needs those two told to it.
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+      Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 5 });
+    });
+    await page.goto(base + '/index.html');
+    assert.doesNotMatch(await page.evaluate(() => navigator.userAgent), /iPad|iPhone/, 'the page sees a Mac user agent');
+    assert.ok(await page.evaluate(() => navigator.maxTouchPoints > 1), 'with a touch screen');
+    await page.waitForFunction(() => /Share/.test(document.querySelector('#installText').textContent), null, { timeout: 5000 });
   } finally { await context.close(); }
 });
 

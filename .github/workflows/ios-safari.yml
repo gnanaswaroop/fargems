@@ -1,5 +1,6 @@
-# Runs the app in Safari's engine (WebKit) with an iPhone profile on every pull request and push to main.
-# It is not a real iPhone (no real compass), so the test adds the iPhone-only motion permission and compass heading the
+# Runs the app in Safari's engine (WebKit) on every pull request and push to main, with an iPhone profile and with every
+# iPad profile (six models, portrait and landscape: size, touch, iPad user agent).
+# It is not a real iPhone or iPad (no real compass), so the test adds the motion permission and compass heading the
 # way Safari on iOS provides them. See e2e/ios/safari.e2e.js for what it covers and what it cannot.
 name: iOS Safari (WebKit)
 
@@ -25,5 +26,5 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps webkit
-      - name: Run the iPhone Safari test
+      - name: Run the iPhone and iPad Safari tests
         run: node --test --test-reporter=spec e2e/ios/safari.e2e.js

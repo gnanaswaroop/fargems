@@ -154,7 +154,7 @@ If you put a CDN or Cloudflare zone in front of the site, remember it can keep o
 | Command | What it does | Needs |
 |---|---|---|
 | `npm test` | everything that can run anywhere (runs in CI on every pull request) | Node |
-| `npm run test:ios` | the app in Safari's engine (WebKit) with an iPhone profile: the iPhone motion prompt, compass heading, install steps, camera view, layout | `cd e2e/ios && npm ci && npx playwright install webkit` once |
+| `npm run test:ios` | the app in Safari's engine (WebKit) with an iPhone profile and the iPad profiles: the iOS motion prompt, compass heading, install steps, camera view, layout | `cd e2e/ios && npm ci && npx playwright install webkit` once |
 | `npm run test:live` | real data at five places: aircraft, sunrise and sunset, Moon, weather, the ISS | internet; `AIRCRAFT_PROXY_URL` for the aircraft part |
 | `npm run test:android` | compass and camera (AR) view on a real Android (Chrome) emulator with virtual sensors | `adb`, one running emulator with Chrome |
 
