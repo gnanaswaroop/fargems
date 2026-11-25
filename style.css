@@ -116,6 +116,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 
 /* the two pages slide inside this box, so the off-screen page is clipped at the content edge */
 .pager-view { overflow: hidden; }
+.layer-row input[type="number"] { flex: 0 0 auto; width: 5em; min-width: 0; padding: 6px 8px; }
 
 /* AR view: the camera fills the screen, the canvas draws over it, a small card shows the selected object */
 .ar { position: fixed; inset: 0; z-index: 50; background: #000; }

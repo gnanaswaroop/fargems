@@ -1,5 +1,5 @@
 /* FarGems settings: writes the choices the sky view reads on load.
- * Keys: fg.loc (location), fg.compass (permission), fg.flip ('1'/'0'), fg.unit ('C'/'F'), fg.visOnly ('1'/'0'), fg.layers (JSON). */
+ * Keys: fg.loc (location), fg.compass (permission), fg.flip ('1'/'0'), fg.unit ('C'/'F'), fg.visOnly ('1'/'0'), fg.flightRange (km), fg.layers (JSON). */
 (() => {
   'use strict';
   const L = window.FarGemsLogic;
@@ -62,6 +62,12 @@
   $('#flipToggle').addEventListener('change', (e) => storage.setItem('fg.flip', e.target.checked ? '1' : '0'));
   $('#visOnlyToggle').checked = L.parseVisOnly(storage.getItem('fg.visOnly'));
   $('#visOnlyToggle').addEventListener('change', (e) => storage.setItem('fg.visOnly', e.target.checked ? '1' : '0'));
+  // Farthest flight to show (km). The saved value is the cleaned-up number, so the box always shows what is used.
+  $('#flightRange').value = L.parseFlightRange(storage.getItem('fg.flightRange'));
+  $('#flightRange').addEventListener('change', (e) => {
+    const km = L.parseFlightRange(e.target.value);
+    e.target.value = km; storage.setItem('fg.flightRange', String(km));
+  });
   $('#unitSelect').value = L.parseUnit(storage.getItem('fg.unit'));
   $('#unitSelect').addEventListener('change', (e) => storage.setItem('fg.unit', L.parseUnit(e.target.value)));
 

@@ -16,12 +16,13 @@ test('horizonKm grows with height: a jet at 11 km can be 370+ km away along the 
 });
 
 test('isVisibleFlight needs a clear angle above the horizon and a short distance', () => {
-  assert.equal(L.isVisibleFlight(40, 15), true, 'nearly overhead');
-  assert.equal(L.isVisibleFlight(2, 20), false, 'too low, hidden by buildings and haze');
-  assert.equal(L.isVisibleFlight(30, 150), false, 'too far to see');
-  assert.equal(L.isVisibleFlight(5, 60), true, 'at the limits');
+  assert.equal(L.isVisibleFlight(40, 5), true, 'close and high');
+  assert.equal(L.isVisibleFlight(90, 0), true, 'a jet straight overhead is 0 km away along the ground');
+  assert.equal(L.isVisibleFlight(2, 5), false, 'too low, hidden by buildings and haze');
+  assert.equal(L.isVisibleFlight(30, 40), false, 'beyond the default 25 km');
+  assert.equal(L.isVisibleFlight(5, 25), true, 'at the limits');
   assert.equal(L.isVisibleFlight(NaN, 10), false);
-  assert.equal(L.isVisibleFlight(20, 90, { maxRangeKm: 100 }), true, 'limits can be changed');
+  assert.equal(L.isVisibleFlight(20, 90, { maxRangeKm: 100 }), true, 'the distance can be changed');
 });
 
 test('parseVisOnly is on unless switched off', () => {
@@ -150,6 +151,38 @@ test('worker /route remembers flights the database does not know, for a shorter 
 
 test('tapping a flight beats a star drawn behind it', () => {
   assert.match(read('app.js'), /startsWith\('star:'\)/);
+});
+
+test('the default farthest flight is 25 km, and the setting is kept between 1 and 100', () => {
+  assert.equal(L.DEFAULT_FLIGHT_RANGE_KM, 25);
+  assert.equal(L.parseFlightRange(null), 25);
+  assert.equal(L.parseFlightRange(undefined), 25);
+  assert.equal(L.parseFlightRange(''), 25);
+  assert.equal(L.parseFlightRange('abc'), 25);
+  assert.equal(L.parseFlightRange('25'), 25);
+  assert.equal(L.parseFlightRange('12.6'), 13, 'whole kilometres');
+  assert.equal(L.parseFlightRange('0'), 1, 'at least 1 km');
+  assert.equal(L.parseFlightRange('-5'), 1);
+  assert.equal(L.parseFlightRange('5000'), 100, 'at most 100 km');
+});
+
+test('a jet at cruise height overhead is shown with the default range, not hidden by its height', () => {
+  // 11 km up and straight overhead: 11 km away in a straight line, but 0 km along the ground
+  assert.equal(L.isVisibleFlight(90, L.distanceKm(17.44, 78.38, 17.44, 78.38)), true);
+  // the same jet 40 km away along the ground is not shown by default, and is when the range allows it
+  const far = L.distanceKm(17.44, 78.38, 17.44 + 0.36, 78.38);
+  assert.ok(far > 39 && far < 41);
+  assert.equal(L.isVisibleFlight(15, far), false);
+  assert.equal(L.isVisibleFlight(15, far, { maxRangeKm: 50 }), true);
+});
+
+test('settings have a farthest-flight box that saves a cleaned-up number, and the app reads it', () => {
+  const html = read('settings.html'), js = read('settings.js'), app = read('app.js');
+  assert.match(html, /id="flightRange"[^>]*type="number"[^>]*min="1"[^>]*max="100"/);
+  assert.match(js, /fg\.flightRange/);
+  assert.match(js, /parseFlightRange\(e\.target\.value\)/);
+  assert.match(app, /fg\.flightRange/);
+  assert.match(app, /maxRangeKm: state\.flightRangeKm/);
 });
 
 test('isDisabled reads the ENABLED switch: off only for an explicit off value', async () => {
