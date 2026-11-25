@@ -152,6 +152,13 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .nearby-row .ico svg { width: 24px; height: 24px; }
 .nearby-row .tag { display: inline-block; padding: 0 7px; margin-right: 4px; border-radius: 999px; border: 1px solid var(--line); font-size: 11px; color: var(--text); }
 .nearby-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Only the page being looked at takes up room, so the page is as tall as what is on it and ends there. */
+.pager:not(.nearby) #pageNearby, .pager.nearby #pageRadar { max-height: 0; overflow: hidden; visibility: hidden; }
+.wiki { color: var(--accent); text-decoration: none; font-size: 13px; }
+.wiki:hover, .wiki:focus-visible { text-decoration: underline; }
+.nearby-row .wiki { font-size: 12px; margin-left: 4px; white-space: nowrap; }
+.detail .blurb { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text); }
+.detail .wikirow { margin: 8px 0 0; }
 /* the sky view's text can be selected and copied */
 #detail, #status, #hud, .nearby-list, #passes { user-select: text; -webkit-user-select: text; }
 
@@ -280,6 +287,8 @@ a.brand{color:inherit;text-decoration:none}
   body.viewer .pager-view { flex: 1; min-height: 0; overflow: visible; }
   body.viewer .pager { width: 100%; height: 100%; transform: none !important; transition: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); column-gap: 16px; }
   body.viewer .page { width: auto; min-height: 0; }
+  body.viewer .pager:not(.nearby) #pageNearby, body.viewer .pager.nearby #pageRadar { max-height: none; visibility: visible; }
+  body.viewer #pageRadar { overflow: visible; }
   body.viewer #pageRadar { --rs: min(calc(100dvh - 215px), 640px, calc(100vw - 600px)); display: grid; grid-template-columns: var(--rs) minmax(200px, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 16px; align-content: start; }
   body.viewer #pageRadar > .hudrow, body.viewer #pageRadar > .skywrap, body.viewer #pageRadar > .status, body.viewer #pageRadar > #noLocation { grid-column: 1; }
   body.viewer #pageRadar > .side { grid-column: 2; grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
