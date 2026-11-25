@@ -260,3 +260,30 @@ a.brand{color:inherit;text-decoration:none}
 .hero-row{justify-content:center;margin:0 0 16px}
 .hero-row .hero{width:min(52vw,190px)}
 .landing a.btn.go{margin:0 0 14px}
+
+/* ---------- wide screens in landscape (tablets, desktops): use the width, so the page does not need to scroll ---------- */
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+  /* home page: the introduction on the left, the permissions and install on the right */
+  .landing .welcome { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); column-gap: 56px; grid-template-rows: auto 1fr; min-height: 100dvh; padding-top: 6px; padding-bottom: 14px; }
+  .landing .welcome > .top { grid-column: 1 / -1; max-width: none; width: 100%; }
+  .landing .welcome > .intro, .landing .welcome > .actions { align-self: center; min-width: 0; }
+  .landing .welcome.wide { display: block; max-width: 760px; min-height: 0; padding-top: 10px; }
+  .landing .intro .lead { max-width: 30em; }
+  .landing .hero-row .hero { width: min(34vw, 40dvh, 300px); }
+  .landing .actions .card { margin-bottom: 10px; }
+
+  /* sky view: the radar on the left, the selected object beside it, the nearby list on the right; no tabs, no swiping */
+  body.viewer { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+  body.viewer header, body.viewer main { max-width: 1320px; width: 100%; }
+  body.viewer main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 10px; }
+  body.viewer .tabs, body.viewer main > footer { display: none; }
+  body.viewer .pager-view { flex: 1; min-height: 0; overflow: visible; }
+  body.viewer .pager { width: 100%; height: 100%; transform: none !important; transition: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); column-gap: 16px; }
+  body.viewer .page { width: auto; min-height: 0; }
+  body.viewer #pageRadar { --rs: min(calc(100dvh - 215px), 640px, calc(100vw - 600px)); display: grid; grid-template-columns: var(--rs) minmax(200px, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 16px; align-content: start; }
+  body.viewer #pageRadar > .hudrow, body.viewer #pageRadar > .skywrap, body.viewer #pageRadar > .status, body.viewer #pageRadar > #noLocation { grid-column: 1; }
+  body.viewer #pageRadar > .side { grid-column: 2; grid-row: 1 / -1; min-height: 0; overflow-y: auto; }
+  body.viewer #sky { max-width: var(--rs); }
+  body.viewer #pageNearby { overflow-y: auto; }
+  body.viewer #pageNearby .nearby-title { margin-top: 0; }
+}

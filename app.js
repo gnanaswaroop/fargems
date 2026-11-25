@@ -287,7 +287,9 @@ function draw() {
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '600 13px system-ui';
   [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, az]) => {
-    const p = P(az, -9); ctx.fillStyle = t === 'N' ? '#ff8a80' : '#aab6cc'; ctx.fillText(t, p.x, p.y);
+    // Just outside the rim, a fixed distance from it, so the letters stay whole however large the radar is drawn.
+    const th = (az - rot) * D2R, rl = R + 14, p = { x: cx + sgn * rl * Math.sin(th), y: cy - rl * Math.cos(th) };
+    ctx.fillStyle = t === 'N' ? '#ff8a80' : '#aab6cc'; ctx.fillText(t, p.x, p.y);
     fixed.push({ x0: p.x - 8, x1: p.x + 8, y0: p.y - 9, y1: p.y + 9 });
   });
   ctx.textBaseline = 'alphabetic';
