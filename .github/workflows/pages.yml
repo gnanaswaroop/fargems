@@ -41,9 +41,11 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html about.html viewer.html settings.html settings.js config.js landing.js app.js ar-view.js sw.js style.css manifest.webmanifest \
-            icon.svg icon-192.png icon-512.png apple-touch-icon.png .nojekyll lib _site/
+            icon.svg icon-192.png icon-512.png apple-touch-icon.png og-image.png .nojekyll lib _site/
           printf '%s\n' "window.FARGEMS_CONFIG = { aircraftProxy: \"$AIRCRAFT_PROXY_URL\" };" > _site/config.js
           if [ -n "$PAGES_DOMAIN" ]; then echo "$PAGES_DOMAIN" > _site/CNAME; fi
+          # Fill in the address for search engines (canonical links, sitemap) without keeping it in git.
+          node scripts/seo.js _site "$PAGES_DOMAIN"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
