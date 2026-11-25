@@ -17,6 +17,7 @@ const localRefs = (page) => {
   const html = read(page);
   return [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1])
     .filter((r) => !/^(https?:|data:|#|mailto:)/.test(r))
+    .filter((r) => !r.startsWith('__SITE_URL__')) // filled in at build time
     .filter((r) => r !== 'viewer.html'); // navigation target, not an asset
 };
 const PAGES = ['index.html', 'about.html', 'viewer.html', 'settings.html'];
@@ -24,7 +25,7 @@ const PAGES = ['index.html', 'about.html', 'viewer.html', 'settings.html'];
 test('landing page is index.html and the sky view is viewer.html', () => {
   assert.ok(exists('index.html'));
   assert.ok(exists('viewer.html'));
-  assert.match(read('index.html'), /<title>FarGems — allow location and compass<\/title>/);
+  assert.match(read('index.html'), /<title>FarGems — what's flying and shining above you<\/title>/);
   assert.match(read('viewer.html'), /<title>FarGems — sky view<\/title>/);
 });
 
