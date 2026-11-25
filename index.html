@@ -50,33 +50,37 @@
 </head>
 <body class="landing">
 <main class="welcome">
-  <nav class="menu" aria-label="Site">
-    <button id="menuBtn" class="menu-btn" type="button" aria-label="More" aria-haspopup="true" aria-expanded="false" aria-controls="menuList">&#x22EF;</button>
-    <ul id="menuList" class="menu-list" hidden>
-      <li><a href="about.html">About</a></li>
-      <li><a href="https://github.com/gnanaswaroop/fargems" rel="noopener">GitHub</a></li>
-    </ul>
-  </nav>
-  <div class="brand big"><img class="logo logo-lg" src="icon.svg" alt="FarGems logo" width="112" height="112">Far<b>Gems</b></div>
+  <header class="top">
+    <div class="brand"><img class="logo logo-md" src="icon.svg" alt="FarGems logo" width="40" height="40">Far<b>Gems</b></div>
+    <nav class="menu" aria-label="Site">
+      <button id="menuBtn" class="menu-btn" type="button" aria-label="More" aria-haspopup="true" aria-expanded="false" aria-controls="menuList">&#x22EF;</button>
+      <ul id="menuList" class="menu-list" hidden>
+        <li><a href="about.html">About</a></li>
+        <li><a href="https://github.com/gnanaswaroop/fargems" rel="noopener">GitHub</a></li>
+      </ul>
+    </nav>
+  </header>
   <h1 class="tagline">Look up. Know what you are looking at.</h1>
-  <svg class="hero" viewBox="0 0 240 240" role="img" aria-label="A radar-style sky map with an aircraft, a satellite, the Moon and a planet">
-    <defs>
-      <radialGradient id="heroSky" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#0b1530"/><stop offset="1" stop-color="#16294f"/></radialGradient>
-      <linearGradient id="heroBeam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5ad1e6" stop-opacity="0"/><stop offset="1" stop-color="#5ad1e6" stop-opacity=".45"/></linearGradient>
-    </defs>
-    <circle cx="120" cy="120" r="112" fill="url(#heroSky)" stroke="#2a3a63"/>
-    <circle cx="120" cy="120" r="75" fill="none" stroke="#5ad1e6" stroke-opacity=".22"/>
-    <circle cx="120" cy="120" r="38" fill="none" stroke="#5ad1e6" stroke-opacity=".22"/>
-    <path d="M120 8V232M8 120H232" stroke="#5ad1e6" stroke-opacity=".12"/>
-    <g class="hero-stars" fill="#cfd8e8"><circle cx="50" cy="70" r="1"/><circle cx="190" cy="52" r="1.2"/><circle cx="168" cy="190" r="1"/><circle cx="64" cy="176" r="1.3"/><circle cx="205" cy="128" r="1"/><circle cx="96" cy="36" r="1"/></g>
-    <g class="hero-sweep"><path d="M120 120 L232 120 A112 112 0 0 0 214 62 Z" fill="url(#heroBeam)"/><path d="M120 120H232" stroke="#5ad1e6" stroke-opacity=".8"/></g>
-    <g font-size="11" font-weight="600" text-anchor="middle" fill="#aab6cc"><text x="120" y="22" fill="#ff8a80">N</text><text x="226" y="124">E</text><text x="120" y="233">S</text><text x="14" y="124">W</text></g>
-    <g class="hero-plane"><text x="0" y="0" font-size="20" fill="#ffb454" text-anchor="middle" dominant-baseline="central" transform="rotate(-15)">&#x2708;&#xFE0E;</text><animateMotion dur="11s" repeatCount="indefinite" path="M 22 156 C 80 120, 150 112, 214 70"/></g>
-    <g class="hero-sat"><path d="M0 -4.5L4.5 0 0 4.5 -4.5 0Z" fill="#5ad1e6"/><animateMotion dur="26s" repeatCount="indefinite" path="M 120 34 A 86 86 0 1 1 119.9 34"/></g>
-    <circle class="hero-blip" cx="78" cy="152" r="6" fill="#ffe08a"/>
-    <circle cx="164" cy="82" r="3.5" fill="#d9c8a6"/><circle class="hero-blip hero-blip2" cx="164" cy="82" r="3.5" fill="none" stroke="#d9c8a6"/>
-  </svg>
-  <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
+  <div class="hero-row">
+    <svg class="hero" viewBox="0 0 240 240" role="img" aria-label="A radar-style sky map with an aircraft, a satellite, the Moon and a planet">
+      <defs>
+        <radialGradient id="heroSky" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#0b1530"/><stop offset="1" stop-color="#16294f"/></radialGradient>
+        <linearGradient id="heroBeam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5ad1e6" stop-opacity="0"/><stop offset="1" stop-color="#5ad1e6" stop-opacity=".45"/></linearGradient>
+      </defs>
+      <circle cx="120" cy="120" r="112" fill="url(#heroSky)" stroke="#2a3a63"/>
+      <circle cx="120" cy="120" r="75" fill="none" stroke="#5ad1e6" stroke-opacity=".22"/>
+      <circle cx="120" cy="120" r="38" fill="none" stroke="#5ad1e6" stroke-opacity=".22"/>
+      <path d="M120 8V232M8 120H232" stroke="#5ad1e6" stroke-opacity=".12"/>
+      <g class="hero-stars" fill="#cfd8e8"><circle cx="50" cy="70" r="1"/><circle cx="190" cy="52" r="1.2"/><circle cx="168" cy="190" r="1"/><circle cx="64" cy="176" r="1.3"/><circle cx="205" cy="128" r="1"/><circle cx="96" cy="36" r="1"/></g>
+      <g class="hero-sweep"><path d="M120 120 L232 120 A112 112 0 0 0 214 62 Z" fill="url(#heroBeam)"/><path d="M120 120H232" stroke="#5ad1e6" stroke-opacity=".8"/></g>
+      <g font-size="11" font-weight="600" text-anchor="middle" fill="#aab6cc"><text x="120" y="22" fill="#ff8a80">N</text><text x="226" y="124">E</text><text x="120" y="233">S</text><text x="14" y="124">W</text></g>
+      <g class="hero-plane"><text x="0" y="0" font-size="20" fill="#ffb454" text-anchor="middle" dominant-baseline="central" transform="rotate(-15)">&#x2708;&#xFE0E;</text><animateMotion dur="11s" repeatCount="indefinite" path="M 22 156 C 80 120, 150 112, 214 70"/></g>
+      <g class="hero-sat"><path d="M0 -4.5L4.5 0 0 4.5 -4.5 0Z" fill="#5ad1e6"/><animateMotion dur="26s" repeatCount="indefinite" path="M 120 34 A 86 86 0 1 1 119.9 34"/></g>
+      <circle class="hero-blip" cx="78" cy="152" r="6" fill="#ffe08a"/>
+      <circle cx="164" cy="82" r="3.5" fill="#d9c8a6"/><circle class="hero-blip hero-blip2" cx="164" cy="82" r="3.5" fill="none" stroke="#d9c8a6"/>
+    </svg>
+    <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
+  </div>
 
   <section class="card perms" aria-labelledby="permsTitle">
     <h2 id="permsTitle">Two permissions</h2>
@@ -116,22 +120,21 @@
   <p class="muted small">Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.</p>
 
   <section class="peek" aria-label="What you can find in the sky">
-    <div class="peek-item"><span class="peek-icon air">&#x2708;&#xFE0E;</span><b>Aircraft</b><span>Tap one to see where it is heading.</span></div>
-    <div class="peek-item"><span class="peek-icon sat">&#x25C6;</span><b>Satellites</b><span>The ISS and about 100 bright ones, with next passes.</span></div>
-    <div class="peek-item"><span class="peek-icon moon">&#x263D;</span><b>Sun, Moon, planets</b><span>Where they are, and when they rise and set.</span></div>
-    <div class="peek-item"><span class="peek-icon met">&#x2736;</span><b>Meteor showers</b><span>Which are active, and where they radiate from.</span></div>
+    <div class="peek-item"><span class="peek-icon air">&#x2708;&#xFE0E;</span><b>Aircraft</b><span class="sr">Tap one to see where it is heading.</span></div>
+    <div class="peek-item"><span class="peek-icon sat">&#x25C6;</span><b>Satellites</b><span class="sr">The ISS and about 100 bright ones, with next passes.</span></div>
+    <div class="peek-item"><span class="peek-icon moon">&#x263D;</span><b>Sun, Moon, planets</b><span class="sr">Where they are, and when they rise and set.</span></div>
+    <div class="peek-item"><span class="peek-icon met">&#x2736;</span><b>Meteor showers</b><span class="sr">Which are active, and where they radiate from.</span></div>
   </section>
 
-  <section class="steps" aria-labelledby="stepsTitle">
-    <h2 id="stepsTitle">How it works</h2>
+  <details class="steps">
+    <summary id="stepsTitle">How it works</summary>
     <ol>
       <li><b>Hold the phone flat.</b> A radar map shows the whole sky. It turns as you turn, so N, E, S and W always point the real way.</li>
       <li><b>Spot something.</b> Only flights close enough and high enough to see by eye are drawn. Tap one for its details.</li>
       <li><b>Raise the phone.</b> Point it at the sky and the camera view labels what you are looking at, and an arrow guides you to the one you picked.</li>
     </ol>
-  </section>
+  </details>
 
-  <p class="about-link"><a href="about.html">About FarGems: what it shows, where the data comes from, privacy</a></p>
   <footer class="foot"><a href="about.html">About</a> · <a href="about.html">Data sources</a> · <a href="about.html">Privacy</a> · <a href="https://github.com/gnanaswaroop/fargems">GitHub</a></footer>
 </main>
 

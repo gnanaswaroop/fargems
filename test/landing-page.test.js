@@ -60,3 +60,17 @@ test('About and GitHub sit in a "..." menu at the top right, which opens, closes
   assert.match(js, /e\.key === 'Escape'/);
   assert.match(js, /menuList\.contains\(e\.target\)/, 'a tap outside closes it');
 });
+
+test('the home page is compact: the main actions share one phone screen and the extras are folded away', () => {
+  const html = read('index.html'), css = read('style.css');
+  assert.match(html, /<header class="top">[\s\S]*class="brand"[\s\S]*class="menu"[\s\S]*<\/header>/, 'logo and menu share the top row');
+  assert.match(html, /<div class="hero-row">[\s\S]*<svg class="hero"[\s\S]*<p class="lead">[\s\S]*<\/div>/, 'picture and intro side by side');
+  assert.match(html, /<details class="steps">\s*<summary id="stepsTitle">How it works<\/summary>[\s\S]*<ol>/, 'steps start folded');
+  assert.doesNotMatch(html, /class="about-link"/, 'no second About link (the menu and footer have it)');
+  assert.equal((html.match(/class="sr"/g) || []).length, 4, 'card descriptions stay readable for screen readers and search');
+  assert.match(css, /\.sr\{position:absolute/);
+  assert.match(css, /\.landing \.install\{display:grid;grid-template-columns:1fr auto/, 'install card is one short row');
+  assert.match(css, /\.landing \.perm-state\{grid-row:1;grid-column:2\}/, 'each permission is name and state on one line');
+  assert.match(css, /\.landing \.peek\{grid-template-columns:repeat\(4,1fr\)/, 'four small tiles in one row');
+  assert.match(css, /\.hero-row \.hero\{width:96px/);
+});

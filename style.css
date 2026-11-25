@@ -158,3 +158,49 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .ar-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
 .ar-detail { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); max-height: 38vh; overflow: auto; background: rgba(7, 11, 20, .85); }
 body.ar-on { overflow: hidden; }
+
+/* ---------- compact home page: the main actions fit on one phone screen ---------- */
+.landing .welcome{padding:8px 16px 20px;font-size:14px}
+.top{display:flex;align-items:center;justify-content:space-between;margin:0 0 4px}
+.top .brand{font-size:24px}
+.logo-md{margin-right:8px}
+.top .menu{margin:0}
+.landing .tagline{font-size:16px;margin:2px 0 8px}
+.hero-row{display:flex;align-items:center;gap:14px;margin:0 0 10px}
+.hero-row .hero{width:112px;flex:none;margin:0}
+.hero-row .lead{margin:0;text-align:left;font-size:13.5px;line-height:1.4}
+.landing .card{padding:12px}
+.landing .perms h2{font-size:15px;margin:0 0 6px}
+.landing .perm-list{gap:6px;margin:0 0 10px}
+.landing .perm-list li{gap:0 10px}
+.landing .perm-why{font-size:12px}
+.landing .btn.primary{padding:9px 14px}
+.landing .btn.wide{margin-top:6px}
+.landing a.btn.go{margin:10px 0 6px}
+.landing .link{padding:4px 0;font-size:13px}
+.landing .muted.small{font-size:12px;margin:6px 0}
+.landing .peek{grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0 0}
+.landing .peek-item{padding:8px 4px;text-align:center;justify-items:center;gap:2px}
+.landing .peek-item b{font-size:11.5px;line-height:1.2}
+.landing .peek-icon{font-size:20px}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.landing .steps{margin:14px 0 0}
+.landing .steps h2{font-size:15px;margin:0 0 6px}
+.landing .steps ol{gap:6px}
+.landing .steps li{font-size:12.5px;line-height:1.35;padding-left:32px}
+.landing .steps li::before{width:22px;height:22px;font-size:12px}
+.landing .about-link{margin:12px 0 0;font-size:13px}
+.landing .foot{margin:8px 0 0;font-size:12px}
+.landing .install h2{font-size:15px}
+.landing .install{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;margin-top:8px}
+.landing .install h2{margin:0;grid-column:1}
+.landing .install p{margin:0;grid-column:1;font-size:12px}
+.landing .install .btn{grid-column:2;grid-row:1 / span 2;width:auto;margin:0;padding:8px 12px;white-space:nowrap}
+.landing .steps summary{cursor:pointer;font-weight:600;font-size:15px;padding:6px 0;list-style-position:inside}
+.landing .steps[open] summary{margin-bottom:6px}
+.landing .steps h2{display:none}
+.hero-row .hero{width:96px}
+.landing .perm-list li{align-items:baseline}
+.landing .welcome > p.muted.small{font-size:11.5px;line-height:1.35}
+.landing .perm-state{grid-row:1;grid-column:2}
+.landing .perm-why{grid-row:2}
