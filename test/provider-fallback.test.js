@@ -363,3 +363,9 @@ test('the app asks the proxy for satellite data first, then CelesTrak directly, 
   assert.ok(app.indexOf('tleProxyUrl(AIRCRAFT_PROXY, group)') < app.indexOf('celestrak.org/NORAD/elements/gp.php'), 'proxy before CelesTrak');
   assert.match(app, /if \(cached\) return \{ sats: parseTLE\(cached\.text, group\), t: cached\.t \};/, 'the saved copy is still the last resort');
 });
+
+test('the Worker source has no backticks or template placeholders, so the exact file can be pasted into a dashboard or a raw string', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'worker', 'aircraft-proxy.mjs'), 'utf8');
+  assert.equal(src.includes('`'), false);
+  assert.equal(src.includes('${'), false);
+});
