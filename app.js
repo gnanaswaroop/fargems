@@ -111,13 +111,26 @@ function lookGd(lat, lon, altKm) {
 
 /* ---------- satellites ---------- */
 const parseTLE = (text, group) => parseTLEText(text, group, (l1, l2) => satellite.twoline2satrec(l1, l2));
+// Element sets come through the proxy when there is one (shared between visitors, with fallbacks for when CelesTrak is
+// down), and straight from CelesTrak otherwise or if the proxy fails.
+async function fetchTLE(group) {
+  const sources = [window.FarGemsLogic.tleProxyUrl(AIRCRAFT_PROXY, group), `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`].filter(Boolean);
+  let lastErr = new Error('no source');
+  for (const url of sources) {
+    try {
+      const text = await getText(url);
+      if (/^1 \d{5}/m.test(text)) return text;
+      lastErr = new Error('bad TLE payload');
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
 async function loadTLE(group) {
   const key = 'fg.tle.' + group;
   const cached = lsGet(key);
   if (cached && Date.now() - cached.t < 6 * 3600e3) return { sats: parseTLE(cached.text, group), t: cached.t };
   try {
-    const text = await getText(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`);
-    if (!/^1 \d{5}/m.test(text)) throw new Error('bad TLE payload');
+    const text = await fetchTLE(group);
     lsSet(key, { t: Date.now(), text });
     return { sats: parseTLE(text, group), t: Date.now() };
   } catch (e) {

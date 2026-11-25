@@ -2,9 +2,12 @@
 // Tests for the Cloudflare Worker that proxies aircraft data. The worker logic is pure
 // (dependencies are passed in), so it runs in Node with fake fetch and cache objects.
 const test = require('node:test');
+const { beforeEach } = test;
 const assert = require('node:assert/strict');
 
 const W = import('../worker/aircraft-proxy.mjs');
+// The worker remembers which providers are cooling down, so every test starts with a clean slate.
+beforeEach(async () => (await W).resetHealth());
 
 test('cellKey groups nearby points into the same cache cell', async () => {
   const { cellKey } = await W;
@@ -78,7 +81,7 @@ test('handle falls back to the next provider when one fails', async () => {
   const { fetchImpl, calls } = fakeFetch([{ status: 429, body: 'slow down' }, { body: '{"ac":[]}' }]);
   const res = await handle(GET('?lat=17.44&lon=78.38'), ENV, { fetchImpl, cache: fakeCache() });
   assert.equal(res.status, 200);
-  assert.match(calls[1].url, /api\.airplanes\.live/);
+  assert.match(calls[1].url, /opendata\.adsb\.fi/, 'adsb.fi is the next provider');
 });
 
 test('handle serves a cached area without calling any provider again', async () => {
