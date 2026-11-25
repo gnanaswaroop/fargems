@@ -40,7 +40,7 @@ const TLE_GROUPS = ['stations', 'visual'];
 
 /* ---------- state ---------- */
 const state = {
-  loc: null, heading: 0, rot: 0, compass: false, flip: false,
+  loc: null, heading: 0, rot: 0, compass: false, flip: true,
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   ori: { alpha: null, beta: null, gamma: null, compassHeading: null, absolute: false },
@@ -252,8 +252,9 @@ function draw() {
   // The dome is centred on the zoom pan and scaled by the zoom level. At 1x it is unchanged.
   const V = state.view;
   const cx = W / 2 + V.panX, cy = W / 2 + V.panY, R = (W / 2 - 26) * V.zoom;
-  // North stays at the top when the compass is on (the sky does not turn as you move); the wedge below shows where you face.
-  const rot = state.compass ? 0 : state.rot, sgn = state.flip ? 1 : -1;
+  // With the compass on the map turns with the phone, so N, E, S and W always point at the real directions and the top
+  // is the way you face. Seen from above, like a map, east is on the right. The mirrored sky chart is only for a fixed map.
+  const rot = state.compass ? state.heading : state.rot, sgn = (state.compass || state.flip) ? 1 : -1;
   const P = (az, el) => { const r = (90 - el) / 90 * R, th = (az - rot) * D2R; return { x: cx + sgn * r * Math.sin(th), y: cy - r * Math.cos(th) }; };
 
   const k = Math.max(0, Math.min(1, ((state.sunAlt ?? -30) + 16) / 22));
@@ -279,11 +280,6 @@ function draw() {
     const a = (state.sweep - 90) * D2R;
     ctx.strokeStyle = 'rgba(90,209,230,.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a)); ctx.stroke();
-  }
-  if (state.compass) { // the way you are facing: a soft wedge from the centre to the edge
-    ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, cy);
-    for (let d = -25; d <= 25; d += 5) { const q = P(state.heading + d, 0); ctx.lineTo(q.x, q.y); }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
   }
   state.hits = [];
   const F = state.filters, sel = state.sel;
@@ -654,7 +650,7 @@ function tick() { try { computeSky(new Date()); } catch (e) { console.error(e); 
 function start() {
   bindUI();
   // Choices made in settings.html.
-  state.flip = storedValue('fg.flip') === '1';
+  state.flip = storedValue('fg.flip') !== '0';
   state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
   state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
