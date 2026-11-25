@@ -40,7 +40,7 @@ jobs:
           PAGES_DOMAIN: ${{ vars.PAGES_DOMAIN }}
         run: |
           mkdir -p _site
-          cp -r index.html viewer.html settings.html settings.js config.js landing.js app.js sw.js style.css manifest.webmanifest \
+          cp -r index.html viewer.html settings.html settings.js config.js landing.js app.js ar-view.js sw.js style.css manifest.webmanifest \
             icon.svg icon-192.png icon-512.png apple-touch-icon.png .nojekyll lib _site/
           printf '%s\n' "window.FARGEMS_CONFIG = { aircraftProxy: \"$AIRCRAFT_PROXY_URL\" };" > _site/config.js
           if [ -n "$PAGES_DOMAIN" ]; then echo "$PAGES_DOMAIN" > _site/CNAME; fi

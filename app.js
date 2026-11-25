@@ -43,6 +43,7 @@ const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: false,
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
+  ori: { alpha: null, beta: null, gamma: null, compassHeading: null, absolute: false },
   visOnly: (() => { try { return window.FarGemsLogic.parseVisOnly(localStorage.getItem('fg.visOnly')); } catch { return true; } })(),
   routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
@@ -398,8 +399,10 @@ function routeText(a) {
   return esc(H.describeAirport(d)) + far + (o ? `<br><small class="muted">from ${esc(H.describeAirport(o))}</small>` : '');
 }
 function renderDetail() {
-  const el = $('#detail'), o = state.sel && state.byId.get(state.sel);
-  if (!o) { el.innerHTML = '<p class="muted">Tap an object on the radar to see its details.</p>'; return; }
+  // The same card shows under the radar and over the camera picture.
+  const put = (h) => { $('#detail').innerHTML = h; $('#arDetail').innerHTML = h; };
+  const o = state.sel && state.byId.get(state.sel);
+  if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '';
   const here = kv('Sky position', `${Math.round(o.el)}° up · ${dir16(o.az)} (${Math.round(o.az)}°)`);
@@ -424,7 +427,7 @@ function renderDetail() {
       + kv('Moon', state.moonIllum != null ? `${Math.round(state.moonIllum * 100)}% lit — a bright Moon hides faint meteors` : null)
       + kv('Tip', 'Look about 40° away from the radiant, dark site, no phone light.');
   } else rows = here;
-  el.innerHTML = `<h3>${title}</h3><dl>${rows}</dl>`;
+  put(`<h3>${title}</h3><dl>${rows}</dl>`);
 }
 // Nearby list: aircraft, satellites, Sun, Moon, planets and stars, nearest first.
 // Each row gives the distance and where to look (with your heading when the compass is on).
@@ -465,6 +468,10 @@ function setLoc(lat, lon) {
 
 /* ---------- compass & interaction ---------- */
 function onOri(e) {
+  const ori = state.ori; // raw angles for the AR view
+  if (typeof e.beta === 'number') { ori.beta = e.beta; ori.gamma = e.gamma || 0; }
+  if (typeof e.webkitCompassHeading === 'number') ori.compassHeading = e.webkitCompassHeading;
+  if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) { ori.alpha = e.alpha; ori.absolute = true; }
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) h = norm360(360 - e.alpha);
@@ -481,6 +488,64 @@ function startCompass() {
     startCompass.bound = true;
   }
   state.compass = true; state.dirty = true;
+}
+/* ---------- AR view ---------- */
+// The camera picture with objects over it. It opens from the AR button, and by itself when the phone is
+// raised to look at the sky (once the camera has been allowed). Laying the phone flat closes it.
+let arView = null;
+const arState = { auto: null, opening: false };
+function initAR() {
+  if (!window.FarGemsARView || !window.FarGemsAR) return;
+  arState.auto = window.FarGemsAR.newAutoState();
+  arView = window.FarGemsARView.create({
+    root: $('#ar'), video: $('#arVideo'), canvas: $('#arCanvas'), closeBtn: $('#arClose'),
+    getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
+    onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
+    onClose: () => { arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
+  });
+  $('#arBtn').onclick = openAR;
+  setInterval(autoAR, 300);
+}
+async function openAR() {
+  if (!arView || arView.isOpen() || arState.opening) return; // one attempt at a time
+  arState.opening = true;
+  try {
+    // iPhone asks for the compass inside a tap, so ask here before the camera.
+    const O = window.FarGemsOnboarding;
+    if (!state.compass) {
+      if (O.compassNeedsPermission(window)) {
+        const r = await DeviceOrientationEvent.requestPermission();
+        O.storeCompass(localStorage, r === 'granted' ? 'granted' : 'denied');
+        if (r === 'granted') startCompass(); else toast('Compass permission is needed for AR. You can allow it in Settings.');
+      } else startCompass();
+    }
+    await arView.open();
+    try { localStorage.setItem('fg.camera', 'granted'); } catch { /* storage blocked */ }
+    renderDetail();
+  } catch (e) {
+    const why = e && e.code === 'denied' ? 'Camera permission was refused. Allow it in your browser settings to use AR.'
+      : e && e.code === 'unsupported' ? 'This browser cannot open the camera here (it needs https).' : 'Could not start the camera.';
+    toast(why, 5000);
+    // Do not retry by itself: wait until the phone has been laid flat once. A refused camera is forgotten.
+    arState.auto = window.FarGemsAR.suppress(arState.auto);
+    if (e && e.code === 'denied') { try { localStorage.removeItem('fg.camera'); } catch { /* blocked */ } }
+  } finally {
+    arState.opening = false;
+  }
+}
+// Called every 300 ms: open or close the camera view from how the phone is held.
+function autoAR() {
+  if (!arView || state.ori.beta == null) return;
+  const AR = window.FarGemsAR;
+  const pose = AR.cameraPose(state.ori.alpha, state.ori.beta, state.ori.gamma);
+  let granted = false; try { granted = localStorage.getItem('fg.camera') === 'granted'; } catch { /* blocked */ }
+  const r = AR.autoStep(arState.auto, {
+    pitch: pose.pitch, now: Date.now(), isOpen: arView.isOpen(), opening: arState.opening, cameraGranted: granted,
+    compassOn: state.compass, onRadarPage: !$('#pager').classList.contains('nearby'),
+  });
+  arState.auto = r.state;
+  if (r.action === 'close') arView.close();
+  else if (r.action === 'open') openAR();
 }
 function bindUI() {
   const cv = $('#sky');
@@ -552,6 +617,7 @@ function bindUI() {
   $('#zoomIn').onclick = () => { const c = centre(); zoomTo(1.5, c.x, c.y); };
   $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
   $('#zoomReset').onclick = resetView;
+  initAR();
   // Tabs and swipes. Swipes that start on the radar are left alone, because dragging there rotates the sky.
   $('#tabRadar').onclick = () => setPage('radar');
   $('#tabNearby').onclick = () => setPage('nearby');
