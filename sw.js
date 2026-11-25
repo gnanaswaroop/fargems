@@ -4,7 +4,7 @@
 // Bump VERSION whenever this file's caching behaviour changes: activating a new version deletes
 // the older caches, so stale files cannot linger.
 const VERSION = 'fargems-v2';
-const SHELL = ['./', 'index.html', 'landing.js', 'viewer.html', 'settings.html', 'settings.js', 'config.js', 'style.css', 'lib/logic.js', 'lib/onboarding.js', 'app.js', 'manifest.webmanifest',
+const SHELL = ['./', 'index.html', 'landing.js', 'viewer.html', 'settings.html', 'settings.js', 'config.js', 'style.css', 'lib/logic.js', 'lib/onboarding.js', 'lib/ar.js', 'ar-view.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 const CDN_HOSTS = ['cdn.jsdelivr.net'];
 
