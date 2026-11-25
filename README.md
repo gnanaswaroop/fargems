@@ -30,6 +30,16 @@ E2E_LOG=1 npm run test:android   # print progress; set ANDROID_SERIAL to pick a 
 
 It serves the app from your machine, points the emulator's virtual phone at known magnetic headings in Seattle, New York and Hyderabad, and checks that the "Facing" line shows the true heading (magnetic plus declination) and that the radar draws N in the right place. It takes a few minutes, because the emulator's sensors settle slowly, and it skips itself when no emulator is running.
 
+### Live data check
+
+`npm test` never touches the network. A separate check looks at the real data the app depends on, in Seattle, New York, London, Hyderabad and Sydney: aircraft (through the proxy), sunrise and sunset against an independent service, the Moon's phase, weather, and the ISS.
+
+```
+AIRCRAFT_PROXY_URL=<the proxy address the site is built with> npm run test:live
+```
+
+It runs every day and on demand in GitHub Actions (the Live data workflow, using the repository variable `AIRCRAFT_PROXY_URL`). It is kept apart from CI on purpose: a feed having a bad day must never block a pull request. A feed that is down is skipped with the reason; a feed that answers with wrong-looking data fails the run.
+
 ## Deployment
 
 `.github/workflows/pages.yml` runs the tests and then publishes the site to GitHub Pages on every push to `main`. In repo settings, set Pages → Build and deployment → Source to **GitHub Actions**. `ci.yml` runs the tests on every pull request.

@@ -176,7 +176,7 @@ test('logo: cut-outs are real holes (a mask), so no background colour is painted
 });
 
 test('logo: landing and viewer headers show the logo beside the wordmark', () => {
-  assert.match(read('index.html'), /<img class="logo logo-lg" src="icon\.svg" alt="FarGems logo" width="112" height="112"/);
+  assert.match(read('index.html'), /<img class="logo logo-md" src="icon\.svg" alt="FarGems logo" width="40" height="40"/);
   assert.match(read('viewer.html'), /<img class="logo logo-sm" src="icon\.svg" alt="FarGems logo" width="34" height="34"/);
 });
 
