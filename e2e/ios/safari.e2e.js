@@ -238,6 +238,8 @@ test('viewer: the gear opens Settings and Help, and Escape closes it', { skip },
 test('viewer: a pinned object jumps to the top of the nearby list, stays pinned, and a tap on its star does not open it', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
+    // The sky libraries would recompute the objects every second and replace the ones this test sets up.
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.evaluate(FAKE_SKY);
     const names = () => page.$$eval('.nearby-row .nm', (els) => els.map((e) => e.textContent.replace(/[★☆]/g, '').trim()));
@@ -258,6 +260,8 @@ test('viewer: a pinned object jumps to the top of the nearby list, stays pinned,
 test('viewer: the detail card shows the nearest flight or satellite, can pin it, and can share it', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
+    // The sky libraries would recompute the objects every second and replace the ones this test sets up.
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.evaluate(() => {
       window.__copied = [];
@@ -285,6 +289,8 @@ test('viewer: the detail card shows the nearest flight or satellite, can pin it,
 test('viewer: a long name stays inside the radar circle, also for the selected object near the rim', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
+    // The sky libraries would recompute the objects every second and replace the ones this test sets up.
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.evaluate(() => {
       window.__texts = [];
