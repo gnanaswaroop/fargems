@@ -21,7 +21,7 @@ test('hero motion stops for visitors who prefer reduced motion', () => {
 
 test('the home page is simple, keeps the permission controls, and the explanations live on the About page', () => {
   const html = read('index.html'), about = read('about.html');
-  for (const id of ['allowBtn', 'sampleBtn', 'allowAgainBtn', 'openLink', 'manualForm', 'installCard', 'permsCard', 'heroLink']) assert.ok(html.includes(`id="${id}"`), id);
+  for (const id of ['allowBtn', 'sampleBtn', 'openLink', 'manualForm', 'installCard', 'permsCard', 'heroLink']) assert.ok(html.includes(`id="${id}"`), id);
   for (const gone of ['class="peek"', 'class="steps"', '<footer', 'class="about-link"']) assert.ok(!html.includes(gone), `home page no longer has ${gone}`);
   assert.match(about, /<h3>How it works<\/h3>\s*<div class="steps">[\s\S]*<ol>/);
   assert.equal((about.match(/<ol>[\s\S]*?<\/ol>/)[0].match(/<li>/g) || []).length, 3);
@@ -70,11 +70,12 @@ test('the home page is compact and plain: top row, small radar that launches, th
   assert.match(css, /\.landing \.perm-state\{grid-row:1;grid-column:2\}/, 'each permission is name and state on one line');
 });
 
-test('the small links are tucked into the ... menu: About, GitHub, sample location, change permissions', () => {
+test('the small links are tucked into the ... menu: Settings, About, GitHub, install, sample location', () => {
   const menu = read('index.html').match(/<ul id="menuList"[\s\S]*?<\/ul>/)[0];
-  for (const needle of ['href="about.html"', 'github.com/gnanaswaroop/fargems', 'id="sampleBtn"', 'id="allowAgainBtn"']) assert.ok(menu.includes(needle), needle);
+  for (const needle of ['href="about.html"', 'github.com/gnanaswaroop/fargems', 'id="sampleBtn"', 'href="settings.html"', 'id="menuInstall"']) assert.ok(menu.includes(needle), needle);
   const body = read('index.html').split('</header>')[1];
-  assert.doesNotMatch(body, /id="sampleBtn"|id="allowAgainBtn"/, 'not left lying in the page');
+  assert.doesNotMatch(body, /id="sampleBtn"/, 'not left lying in the page');
+  assert.doesNotMatch(read('index.html'), /Change permissions|allowAgainBtn/, 'permissions are changed in Settings');
 });
 
 test('once permissions are granted the card is hidden and only the launch button (or the radar) remains', () => {
@@ -82,6 +83,6 @@ test('once permissions are granted the card is hidden and only the launch button
   assert.match(js, /els\.perms\.hidden = s\.phase === 'ready'/);
   assert.match(js, /els\.hero\.addEventListener\('click'/);
   assert.match(js, /phase === 'ask'\) \{ e\.preventDefault\(\); askPermissions\(\)/, 'before permissions the radar asks for them');
-  assert.match(js, /phase !== 'ready'/, 'install offer waits until the app is set up');
+  assert.doesNotMatch(js, /phase !== 'ready'/, 'the install button no longer waits for setup');
   assert.match(js, /els\.sample\.parentElement\.hidden/);
 });

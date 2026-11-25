@@ -55,10 +55,11 @@
     <nav class="menu" aria-label="Site">
       <button id="menuBtn" class="menu-btn" type="button" aria-label="More" aria-haspopup="true" aria-expanded="false" aria-controls="menuList">&#x22EF;</button>
       <ul id="menuList" class="menu-list" hidden>
-        <li><a href="about.html">About</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      <li><a href="about.html">About</a></li>
         <li><a href="https://github.com/gnanaswaroop/fargems" rel="noopener">GitHub</a></li>
+      <li><button id="menuInstall" class="menu-item" type="button">Install app</button></li>
       <li><button id="sampleBtn" class="menu-item" type="button">Try a sample location</button></li>
-      <li><button id="allowAgainBtn" class="menu-item" type="button" hidden>Change permissions</button></li>
       </ul>
     </nav>
   </header>
@@ -85,6 +86,8 @@
     </a>
     <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
   </div>
+
+  <a id="openLink" class="btn primary wide go" href="viewer.html" hidden>Open the sky view</a>
 
   <section id="permsCard" class="card perms" aria-labelledby="permsTitle">
     <h2 id="permsTitle">Two permissions</h2>
@@ -113,12 +116,11 @@
     </div>
   </form>
 
-  <a id="openLink" class="btn primary wide go" href="viewer.html" hidden>Open the sky view</a>
 
-  <section id="installCard" class="card install" aria-labelledby="installTitle" hidden>
+  <section id="installCard" class="card install" aria-labelledby="installTitle">
     <h2 id="installTitle">Install FarGems</h2>
-    <p id="installText" class="muted small"></p>
-    <button id="installBtn" class="btn wide" type="button" hidden>Install the app</button>
+    <p id="installText" class="muted small" aria-live="polite">Add FarGems to your home screen for a full-screen app that opens fast.</p>
+    <button id="installBtn" class="btn" type="button">Install app</button>
   </section>
 
 
@@ -127,5 +129,8 @@
 
 <script src="lib/onboarding.js"></script>
 <script src="landing.js"></script>
+<script src="config.js"></script>
+<script src="lib/update.js"></script>
+<script src="update.js"></script>
 </body>
 </html>

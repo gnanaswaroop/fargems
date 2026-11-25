@@ -19,7 +19,7 @@
 <body class="viewer">
 <!-- Sky view: the radar and the selected object. Settings live on settings.html. -->
 <header>
-  <div class="brand"><img class="logo logo-sm" src="icon.svg" alt="FarGems logo" width="34" height="34">Far<b>Gems</b></div>
+  <a class="brand" href="index.html" aria-label="FarGems home"><img class="logo logo-sm" src="icon.svg" alt="" width="34" height="34">Far<b>Gems</b></a>
   <a class="pill" href="settings.html">Settings</a>
 </header>
 
@@ -31,6 +31,10 @@
   <div class="pager-view">
   <div id="pager" class="pager">
     <div class="page" id="pageRadar">
+    <div class="hudrow">
+      <div id="hud" class="hud"></div>
+      <div id="facing" class="hud facing" hidden></div>
+    </div>
     <section class="skywrap">
       <canvas id="sky" aria-label="Radar view of objects above you"></canvas>
       <div class="zoombar" role="group" aria-label="Zoom the radar">
@@ -39,8 +43,6 @@
         <button id="zoomReset" class="btn" type="button">Reset view</button>
         <button id="arBtn" class="btn" type="button" aria-label="Open the camera view">AR</button>
       </div>
-      <div id="hud" class="hud"></div>
-      <div id="facing" class="hud facing" hidden></div>
     </section>
 
     <div id="status" class="status" aria-live="polite"></div>
@@ -86,5 +88,7 @@
 <script src="lib/ar.js"></script>
 <script src="ar-view.js"></script>
 <script src="app.js"></script>
+<script src="lib/update.js"></script>
+<script src="update.js"></script>
 </body>
 </html>

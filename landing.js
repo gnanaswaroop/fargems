@@ -17,11 +17,11 @@
   })();
 
   const els = {
-    allow: $('#allowBtn'), allowAgain: $('#allowAgainBtn'), sample: $('#sampleBtn'), msg: $('#msg'),
+    allow: $('#allowBtn'), sample: $('#sampleBtn'), msg: $('#msg'),
     loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'),
     form: $('#manualForm'), input: $('#manualLoc'),
     installCard: $('#installCard'), installText: $('#installText'), installBtn: $('#installBtn'),
-    menuBtn: $('#menuBtn'), menuList: $('#menuList'), perms: $('#permsCard'), hero: $('#heroLink'),
+    menuBtn: $('#menuBtn'), menuList: $('#menuList'), perms: $('#permsCard'), hero: $('#heroLink'), menuInstall: $('#menuInstall'),
   };
 
   // The "..." menu at the top right (About, GitHub). Closes on a tap elsewhere, on Escape, and when a link is used.
@@ -61,8 +61,6 @@
     els.allow.disabled = false;
     els.sample.hidden = !s.showSample;
     els.sample.parentElement.hidden = !s.showSample;
-    els.allowAgain.hidden = !s.showAllowAgain;
-    els.allowAgain.parentElement.hidden = !s.showAllowAgain;
     els.hero.title = s.phase === 'ready' ? 'Open the sky view' : 'Allow location and compass';
     els.open.hidden = !s.showOpen;
     els.form.hidden = !s.showForm;
@@ -91,7 +89,6 @@
   }
 
   els.allow.addEventListener('click', askPermissions);
-  els.allowAgain.addEventListener('click', () => { setMenu(false); askPermissions(); });
 
   // The radar picture is a launch button. With permissions in place it opens the sky view; before that it asks for them.
   els.hero.addEventListener('click', (e) => {
@@ -123,21 +120,48 @@
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; renderInstall(); });
   window.addEventListener('appinstalled', () => { deferredInstall = null; renderInstall(); });
 
+  // The install button is always on the page (until the app is installed). It starts the browser's own install when the
+  // browser offers it; otherwise it shows how to install from the browser's menu.
+  const INSTALL_TEXT = {
+    prompt: 'Add FarGems to your home screen for a full-screen app that opens fast.',
+    ios: 'On iPhone or iPad: tap the Share button, then Add to Home Screen.',
+    manual: 'Open your browser menu and choose Install app, or Add to Home screen.',
+  };
   function renderInstall() {
     const mode = O.installMode({ standalone, ios, hasPrompt: !!deferredInstall });
-    els.installCard.hidden = mode === 'hidden' || mode === 'none' || phase !== 'ready'; // offered once the app is set up
-    els.installBtn.hidden = mode !== 'prompt';
-    if (mode === 'prompt') els.installText.textContent = 'Add FarGems to your home screen for a full-screen app.';
-    if (mode === 'ios') els.installText.textContent = 'On iPhone or iPad: tap Share, then Add to Home Screen.';
+    const gone = mode === 'hidden';
+    els.installCard.hidden = gone;
+    els.menuInstall.parentElement.hidden = gone;
+    if (!gone) els.installText.textContent = INSTALL_TEXT[mode];
   }
 
-  els.installBtn.addEventListener('click', async () => {
-    if (!deferredInstall) return;
-    deferredInstall.prompt();
-    await deferredInstall.userChoice;
-    deferredInstall = null;
-    renderInstall();
-  });
+  async function installApp() {
+    setMenu(false);
+    if (deferredInstall) {
+      deferredInstall.prompt();
+      await deferredInstall.userChoice;
+      deferredInstall = null;
+      renderInstall();
+      return;
+    }
+    // No browser prompt to start: make sure the instructions are in view.
+    els.installCard.scrollIntoView({ block: 'nearest' });
+    els.installText.classList.remove('flash'); void els.installText.offsetWidth; els.installText.classList.add('flash');
+  }
+  els.installBtn.addEventListener('click', installApp);
+  els.menuInstall.addEventListener('click', installApp);
 
   render();
+
+  // Permission already given in the browser (for example the app was reinstalled, or this is the installed copy with fresh
+  // storage): fetch the location quietly, so the visitor is not asked again.
+  (async () => {
+    try {
+      if (O.readLocation(storage) || !navigator.permissions || !navigator.geolocation) return;
+      const p = await navigator.permissions.query({ name: 'geolocation' });
+      if (p.state !== 'granted') return;
+      const loc = await requestLocation();
+      if (loc && O.storeLocation(storage, loc.lat, loc.lon)) render();
+    } catch { /* the Permissions API is optional */ }
+  })();
 })();
