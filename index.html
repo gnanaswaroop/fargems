@@ -50,7 +50,13 @@
 </head>
 <body class="landing">
 <main class="welcome">
-  <nav class="topnav" aria-label="Site"><a href="about.html">About</a><a href="https://github.com/gnanaswaroop/fargems">GitHub</a></nav>
+  <nav class="menu" aria-label="Site">
+    <button id="menuBtn" class="menu-btn" type="button" aria-label="More" aria-haspopup="true" aria-expanded="false" aria-controls="menuList">&#x22EF;</button>
+    <ul id="menuList" class="menu-list" hidden>
+      <li><a href="about.html">About</a></li>
+      <li><a href="https://github.com/gnanaswaroop/fargems" rel="noopener">GitHub</a></li>
+    </ul>
+  </nav>
   <div class="brand big"><img class="logo logo-lg" src="icon.svg" alt="FarGems logo" width="112" height="112">Far<b>Gems</b></div>
   <h1 class="tagline">Look up. Know what you are looking at.</h1>
   <svg class="hero" viewBox="0 0 240 240" role="img" aria-label="A radar-style sky map with an aircraft, a satellite, the Moon and a planet">

@@ -88,7 +88,8 @@ test('the app pages are kept out of search results', () => {
 
 test('the home page links to About near the top and in the footer', () => {
   const html = read('index.html');
-  assert.match(html, /<nav class="topnav"[^>]*>[\s\S]*href="about\.html"/);
+  assert.match(html, /<nav class="menu"[^>]*>[\s\S]*id="menuList"[\s\S]*href="about\.html"/, 'About is in the top right menu');
+  assert.doesNotMatch(html, /topnav/);
   assert.match(html, /<footer class="foot">[\s\S]*href="about\.html"/);
   assert.ok((html.match(/href="about\.html"/g) || []).length >= 3);
 });
