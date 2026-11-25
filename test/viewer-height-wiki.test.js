@@ -85,5 +85,5 @@ test('the viewer is only as tall as the page being looked at, with no long empty
   const css = read('style.css');
   assert.match(css, /\.pager:not\(\.nearby\) #pageNearby, \.pager\.nearby #pageRadar \{ max-height: 0; overflow: hidden; visibility: hidden; \}/);
   const wide = css.match(/@media \(min-width: 900px\) and \(min-aspect-ratio: 5\/4\) \{([\s\S]*)\n\}\s*$/)[1];
-  assert.match(wide, /body\.viewer \.pager:not\(\.nearby\) #pageNearby, body\.viewer \.pager\.nearby #pageRadar \{ max-height: none; visibility: visible; \}/, 'on a wide screen both lists are shown');
+  assert.match(wide, /body\.viewer \.pager\.nearby #pageRadar \{ max-height: none; visibility: visible; \}/, 'on a wide screen the radar is shown whichever tab was last used');
 });

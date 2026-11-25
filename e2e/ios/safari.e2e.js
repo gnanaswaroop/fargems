@@ -148,7 +148,9 @@ test('iPad in landscape: the home page and the sky view fit the screen with no v
     m = await fit();
     assert.ok(m.h <= m.vh && m.w <= m.vw, `sky view fits ${JSON.stringify(m)}`);
     const box = await page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { sky: r('#sky'), side: r('.side'), nearby: r('#pageNearby') }; });
-    assert.ok(box.side.left >= box.sky.right - 1 && box.nearby.left >= box.side.right - 1, 'radar, details and nearby list sit side by side');
+    assert.ok(box.side.left >= box.sky.right - 1, 'the radar and the column of details are side by side');
+    assert.ok(box.nearby.left >= box.side.left - 1 && box.nearby.right <= box.side.right + 1, 'the nearby list is in that column, under the details');
+    assert.ok(box.nearby.height > 200 || (await page.evaluate(() => document.querySelectorAll('.nearby-row').length)) < 4, 'and it uses the height left, so the column has no big empty space');
     assert.ok(box.sky.width > 400, 'the radar uses the space');
     assert.equal(await page.isVisible('.tabs'), false, 'no tabs when both lists are shown');
   } finally { await context.close(); }

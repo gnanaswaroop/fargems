@@ -739,6 +739,12 @@ function bindUI() {
   $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
   $('#zoomReset').onclick = resetView;
   initAR();
+  // On a wide landscape screen the nearby list sits under the object details, in the column beside the radar; otherwise it is
+  // the second page next to the radar page.
+  const wide = window.matchMedia('(min-width: 900px) and (min-aspect-ratio: 5/4)');
+  const placeNearby = () => { const to = wide.matches ? document.querySelector('.side') : $('#pager'), pn = $('#pageNearby'); if (to && pn.parentElement !== to) to.append(pn); };
+  if (wide.addEventListener) wide.addEventListener('change', placeNearby);
+  placeNearby();
   // Tabs and swipes. Swipes that start on the radar are left alone, because dragging there rotates the sky.
   $('#tabRadar').onclick = () => setPage('radar');
   $('#tabNearby').onclick = () => setPage('nearby');
