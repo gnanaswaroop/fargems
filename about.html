@@ -116,9 +116,9 @@
     </div>
 
     <h3>Where the data comes from</h3>
-    <p>Aircraft: adsb.lol, adsb.fi and OpenSky, with routes from adsbdb and hexdb. Satellites: CelesTrak. Sun, Moon, planets and stars: calculated on your device with astronomy-engine. Clouds: Open-Meteo. Descriptions of objects you pick: Wikipedia.</p>
+    <p>Aircraft: adsb.lol, adsb.fi and OpenSky, with routes from adsbdb and hexdb. Satellites: CelesTrak. Sun, Moon, planets and stars: calculated on your device with astronomy-engine. Clouds: Open-Meteo. Descriptions: Wikipedia.</p>
 
-    <h3>Frequently asked questions</h3>
+    <h3 id="faq">Frequently asked questions</h3>
     <dl class="faq">
       <dt>Is FarGems free?</dt><dd>Yes. There is no account, no payment and no advertising.</dd>
       <dt>Why does FarGems need my location?</dt><dd>To work out where aircraft, satellites, the Moon and planets are from where you stand. FarGems does not collect it: it stays on your device.</dd>
@@ -130,7 +130,8 @@
     <h3>Privacy</h3>
     <ul>
       <li><b>FarGems does not collect your location.</b> Your location, compass and camera stay on your device, and the camera picture never leaves your phone.</li>
-      <li>To show what is overhead, your device asks public data services (above) for your area. Aircraft requests go through a small relay that rounds the area and stores nothing about you. Those services see the request as any website would, and have their own policies.</li>
+      <li>To show what is overhead, your device asks public data services (above) for your area. Aircraft requests go through a small relay that rounds the area and stores nothing about you. Those services have their own policies.</li>
+      <li>If you open the sky view without sharing a location, the relay asks Cloudflare for the city of your network address and returns it to your device, rounded to about a kilometre. It is not stored.</li>
       <li>FarGems is delivered through Cloudflare, which may process standard request data such as your IP address and browser type for delivery, security and traffic statistics, under its own privacy policy.</li>
       <li>No accounts, no advertising and no tracking cookies.</li>
     </ul>

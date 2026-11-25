@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-const MEDIA = /@media \(min-width: 900px\) and \(min-aspect-ratio: 5\/4\) \{([\s\S]*)\n\}\s*$/;
+const MEDIA = /@media \(min-width: 900px\) and \(min-aspect-ratio: 5\/4\) \{([\s\S]*?)\n\}/;
 
 test('landscape tablets: the home page has two columns, intro and actions, filling the screen height', () => {
   const css = read('style.css').match(MEDIA)[1], html = read('index.html');

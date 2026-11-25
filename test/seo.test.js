@@ -114,7 +114,7 @@ test('About has visible questions and answers, and the FAQ structured data says 
   const faq = ldBlocks(html.replace(/__SITE_URL__/g, 'https://example.com')).find((b) => b['@type'] === 'FAQPage');
   assert.ok(faq, 'FAQPage structured data present');
   assert.deepEqual(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), visible, 'structured data matches the page text');
-  assert.match(html, /<h3>Frequently asked questions<\/h3>/);
+  assert.match(html, /<h3 id=\"faq\">Frequently asked questions<\/h3>/);
 });
 
 test('About has a breadcrumb trail, and both public pages declare their language alternates', () => {

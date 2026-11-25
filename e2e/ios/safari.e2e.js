@@ -204,6 +204,146 @@ test('iPadOS Safari, which says it is a Mac, still gets the Add to Home Screen s
   } finally { await context.close(); }
 });
 
+// Objects for the list and the radar without needing the sky libraries or the network.
+const FAKE_SKY = `(() => {
+  const { state, renderNearby, renderDetail } = window.__fg;
+  const mk = (id, kind, name, az, el, distKm, extra) => Object.assign({ id, kind, name, az, el, distKm, range: distKm }, extra || {});
+  state.objs = [
+    mk('air:a1', 'air', 'AIC144', 200, 31, 12, { ac: { type: 'A20N', gs: 400, track: 90, vr: 0, id: 'a1' }, altFt: 12000 }),
+    mk('sat:25544', 'sat', 'ISS (ZARYA)', 90, 40, 420, { altKm: 420, speed: 7.6, visible: true, norad: 25544 }),
+    mk('body:Moon', 'body', 'Moon', 68, 49, 384400, { mag: null, phase: 0.98, color: '#e6ecf5' }),
+    mk('star:Vega', 'star', 'Vega', 10, 60, null, {}),
+  ];
+  state.byId = new Map(state.objs.map((o) => [o.id, o]));
+  renderNearby(); renderDetail(); state.dirty = true;
+})()`;
+
+test('viewer: the gear opens Settings and Help, and Escape closes it', { skip }, async () => {
+  const { page, context, errors } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html');
+    assert.equal(await page.isVisible('#gearList'), false);
+    await page.tap('#gearBtn');
+    assert.equal(await page.isVisible('#gearList'), true);
+    assert.deepEqual(await page.$$eval('#gearList a', (as) => as.map((a) => [a.textContent, a.getAttribute('href')])), [['Settings', 'settings.html'], ['Help', 'about.html#faq']]);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#gearList'), false);
+    await page.tap('#gearBtn');
+    await page.tap('#gearList a[href="about.html#faq"]');
+    await page.waitForURL('**/about.html#faq');
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
+test('viewer: a pinned object jumps to the top of the nearby list, stays pinned, and a tap on its star does not open it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(FAKE_SKY);
+    const names = () => page.$$eval('.nearby-row .nm', (els) => els.map((e) => e.textContent.replace(/[★☆]/g, '').trim()));
+    assert.deepEqual(await names(), ['AIC144', 'ISS (ZARYA)', 'Moon', 'Vega'], 'nearest first');
+    await page.click('#tabNearby');
+    await page.click('.nearby-row[data-id="star:Vega"] .pin');
+    assert.equal((await names())[0], 'Vega', 'pinned to the top');
+    assert.equal(await page.getAttribute('.nearby-row[data-id="star:Vega"] .pin', 'aria-pressed'), 'true');
+    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'the star did not select the row');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.pins')), '["star:Vega"]');
+    await page.click('.nearby-row[data-id="body:Moon"] .pin');
+    assert.deepEqual((await names()).slice(0, 2), ['Moon', 'Vega'], 'the newest pin first');
+    await page.click('.nearby-row[data-id="star:Vega"] .pin');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.pins')), '["body:Moon"]', 'unpinned');
+  } finally { await context.close(); }
+});
+
+test('viewer: the detail card shows the nearest flight or satellite, can pin it, and can share it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__copied = [];
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true });
+    });
+    await page.evaluate(FAKE_SKY);
+    const card = await page.textContent('#detail');
+    assert.match(card, /AIC144/);
+    assert.match(card, /Nearest flight/, 'nothing picked: the nearest flight');
+    assert.ok((await page.$$('#detail dt')).length <= 6, 'a short card');
+    await page.click('#detail [data-pin]');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.pins')), '["air:a1"]');
+    assert.match(await page.textContent('#detail [data-pin]'), /Pinned/);
+    await page.click('#detail [data-share]');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    const text = await page.evaluate(() => window.__copied[0]);
+    assert.match(text, /^AIC144 \(aircraft\) is 31° above the horizon in the SSW \(200°\) right now\./);
+    assert.match(text, /Airbus_A320neo_family/);
+    assert.match(text, /https?:\/\/localhost:\d+\/$/, 'ends with the address of this site');
+    assert.doesNotMatch(text, /17\.4|78\.3/, 'no coordinates');
+  } finally { await context.close(); }
+});
+
+test('viewer: a long name stays inside the radar circle, also for the selected object near the rim', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__texts = [];
+      const orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { window.__texts.push({ t, x, y, a: this.textAlign, w: this.measureText(t).width }); return orig.apply(this, arguments); };
+    });
+    for (const az of [90, 270, 0, 180, 45]) {
+      await page.evaluate((az) => {
+        const o = { id: 'sat:9', kind: 'sat', name: 'STARLINK-ABSURDLY-LONG-NAME-FOR-A-SATELLITE-12345', az, el: 2, distKm: 900, range: 900, altKm: 500, speed: 7, visible: true, norad: 9 };
+        const { state, draw } = window.__fg;
+        state.objs = [o]; state.byId = new Map([[o.id, o]]); state.sel = o.id; state.compass = false; state.rot = 0; state.flip = false;
+        window.__texts = []; draw();
+      }, az);
+      const r = await page.evaluate(() => {
+        const W = Math.round(document.querySelector('#sky').clientWidth), R = (W / 2 - 26) * __fg.state.view.zoom, c = W / 2;
+        const t = window.__texts.find((x) => x.t.includes('STARLINK'));
+        if (!t) return { missing: true };
+        const x0 = t.a === 'left' ? t.x : t.a === 'right' ? t.x - t.w : t.x - t.w / 2, x1 = x0 + t.w;
+        const corners = [[x0, t.y - 10], [x1, t.y - 10], [x0, t.y + 3], [x1, t.y + 3]];
+        return { W, worst: Math.max(...corners.map(([x, y]) => Math.hypot(x - c, y - c))) - R, x0, x1 };
+      });
+      assert.ok(!r.missing, `the selected name is drawn at ${az}°`);
+      assert.ok(r.worst <= 1 && r.x0 >= 0 && r.x1 <= r.W, `az ${az}: the name is ${r.worst.toFixed(1)} px outside the circle (${JSON.stringify(r)})`);
+    }
+  } finally { await context.close(); }
+});
+
+test('viewer: opened with no location and no permission, the sky is shown for the city guessed from the network, and the guess is not saved', { skip }, async () => {
+  const { page, context } = await iphone({ storage: {} });
+  try {
+    await context.route('**/config.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.FARGEMS_CONFIG = { aircraftProxy: "https://relay.test/aircraft", build: "" };' }));
+    await context.route('https://relay.test/**', (r) => {
+      const u = new URL(r.request().url());
+      const h = { 'Access-Control-Allow-Origin': '*' };
+      if (u.pathname === '/locate') return r.fulfill({ status: 200, headers: h, contentType: 'application/json', body: JSON.stringify({ lat: 17.44, lon: 78.38, city: 'Hyderabad', region: 'Telangana', country: 'IN' }) });
+      return r.fulfill({ status: 503, headers: h, contentType: 'application/json', body: '{}' });
+    });
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.waitForSelector('#approxNote:not([hidden])', { timeout: 10000 });
+    assert.match(await page.textContent('#approxNote'), /about Hyderabad, IN, a guess from your network/);
+    assert.equal(await page.getAttribute('#approxNote a', 'href'), 'settings.html');
+    assert.equal(await page.isVisible('#noLocation'), false, 'no need to ask for a location');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.loc')), null, 'the guess is not saved as the visitor\'s location');
+    assert.deepEqual(await page.evaluate(() => [__fg.state.loc.lat, __fg.state.loc.lon]), [17.44, 78.38]);
+  } finally { await context.close(); }
+});
+
+test('viewer: when the network guess is not available, the card asks for a location as before', { skip }, async () => {
+  const { page, context } = await iphone({ storage: {} });
+  try {
+    await context.route('**/config.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.FARGEMS_CONFIG = { aircraftProxy: "https://relay.test/aircraft", build: "" };' }));
+    await context.route('https://relay.test/**', (r) => r.fulfill({ status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, contentType: 'application/json', body: '{"error":"location unknown"}' }));
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.waitForTimeout(1500);
+    assert.equal(await page.isVisible('#noLocation'), true);
+    assert.equal(await page.isVisible('#approxNote'), false);
+  } finally { await context.close(); }
+});
+
 test('landing: refusing motion access still lets the visitor in, and the refusal is remembered', { skip }, async () => {
   const { page, context } = await iphone({ answer: 'denied' });
   try {

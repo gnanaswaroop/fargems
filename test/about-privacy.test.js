@@ -9,7 +9,7 @@ const text = (html) => html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/
 
 test('the About page is short enough to read', () => {
   const words = text(read('about.html').match(/<main[\s\S]*<\/main>/)[0]).split(' ').filter(Boolean).length;
-  assert.ok(words < 450, `About has ${words} words`);
+  assert.ok(words < 480, `About has ${words} words`);
 });
 
 test('privacy: no location is collected by the app, third parties and Cloudflare are disclosed', () => {
