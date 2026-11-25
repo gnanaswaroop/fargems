@@ -41,6 +41,7 @@ const TLE_GROUPS = ['stations', 'visual'];
 /* ---------- state ---------- */
 const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: true,
+  declination: 0, // degrees from magnetic north to true north at this place (phone compasses read magnetic north)
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   ori: { alpha: null, beta: null, gamma: null, compassHeading: null, absolute: false },
@@ -464,6 +465,7 @@ function setPage(name) {
 /* ---------- location ---------- */
 function setLoc(lat, lon) {
   state.loc = { lat, lon }; lsSet('fg.loc', state.loc);
+  state.declination = state.ori.declination = window.FarGemsDeclination.declination(lat, lon, new Date());
   $('#noLocation').hidden = true;
   state.aircraft = []; state.aircraftAt = 0; state.cloud = null; state.tempC = null;
   tick(); refreshAircraft(); refreshCloud(); updatePasses(); renderAll();
@@ -479,6 +481,7 @@ function onOri(e) {
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) h = norm360(360 - e.alpha);
   if (h == null) return;
+  h = window.FarGemsDeclination.trueHeading(h, state.declination); // the sky is laid out from true north, the compass reads magnetic
   let d = norm360(h - state.heading + 180) - 180;
   state.heading = norm360(state.heading + d * 0.25); state.dirty = true;
 }

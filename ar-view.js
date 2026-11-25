@@ -61,7 +61,9 @@
       const knowsHeading = typeof ori.compassHeading === 'number' || (ori.absolute && ori.alpha != null);
       if (ori.beta == null) { label('Move the phone to start the sensors', 16, H / 2, '#fff'); return; }
       const pose = AR.cameraPose(ori.alpha, ori.beta, ori.gamma);
-      heading = AR.smoothHeading(heading, AR.chooseHeading(ori.compassHeading, pose.heading), 0.25);
+      // The compass reads magnetic north and the sky is laid out from true north, so add the declination.
+      const trueHead = ((AR.chooseHeading(ori.compassHeading, pose.heading) + (ori.declination || 0)) % 360 + 360) % 360;
+      heading = AR.smoothHeading(heading, trueHead, 0.25);
       const cam = { heading, pitch: pose.pitch }, view = { W, H, vfov: VFOV };
       const F = o.getFilters(), sel = o.getSelected();
       items = [];
