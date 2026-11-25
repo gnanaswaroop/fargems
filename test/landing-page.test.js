@@ -61,7 +61,7 @@ test('About sits in a "..." menu at the top right, which opens, closes and is la
 
 test('the home page is roomy and plain: menu at the top, a large logo with space before the name, the radar, then one action', () => {
   const html = read('index.html'), css = read('style.css');
-  assert.match(html, /<header class="top">\s*<nav class="menu"[\s\S]*<\/header>\s*<div class="brand big"><img class="logo logo-lg"[^>]*width="88" height="88"[^>]*>Far<b>Gems<\/b><\/div>/, 'menu on top, then the centred logo and name');
+  assert.match(html, /<header class="top">\s*<nav class="menu"[\s\S]*<\/header>\s*<div class="intro">\s*<div class="brand big"><img class="logo logo-lg"[^>]*width="88" height="88"[^>]*>Far<b>Gems<\/b><\/div>/, 'menu on top, then the centred logo and name');
   assert.match(html, /<p class="lead">[\s\S]*<div class="hero-row">\s*<a id="heroLink" class="hero-link" href="viewer\.html"[^>]*aria-label="Open the sky view">\s*<svg class="hero"/, 'intro, then the radar, which is a link to the sky view');
   assert.ok(html.indexOf('class="hero-row"') < html.indexOf('id="openLink"') && html.indexOf('id="openLink"') < html.indexOf('id="permsCard"'), 'radar, then the launch button, then the permission card');
   assert.match(css, /\.logo-lg \{ display: block; margin: 0 auto 16px; \}/, 'space between the logo and the name');

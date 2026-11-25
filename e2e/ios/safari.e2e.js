@@ -111,7 +111,7 @@ test('the iPhone profile really is an iPhone in Safari', { skip }, async () => {
   } finally { await context.close(); }
 });
 
-test('landing: the motion prompt is started inside the tap, before location, and the page becomes ready', { skip }, async () => {
+test('landing: the motion prompt is started inside the tap, before location, and the sky view opens', { skip }, async () => {
   const { page, context, errors } = await iphone();
   try {
     await page.goto(base + '/index.html');
@@ -123,9 +123,31 @@ test('landing: the motion prompt is started inside the tap, before location, and
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.compass')), 'granted');
     const loc = JSON.parse(await page.evaluate(() => localStorage.getItem('fg.loc')));
     assert.ok(Math.abs(loc.lat - HITEC.latitude) < 0.01 && Math.abs(loc.lon - HITEC.longitude) < 0.01);
-    assert.equal(await page.isVisible('#permsCard'), false, 'the permission card goes once permissions exist');
-    assert.equal(await page.isVisible('#openLink'), true, 'the launch button takes its place');
     assert.deepEqual(errors, []);
+    await page.waitForURL('**/viewer.html', { timeout: 10000 }); // permission given: straight to the sky view
+  } finally { await context.close(); }
+});
+
+test('iPad in landscape: the home page and the sky view fit the screen with no vertical scroll, and the radar is not cut off', { skip }, async () => {
+  const context = await browser.newContext({ ...playwright.devices['iPad Pro 11 landscape'], serviceWorkers: 'block', geolocation: HITEC, permissions: ['geolocation'] });
+  try {
+    const page = await context.newPage();
+    await page.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    const fit = () => page.evaluate(() => ({ h: document.documentElement.scrollHeight, vh: innerHeight, w: document.documentElement.scrollWidth, vw: innerWidth }));
+    await page.goto(base + '/index.html');
+    let m = await fit();
+    assert.ok(m.h <= m.vh && m.w <= m.vw, `home fits ${JSON.stringify(m)}`);
+    const cols = await page.evaluate(() => { const a = document.querySelector('.intro').getBoundingClientRect(), b = document.querySelector('.actions').getBoundingClientRect(); return { introRight: a.right, actionsLeft: b.left }; });
+    assert.ok(cols.actionsLeft >= cols.introRight, 'two columns side by side');
+    await page.evaluate(() => localStorage.setItem('fg.loc', JSON.stringify({ lat: 17.4435, lon: 78.3772 })));
+    await page.goto(base + '/viewer.html');
+    await page.waitForTimeout(1200);
+    m = await fit();
+    assert.ok(m.h <= m.vh && m.w <= m.vw, `sky view fits ${JSON.stringify(m)}`);
+    const box = await page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); return { sky: r('#sky'), side: r('.side'), nearby: r('#pageNearby') }; });
+    assert.ok(box.side.left >= box.sky.right - 1 && box.nearby.left >= box.side.right - 1, 'radar, details and nearby list sit side by side');
+    assert.ok(box.sky.width > 400, 'the radar uses the space');
+    assert.equal(await page.isVisible('.tabs'), false, 'no tabs when both lists are shown');
   } finally { await context.close(); }
 });
 
@@ -136,7 +158,7 @@ test('landing: refusing motion access still lets the visitor in, and the refusal
     await page.tap('#allowBtn');
     await page.waitForFunction(() => localStorage.getItem('fg.loc'), null, { timeout: 15000 });
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.compass')), 'denied');
-    assert.equal(await page.isVisible('#openLink'), true);
+    await page.waitForURL('**/viewer.html', { timeout: 10000 }); // refusing motion access does not stop the visitor
   } finally { await context.close(); }
 });
 

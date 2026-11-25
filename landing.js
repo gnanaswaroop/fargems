@@ -72,6 +72,12 @@
     renderInstall();
   }
 
+  // Permission just given by the visitor: go straight to the sky view instead of asking for one more tap.
+  function openSkyView() {
+    els.msg.textContent = 'Opening the sky view…';
+    setTimeout(() => location.assign('viewer.html'), 350);
+  }
+
   // Ask for both permissions. The compass request must start synchronously inside the tap (iOS).
   function askPermissions() {
     attempted = true;
@@ -85,6 +91,7 @@
       O.storeCompass(storage, compass);
       if (loc) O.storeLocation(storage, loc.lat, loc.lon);
       render();
+      if (loc) openSkyView();
     });
   }
 
@@ -112,6 +119,7 @@
       return;
     }
     render();
+    openSkyView();
   });
 
   // Install: browsers that fire beforeinstallprompt get a button. iOS gets instructions instead.
