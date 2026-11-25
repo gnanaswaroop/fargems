@@ -19,6 +19,7 @@ or fails, and how the pieces are tested and shipped. To run it yourself, see [LO
 11. [Build, deploy and search](#11-build-deploy-and-search)
 12. [Testing](#12-testing)
 13. [Known limits](#13-known-limits)
+14. [Install and updates](#14-install-and-updates)
 
 ---
 
@@ -65,6 +66,7 @@ for the aircraft feeds, which browsers cannot call directly.
 | Pure logic | `lib/logic.js` | helpers with no page access: parsing, distances, visibility, formatting, URLs |
 | Compass correction | `lib/declination.js` | magnetic declination from the World Magnetic Model |
 | Offline | `sw.js`, `manifest.webmanifest` | service worker, install details |
+| Updates and navigation | `lib/update.js`, `update.js`, `nav.js` | notice a newer version and offer a reload; a Back button that returns to the page you came from |
 | Data proxy | `worker/aircraft-proxy.mjs` | the Cloudflare Worker (one file, no imports) |
 | Local proxy | `scripts/dev-worker.mjs` | the same Worker on your machine, in Node |
 | Build helpers | `scripts/seo.js`, `.github/workflows/*` | fill in the site address for search engines, tests, deploy |
@@ -110,8 +112,11 @@ Rules that shape how they are asked:
   itself when you raise the phone. If it fails or is denied, automatic opening is switched off until the phone has been laid
   flat again, so it never keeps retrying while you hold the phone up.
 - **Landing page flow.** Nothing is saved yet: it shows the permission card with one button. Once a location is saved the
-  card disappears and a single "Open the sky view" button remains; the small radar picture is a launch button too. "Change
-  permissions" and "Try a sample location" live in the menu at the top right.
+  card disappears and a single "Open the sky view" button sits right under the small radar picture (which is a launch
+  button too). If the browser already allows location for the site but this copy has nothing saved (a reinstalled or newly
+  installed app has fresh storage), the page asks the Permissions API, fetches the position quietly and goes straight to
+  that state, so nobody is asked twice. The menu at the top right has Settings (where location and compass can be changed),
+  About, GitHub, Install app and Try a sample location.
 - **No network permission** is needed. The app calls public data services from the browser or through the proxy.
 
 ## 4. Finding where things are in the sky
@@ -192,8 +197,13 @@ the circle (so 359° to 1° does not swing through 180°).
 
 ### How the compass is turned on
 
-The landing page records whether compass access was granted. The sky view enables the sensors by itself only if it was.
-Otherwise the compass stays off and dragging rotates the sky by hand.
+The landing page records the compass state: `granted`, `denied`, or `na` (this device needs no permission, which is every
+Android phone and computer). The sky view starts the sensors by itself for `granted` and `na`, and also when nothing is
+stored (someone who skipped the landing page) on a device that needs no permission. It stays off after a refusal, and on an
+iPhone until a tap has granted it.
+
+Where no permission was asked, the compass is only counted as on once a real reading arrives. A computer with no sensor
+therefore keeps dragging-to-rotate, and a phone switches to the turning map as soon as its first reading comes in.
 
 ### Accuracy
 
@@ -264,7 +274,9 @@ thresholds (hysteresis) so it does not flicker:
 | A phone tilted to read (about −30° or lower) | never opens it |
 | After a camera failure or after you close it by hand | no automatic opening until the phone has been laid flat once |
 
-There is also an **AR** button on the radar for opening it by hand.
+There is also an **AR** button on the radar for opening it by hand. **Only a view that opened by itself closes by itself.**
+A view opened with the AR button stays until you press its close button, even if the phone is held low or laid flat;
+otherwise tapping AR with the phone tilted to read would close it again 0.7 seconds later.
 
 ### The camera stream
 
@@ -396,6 +408,7 @@ file a page loads is in the precache list.
 | Proxy: caching, CORS, kill switch, fallbacks, cooldowns, stale answers, routes, satellites | `test/aircraft-proxy.test.js`, `test/provider-fallback.test.js`, `test/flights.test.js` | every pull request, with a fake network, cache and clock |
 | Local proxy | `test/dev-worker.test.js` | every pull request |
 | Pages, links, service worker list, SEO tags, landing page structure | `test/site.test.js`, `test/seo.test.js`, `test/landing-page.test.js` | every pull request |
+| Camera view on an Android emulator (compass starts by itself, the AR button keeps the view open, raising the phone opens it, laying it flat closes it) | `e2e/android/ar.e2e.js` (`npm run test:android`) | by hand, with an emulator |
 | Real data at five places | `e2e/live/live-data.e2e.js` (`npm run test:live`) | daily on GitHub, and by hand |
 | Compass on an Android emulator with virtual sensors | `e2e/android/compass.e2e.js` (`npm run test:android`) | by hand, with an emulator |
 
@@ -418,3 +431,38 @@ place the app was told it is in.
 - **Declination model validity.** The built-in model covers 2025 to 2030 and must be replaced with the next World Magnetic
   Model after that.
 - **Weather** has one provider and no fallback.
+
+## 14. Install and updates
+
+### Installing the app
+
+FarGems is a Progressive Web App. The home page always has an **Install app** button (and the same item in the menu) until
+the app is installed:
+
+- Where the browser offers installation (Chrome and Edge on Android and desktop) the button starts the browser's own install
+  prompt. The page keeps the `beforeinstallprompt` event for this.
+- On iPhone and iPad there is no prompt to start, so the button shows the steps: Share, then Add to Home Screen.
+- In any other browser it points to the browser's menu (Install app, or Add to Home screen).
+- Once the app runs installed (`display-mode: standalone`) the button disappears.
+
+What makes a site installable: a manifest with a name, `start_url`, `display: standalone` and icons; a service worker with a
+fetch handler; HTTPS. The manifest has round "any" icons (192 and 512), a separate full-bleed "maskable" icon (the system
+crops it to its own shape), and the SVG. The old icons were square pictures with a dark background and a stray generator mark; the new ones
+are drawn from `icon.svg`. iPhone uses `apple-touch-icon.png`, a full-bleed navy square, because iOS cannot show transparency
+or a circle. Inside the installed app the wordmark is plain white.
+
+### Knowing that a newer version exists
+
+The service worker fetches the app's own files network-first, so a reload always gets the newest files. The page that is
+already open, though, keeps running the old code until it is reloaded, so it has to be told.
+
+- At deploy time the workflow writes the commit it built from into `config.js` (`build`) and into `version.json`.
+- `update.js` asks for `version.json` (with a changing query, so no cache can answer, and never through the service worker)
+  when the page is shown and every 10 minutes, at most once every 5 minutes. If the build id differs from the page's own, a
+  bar appears: "A new version of FarGems is available" with **Reload** and **Later**.
+- It also shows the bar if the service worker is replaced while the page is open (`controllerchange`), but not for the very
+  first install.
+- Reload asks the service worker to update, then reloads the page.
+- A copy run locally has no build id and never shows the bar.
+
+If a CDN sits in front of the site it can keep old copies of the files for hours. Purge the changed files after a deploy.

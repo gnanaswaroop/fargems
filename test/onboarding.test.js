@@ -86,11 +86,15 @@ test('compassNeedsPermission is true only where requestPermission exists (iOS 13
   assert.equal(O.compassNeedsPermission(undefined), false);
 });
 
-test('shouldAutoEnableCompass is true only after the compass was granted', () => {
+test('shouldAutoEnableCompass: on after a grant or where no permission is needed, off after a refusal or until an iPhone tap', () => {
+  const android = {}, iphone = { DeviceOrientationEvent: { requestPermission() {} } }, desktop = { DeviceOrientationEvent: function () {} };
   assert.equal(O.shouldAutoEnableCompass(memStorage({ [O.COMPASS_KEY]: 'granted' })), true);
-  assert.equal(O.shouldAutoEnableCompass(memStorage({ [O.COMPASS_KEY]: 'denied' })), false);
-  assert.equal(O.shouldAutoEnableCompass(memStorage({ [O.COMPASS_KEY]: 'na' })), false);
-  assert.equal(O.shouldAutoEnableCompass(memStorage()), false);
+  assert.equal(O.shouldAutoEnableCompass(memStorage({ [O.COMPASS_KEY]: 'denied' }), android), false, 'refused stays off');
+  assert.equal(O.shouldAutoEnableCompass(memStorage({ [O.COMPASS_KEY]: 'na' })), true, 'the landing page recorded that no permission is needed');
+  assert.equal(O.shouldAutoEnableCompass(memStorage(), android), true, 'skipped the landing page on Android');
+  assert.equal(O.shouldAutoEnableCompass(memStorage(), desktop), true);
+  assert.equal(O.shouldAutoEnableCompass(memStorage(), iphone), false, 'iPhone needs a tap first');
+  assert.equal(O.shouldAutoEnableCompass(memStorage()), false, 'nothing known about the device');
 });
 
 test('startTarget sends the visitor to the viewer only once a location is known', () => {

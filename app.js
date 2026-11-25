@@ -41,6 +41,7 @@ const TLE_GROUPS = ['stations', 'visual'];
 /* ---------- state ---------- */
 const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: true,
+  compassPending: false, // compass listeners are bound but no reading has arrived yet (the device may have no sensor)
   declination: 0, // degrees from magnetic north to true north at this place (phone compasses read magnetic north)
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
@@ -368,7 +369,7 @@ function renderHud() {
   if (state.moonIllum != null) parts.push(`${moonName()} ${Math.round(state.moonIllum * 100)}%`);
   if (state.cloud != null) parts.push(`Cloud ${Math.round(state.cloud)}%`);
   if (state.tempC != null) parts.push(L.formatTemp(state.tempC, state.unit));
-  $('#hud').innerHTML = parts.map(esc).join('<br>');
+  $('#hud').innerHTML = parts.map(esc).join(' · ');
 }
 function renderStatus() {
   const s = state.status, now = Date.now(), out = [];
@@ -494,6 +495,7 @@ function onOri(e) {
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
   else if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) h = norm360(360 - e.alpha);
   if (h == null) return;
+  if (state.compassPending && !state.compass) { state.compass = true; state.compassPending = false; state.dirty = true; } // a real reading: the sensor exists
   h = window.FarGemsDeclination.trueHeading(h, state.declination); // the sky is laid out from true north, the compass reads magnetic
   let d = norm360(h - state.heading + 180) - 180;
   state.heading = norm360(state.heading + d * 0.25); state.dirty = true;
@@ -507,20 +509,23 @@ function showFacing() {
   el.textContent = `Facing ${window.FarGemsLogic.dir16(deg)} ${deg}° (true)`;
 }
 // The compass is switched on in settings. The sky view only starts it when permission was already granted there.
-function startCompass() {
+// `wait`: listen for readings, but only count the compass as on once one arrives. Used where no permission was asked,
+// so a computer with no sensor keeps its drag-to-rotate sky.
+function startCompass(wait = false) {
   if (state.compass) return;
   if (!startCompass.bound) {
     window.addEventListener('deviceorientationabsolute', onOri, true);
     window.addEventListener('deviceorientation', onOri, true);
     startCompass.bound = true;
   }
+  if (wait) { state.compassPending = true; return; }
   state.compass = true; state.dirty = true;
 }
 /* ---------- AR view ---------- */
 // The camera picture with objects over it. It opens from the AR button, and by itself when the phone is
 // raised to look at the sky (once the camera has been allowed). Laying the phone flat closes it.
 let arView = null;
-const arState = { auto: null, opening: false };
+const arState = { auto: null, opening: false, openedBy: null }; // openedBy: 'auto' or 'manual' while the view is open
 function initAR() {
   if (!window.FarGemsARView || !window.FarGemsAR) return;
   arState.auto = window.FarGemsAR.newAutoState();
@@ -528,12 +533,13 @@ function initAR() {
     root: $('#ar'), video: $('#arVideo'), canvas: $('#arCanvas'), closeBtn: $('#arClose'),
     getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
     onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
-    onClose: () => { arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
+    onClose: () => { arState.openedBy = null; arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
   });
-  $('#arBtn').onclick = openAR;
+  $('#arBtn').onclick = () => openAR('manual');
   setInterval(autoAR, 300);
 }
-async function openAR() {
+// source: 'manual' (the AR button) or 'auto' (the phone was raised). Only a view that opened by itself closes by itself.
+async function openAR(source = 'manual') {
   if (!arView || arView.isOpen() || arState.opening) return; // one attempt at a time
   arState.opening = true;
   try {
@@ -547,6 +553,7 @@ async function openAR() {
       } else startCompass();
     }
     await arView.open();
+    arState.openedBy = source;
     try { localStorage.setItem('fg.camera', 'granted'); } catch { /* storage blocked */ }
     renderDetail();
   } catch (e) {
@@ -569,10 +576,11 @@ function autoAR() {
   const r = AR.autoStep(arState.auto, {
     pitch: pose.pitch, now: Date.now(), isOpen: arView.isOpen(), opening: arState.opening, cameraGranted: granted,
     compassOn: state.compass, onRadarPage: !$('#pager').classList.contains('nearby'),
+    closeAllowed: arState.openedBy === 'auto',
   });
   arState.auto = r.state;
-  if (r.action === 'close') arView.close();
-  else if (r.action === 'open') openAR();
+  if (r.action === 'close') { arView.close(); arState.openedBy = null; }
+  else if (r.action === 'open') openAR('auto');
 }
 function bindUI() {
   const cv = $('#sky');
@@ -685,7 +693,10 @@ function start() {
   if (saved && typeof saved.lat === 'number' && typeof saved.lon === 'number') setLoc(saved.lat, saved.lon);
   else $('#noLocation').hidden = false;
   // Compass permission from settings (or the landing page) turns the compass on without a second prompt.
-  try { if (window.FarGemsOnboarding && FarGemsOnboarding.shouldAutoEnableCompass(localStorage)) startCompass(); } catch { /* storage blocked */ }
+  try {
+    const O = window.FarGemsOnboarding;
+    if (O && O.shouldAutoEnableCompass(localStorage, window)) startCompass(O.readCompass(localStorage) !== 'granted');
+  } catch { /* storage blocked */ }
   renderAll();
   refreshSats();
   setInterval(() => { tick(); }, 1000);

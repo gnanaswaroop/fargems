@@ -34,10 +34,12 @@ test('the camera is asked for the back camera, without audio, and stopped on clo
 
 test('app opens AR from a tap and automatically when the phone is raised, but not after a manual close', () => {
   const app = read('app.js');
-  assert.match(app, /\$\('#arBtn'\)\.onclick = openAR/);
+  assert.match(app, /\$\('#arBtn'\)\.onclick = \(\) => openAR\('manual'\)/);
+  assert.match(app, /openAR\('auto'\)/);
   assert.match(app, /autoStep/);
   assert.match(app, /fg\.camera/);
-  assert.match(app, /onClose: \(\) => \{ arState\.auto = window\.FarGemsAR\.suppress\(arState\.auto\); \}/);
+  assert.match(app, /onClose: \(\) => \{ arState\.openedBy = null; arState\.auto = window\.FarGemsAR\.suppress\(arState\.auto\); \}/);
+  assert.match(app, /closeAllowed: arState\.openedBy === 'auto'/, 'only a view that opened by itself closes by itself');
   assert.match(app, /arState\.opening/, 'only one camera attempt at a time');
   assert.match(app, /requestPermission\(\)/, 'iPhone compass permission is requested inside the tap');
 });
