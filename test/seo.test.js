@@ -101,3 +101,56 @@ test('the site address is never written into the repository files, and the build
   assert.equal(png.readUInt32BE(20), 630, 'and 630 tall');
   for (const f of ['index.html', 'about.html', 'manifest.webmanifest', 'scripts/seo.js']) assert.doesNotMatch(read(f), /fargems\.com|swaroop\.in/, f);
 });
+
+function ldBlocks(html) {
+  return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+}
+
+test('About has visible questions and answers, and the FAQ structured data says exactly the same', () => {
+  const html = read('about.html');
+  const faqHtml = html.match(/<dl class="faq">([\s\S]*?)<\/dl>/)[1];
+  const visible = [...faqHtml.matchAll(/<dt>([^<]+)<\/dt><dd>([^<]+)<\/dd>/g)].map((m) => [m[1], m[2]]);
+  assert.ok(visible.length >= 6, 'a useful set of questions');
+  const faq = ldBlocks(html.replace(/__SITE_URL__/g, 'https://example.com')).find((b) => b['@type'] === 'FAQPage');
+  assert.ok(faq, 'FAQPage structured data present');
+  assert.deepEqual(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), visible, 'structured data matches the page text');
+  assert.match(html, /<h3>Frequently asked questions<\/h3>/);
+});
+
+test('About has a breadcrumb trail, and both public pages declare their language alternates', () => {
+  const about = read('about.html'), index = read('index.html');
+  const crumbs = ldBlocks(about.replace(/__SITE_URL__/g, 'https://example.com')).find((b) => b['@type'] === 'BreadcrumbList');
+  assert.deepEqual(crumbs.itemListElement.map((i) => [i.position, i.name, i.item]), [[1, 'FarGems', 'https://example.com/'], [2, 'About FarGems', 'https://example.com/about.html']]);
+  for (const [html, path] of [[index, '/'], [about, '/about.html']]) {
+    assert.ok(html.includes(`<link rel="alternate" hreflang="en" href="__SITE_URL__${path}">`));
+    assert.ok(html.includes(`<link rel="alternate" hreflang="x-default" href="__SITE_URL__${path}">`));
+  }
+});
+
+test('the structured data stays valid JSON with and without a domain', () => {
+  for (const domain of ['example.com', '']) {
+    const dir = build(domain);
+    for (const f of ['index.html', 'about.html']) {
+      const blocks = ldBlocks(fs.readFileSync(path.join(dir, f), 'utf8'));
+      assert.ok(blocks.length >= 1, `${f} has structured data (${domain || 'no domain'})`);
+      for (const b of blocks) assert.equal(b['@context'], 'https://schema.org');
+    }
+    const crumbs = ldBlocks(fs.readFileSync(path.join(dir, 'about.html'), 'utf8')).find((b) => b['@type'] === 'BreadcrumbList');
+    assert.equal(crumbs.itemListElement.every((i) => (i.item || '').startsWith('https://') === !!domain), true, 'addresses only when there is a domain');
+    fs.rmSync(dir, { recursive: true });
+  }
+});
+
+test('the sitemap says when it was built, and the 404 page is published, helpful and not indexed', () => {
+  assert.match(S.sitemapXml('example.com', '2026-11-25'), /<loc>https:\/\/example\.com\/<\/loc><lastmod>2026-11-25<\/lastmod>/);
+  assert.match(S.sitemapXml('example.com'), /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/);
+  const nf = read('404.html');
+  assert.match(nf, /<meta name="robots" content="noindex">/);
+  assert.match(nf, /href="\/"/, 'a way home');
+  assert.doesNotMatch(nf, /__SITE_URL__/);
+  assert.match(read('.github/workflows/pages.yml'), /404\.html/);
+});
+
+test('the home page logo loads first and has its size, so the page does not jump', () => {
+  assert.match(read('index.html'), /<img class="logo logo-lg"[^>]*width="88" height="88" fetchpriority="high"/);
+});

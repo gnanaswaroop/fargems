@@ -7,7 +7,11 @@
 <meta name="description" content="Free sky map for your phone: see the aircraft, satellites, planets, Moon and meteor showers above you right now, or point your camera to identify them.">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="__SITE_URL__/">
+<link rel="alternate" hreflang="en" href="__SITE_URL__/">
+<link rel="alternate" hreflang="x-default" href="__SITE_URL__/">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="en_US">
+<meta name="application-name" content="FarGems">
 <meta property="og:site_name" content="FarGems">
 <meta property="og:title" content="FarGems — what's flying and shining above you">
 <meta property="og:description" content="Free sky map for your phone: see the aircraft, satellites, planets, Moon and meteor showers above you right now, or point your camera to identify them.">
@@ -51,7 +55,6 @@
 <body class="landing">
 <main class="welcome">
   <header class="top">
-    <div class="brand"><img class="logo logo-md" src="icon.svg" alt="FarGems logo" width="40" height="40">Far<b>Gems</b></div>
     <nav class="menu" aria-label="Site">
       <button id="menuBtn" class="menu-btn" type="button" aria-label="More" aria-haspopup="true" aria-expanded="false" aria-controls="menuList">&#x22EF;</button>
       <ul id="menuList" class="menu-list" hidden>
@@ -63,7 +66,9 @@
       </ul>
     </nav>
   </header>
+  <div class="brand big"><img class="logo logo-lg" src="icon.svg" alt="FarGems logo" width="88" height="88" fetchpriority="high" decoding="async">Far<b>Gems</b></div>
   <h1 class="tagline">Look up. Know what you are looking at.</h1>
+  <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
   <div class="hero-row">
     <a id="heroLink" class="hero-link" href="viewer.html" aria-label="Open the sky view">
     <svg class="hero" viewBox="0 0 240 240" role="img" aria-label="A radar-style sky map with an aircraft, a satellite, the Moon and a planet">
@@ -84,7 +89,6 @@
       <circle cx="164" cy="82" r="3.5" fill="#d9c8a6"/><circle class="hero-blip hero-blip2" cx="164" cy="82" r="3.5" fill="none" stroke="#d9c8a6"/>
     </svg>
     </a>
-    <p class="lead">See what is above you, right now: aircraft, satellites, the Sun, Moon, planets, bright stars and meteor showers.</p>
   </div>
 
   <a id="openLink" class="btn primary wide go" href="viewer.html" hidden>Open the sky view</a>

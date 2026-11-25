@@ -9,6 +9,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'tmp']);
 const SKIP_FILES = new Set([path.join('test', 'generic.test.js')]);
+// The last pattern is the owner's home area. Tests, samples and docs use HITEC City in Hyderabad, or other cities, instead.
 const BANNED = [/fargems\.com/i, /185\.199\.10[89]\.153|185\.199\.11[01]\.153/, /porkbun/i, /cloudflare account/i];
 
 function files(dir = ROOT, out = []) {

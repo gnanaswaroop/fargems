@@ -61,11 +61,13 @@ test('About and GitHub sit in a "..." menu at the top right, which opens, closes
   assert.match(js, /menuList\.contains\(e\.target\)/, 'a tap outside closes it');
 });
 
-test('the home page is compact and plain: top row, small radar that launches, then one action', () => {
+test('the home page is roomy and plain: menu at the top, a large logo with space before the name, the radar, then one action', () => {
   const html = read('index.html'), css = read('style.css');
-  assert.match(html, /<header class="top">[\s\S]*class="brand"[\s\S]*class="menu"[\s\S]*<\/header>/, 'logo and menu share the top row');
-  assert.match(html, /<div class="hero-row">\s*<a id="heroLink" class="hero-link" href="viewer\.html"[^>]*aria-label="Open the sky view">\s*<svg class="hero"[\s\S]*<p class="lead">/, 'the small radar is a link to the sky view, beside the intro');
-  assert.match(css, /\.hero-row \.hero\{width:72px\}/, 'radar is small');
+  assert.match(html, /<header class="top">\s*<nav class="menu"[\s\S]*<\/header>\s*<div class="brand big"><img class="logo logo-lg"[^>]*width="88" height="88"[^>]*>Far<b>Gems<\/b><\/div>/, 'menu on top, then the centred logo and name');
+  assert.match(html, /<p class="lead">[\s\S]*<div class="hero-row">\s*<a id="heroLink" class="hero-link" href="viewer\.html"[^>]*aria-label="Open the sky view">\s*<svg class="hero"/, 'intro, then the radar, which is a link to the sky view');
+  assert.ok(html.indexOf('class="hero-row"') < html.indexOf('id="openLink"') && html.indexOf('id="openLink"') < html.indexOf('id="permsCard"'), 'radar, then the launch button, then the permission card');
+  assert.match(css, /\.logo-lg \{ display: block; margin: 0 auto 16px; \}/, 'space between the logo and the name');
+  assert.match(css, /\.hero-row \.hero\{width:min\(52vw,190px\)\}/, 'the radar is a good size, not tiny');
   assert.match(css, /\.landing \.install\{display:grid;grid-template-columns:1fr auto/, 'install card is one short row');
   assert.match(css, /\.landing \.perm-state\{grid-row:1;grid-column:2\}/, 'each permission is name and state on one line');
 });
