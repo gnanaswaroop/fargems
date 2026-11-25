@@ -214,6 +214,49 @@ test('AR on an iPhone: refusing motion access is explained and remembered', { sk
   } finally { await context.close(); }
 });
 
+test('sky view: text the visitor selected stays selected while the page refreshes itself', { skip }, async () => {
+  const { page, context } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
+  try {
+    await page.goto(base + '/viewer.html');
+    await sleep(800);
+    const select = (sel) => page.evaluate((q) => { const el = document.querySelector(q); const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); return String(s); }, sel);
+    for (const sel of ['#status', '#detail']) {
+      const before = await select(sel);
+      assert.ok(before.length > 5, `something to select in ${sel}`);
+      await sleep(4500); // the page rewrites its status and cards every 2 seconds
+      assert.equal(await page.evaluate(() => String(getSelection())), before, `${sel}: the selection survived two refreshes`);
+    }
+  } finally { await context.close(); }
+});
+
+test('sky view: the radar controls sit under the radar and do not cover it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html');
+    await sleep(500);
+    const r = await page.evaluate(() => { const c = document.querySelector('#sky').getBoundingClientRect(), z = document.querySelector('.zoombar').getBoundingClientRect(); return { skyBottom: c.bottom, barTop: z.top, barBottom: z.bottom, w: innerWidth, barRight: z.right }; });
+    assert.ok(r.barTop >= r.skyBottom - 1, `controls start at ${r.barTop}px, below the radar that ends at ${r.skyBottom}px`);
+    assert.ok(r.barRight <= r.w + 1, 'and they fit the screen');
+    assert.ok(r.barTop - r.skyBottom < 40, 'and are close to it, not far away');
+  } finally { await context.close(); }
+});
+
+test('sky view: the nearby list has an icon and a type for each object, and its text can be selected', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html');
+    await page.tap('#tabNearby');
+    await page.waitForSelector('.nearby-row');
+    const rows = await page.evaluate(() => [...document.querySelectorAll('.nearby-row')].slice(0, 12).map((r) => ({ type: r.dataset.type, tag: r.querySelector('.tag').textContent, svg: !!r.querySelector('.ico svg'), name: r.querySelector('.nm').textContent, select: getComputedStyle(r).userSelect || getComputedStyle(r).webkitUserSelect })));
+    assert.ok(rows.length > 3, 'there are objects to list');
+    for (const r of rows) { assert.ok(r.svg, `${r.name} has an icon`); assert.ok(r.tag, `${r.name} has a type`); assert.equal(r.select, 'text', `${r.name}: selectable`); }
+    assert.ok(rows.some((r) => r.type === 'planet') || rows.some((r) => r.type === 'moon' || r.type === 'sun'), 'the Sun, Moon or planets are in the list with their own icons');
+    // tapping a row still opens the object on the radar
+    await page.tap('.nearby-row');
+    assert.equal(await page.evaluate(() => document.querySelector('#tabRadar').getAttribute('aria-selected')), 'true');
+  } finally { await context.close(); }
+});
+
 test('every page fits an iPhone screen with no sideways scrolling', { skip }, async () => {
   const { page, context } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
   try {
