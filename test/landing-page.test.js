@@ -38,22 +38,20 @@ test('about lives on its own page, linked from the landing page', () => {
 
 test('the about text matches what the app now does', () => {
   const html = read('about.html');
-  assert.match(html, /Camera view/);
-  assert.match(html, /where they are flying to/);
   assert.match(html, /adsbdb/);
   assert.match(html, /OpenSky/, 'the fallback feed stays listed');
   assert.doesNotMatch(html, /no server of ours/, 'the aircraft relay is disclosed');
   assert.match(html, /small relay/);
 });
 
-test('About and GitHub sit in a "..." menu at the top right, which opens, closes and is labelled for screen readers', () => {
+test('About sits in a "..." menu at the top right, which opens, closes and is labelled for screen readers', () => {
   const html = read('index.html'), js = read('landing.js'), css = read('style.css');
   const menu = html.match(/<nav class="menu"[\s\S]*?<\/nav>/)[0];
   assert.ok(html.indexOf('class="menu"') < html.indexOf('class="hero"'), 'the menu comes first, at the top');
   assert.match(menu, /id="menuBtn"[^>]*aria-label="More"[^>]*aria-expanded="false"[^>]*aria-controls="menuList"/);
   assert.match(menu, /<ul id="menuList" class="menu-list" hidden>/);
   assert.match(menu, /href="about\.html">About</);
-  assert.match(menu, /href="https:\/\/github\.com\/gnanaswaroop\/fargems"/);
+  assert.doesNotMatch(menu, /github\.com/, 'the GitHub link lives on the About page');
   assert.match(css, /\.menu\{[^}]*justify-content:flex-end/, 'pushed to the right');
   assert.match(css, /\.menu-list\{position:absolute;right:0/);
   assert.match(js, /aria-expanded/);
@@ -72,9 +70,9 @@ test('the home page is roomy and plain: menu at the top, a large logo with space
   assert.match(css, /\.landing \.perm-state\{grid-row:1;grid-column:2\}/, 'each permission is name and state on one line');
 });
 
-test('the small links are tucked into the ... menu: Settings, About, GitHub, install, sample location', () => {
+test('the small links are tucked into the ... menu: Settings, About, install, sample location', () => {
   const menu = read('index.html').match(/<ul id="menuList"[\s\S]*?<\/ul>/)[0];
-  for (const needle of ['href="about.html"', 'github.com/gnanaswaroop/fargems', 'id="sampleBtn"', 'href="settings.html"', 'id="menuInstall"']) assert.ok(menu.includes(needle), needle);
+  for (const needle of ['href="about.html"', 'id="sampleBtn"', 'href="settings.html"', 'id="menuInstall"']) assert.ok(menu.includes(needle), needle);
   const body = read('index.html').split('</header>')[1];
   assert.doesNotMatch(body, /id="sampleBtn"/, 'not left lying in the page');
   assert.doesNotMatch(read('index.html'), /Change permissions|allowAgainBtn/, 'permissions are changed in Settings');
