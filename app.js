@@ -51,6 +51,7 @@ const state = {
   routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
   tempC: null, unit: (() => { try { return window.FarGemsLogic.parseUnit(localStorage.getItem('fg.unit')); } catch { return 'C'; } })(),
+  pins: [], approx: null, // pinned object ids; the label of a place guessed from the network (null when the place is real)
   objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
   sweep: 0, lastT: 0, // radar sweep angle (degrees) and last animation frame time
   view: { zoom: 1, panX: 0, panY: 0 }, // radar zoom and pan (see lib/logic.js)
@@ -309,21 +310,33 @@ function draw() {
   // sit on top of each other: each name tries a few spots around its object and is skipped if none is free (only
   // minor ones: the selected object, the Sun, Moon and planets and the space stations always get a name).
   const labelQ = [], LABEL_PRIO = { body: 1, sat: 2, air: 3, met: 4, star: 5 };
-  const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { if (!F.labels) return; labelQ.push({ o, p, dx, dy, col, prio: o.id === sel ? 0 : (LABEL_PRIO[o.kind] || 5) }); };
+  const pinned = new Set(state.pins);
+  const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { if (!F.labels) return; const pin = pinned.has(o.id); labelQ.push({ o, p, dx, dy, col, text: (pin ? '★ ' : '') + (o.id === sel ? o.name : L.shortLabel(o.name)), prio: o.id === sel ? 0 : pin ? 0.5 : (LABEL_PRIO[o.kind] || 5) }); };
   const placeLabels = () => {
     ctx.font = '11px system-ui'; ctx.textBaseline = 'alphabetic';
     const placed = [...fixed], overlaps = (r) => placed.some((q) => r.x0 < q.x1 && r.x1 > q.x0 && r.y0 < q.y1 && r.y1 > q.y0);
     labelQ.sort((a, b) => a.prio - b.prio);
     for (const L of labelQ) {
-      const w = ctx.measureText(L.o.name).width, spots = [
+      // Even the selected object's full name is cut to what fits across the radar.
+      const maxW = Math.min(W * 0.6, R * 1.3);
+      while (ctx.measureText(L.text).width > maxW && L.text.length > 4) L.text = L.text.slice(0, -2).trimEnd() + '…';
+      const w = ctx.measureText(L.text).width, spots = [
         { x: L.p.x + L.dx, y: L.p.y + L.dy, a: 'left' }, { x: L.p.x + L.dx, y: L.p.y + L.dy + 16, a: 'left' },
         { x: L.p.x - L.dx, y: L.p.y + L.dy, a: 'right' }, { x: L.p.x - L.dx, y: L.p.y + L.dy + 16, a: 'right' },
         { x: L.p.x, y: L.p.y - 14, a: 'center' }, { x: L.p.x, y: L.p.y + 22, a: 'center' },
       ];
       const box = (c) => { const x0 = c.a === 'left' ? c.x : (c.a === 'right' ? c.x - w : c.x - w / 2); return { x0, x1: x0 + w, y0: c.y - 10, y1: c.y + 3 }; };
-      let pick = spots.find((c) => { const r = box(c); return r.x0 >= 2 && r.x1 <= W - 2 && r.y0 >= 0 && r.y1 <= W && !overlaps(r); });
-      if (!pick) { if (L.prio > 2) continue; pick = spots[0]; }
-      ctx.fillStyle = L.col; ctx.textAlign = pick.a; ctx.fillText(L.o.name, pick.x, pick.y);
+      // A name stays inside the radar circle and the canvas, and clear of the other names.
+      const inside = (r) => [[r.x0, r.y0], [r.x1, r.y0], [r.x0, r.y1], [r.x1, r.y1]].every(([x, y]) => Math.hypot(x - cx, y - cy) <= R - 1);
+      const fits = (r) => r.x0 >= 2 && r.x1 <= W - 2 && r.y0 >= 0 && r.y1 <= W;
+      let pick = spots.find((c) => { const r = box(c); return fits(r) && inside(r) && !overlaps(r); });
+      if (!pick) {
+        if (L.prio > 2) continue;
+        // an important name always gets drawn: take the first spot and move it toward the middle until it is inside
+        pick = { x: spots[0].x, y: spots[0].y, a: 'center' };
+        for (let i = 0; i < 24 && !(fits(box(pick)) && inside(box(pick))); i++) { pick.x += (cx - pick.x) * 0.08; pick.y += (cy - pick.y) * 0.08; }
+      }
+      ctx.fillStyle = L.col; ctx.textAlign = pick.a; ctx.fillText(L.text, pick.x, pick.y);
       placed.push(box(pick));
     }
     ctx.textAlign = 'left';
@@ -494,7 +507,8 @@ function renderDetail() {
   const lead = nearest ? `<p class="muted small">Nearest ${o.kind === 'air' ? 'flight' : 'satellite'}. Tap anything else on the radar to switch.</p>` : '';
   const blurb = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
   const more = link ? `<p class="wikirow">${link}</p>` : '';
-  setHtml($('#detail'), `<h3>${title}</h3>${lead}<dl>${rows}</dl>${blurb}${more}`);
+  const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
+  setHtml($('#detail'), `<h3>${title}</h3>${lead}<dl>${rows}</dl>${blurb}${more}${acts}`);
   setHtml($('#arDetail'), `<h3>${title}</h3><dl>${rows}</dl>${more}`);
 }
 
@@ -529,20 +543,47 @@ const NEARBY_ICONS = {
 
 // Each row has an icon for the kind of object, its name and kind, the distance, and where to look (with your heading when
 // the compass is on). Rows are plain text blocks, not buttons, so their text can be selected and copied.
+// The star that pins an object to the top of the list (and keeps its name on the radar). It is a real button, so it can be
+// reached with the keyboard, and it says what it does.
+function pinButton(o) {
+  const on = state.pins.includes(o.id);
+  return `<button class="pin${on ? ' on' : ''}" type="button" data-pin="${esc(o.id)}" aria-pressed="${on}" aria-label="${on ? 'Unpin' : 'Pin'} ${esc(o.name)}" title="${on ? 'Unpin' : 'Pin to the top'}">${on ? '★' : '☆'}</button>`;
+}
+function pinButtonLabelled(o) {
+  const on = state.pins.includes(o.id);
+  return `<button class="btn${on ? ' on' : ''}" type="button" data-pin="${esc(o.id)}" aria-pressed="${on}">${on ? '★ Pinned' : '☆ Pin'}</button>`;
+}
+function togglePinned(id) {
+  state.pins = window.FarGemsLogic.togglePin(state.pins, id);
+  try { localStorage.setItem('fg.pins', JSON.stringify(state.pins)); } catch { /* storage blocked: kept for this visit */ }
+  state.dirty = true; renderNearby(); renderDetail();
+}
+// Share an object: the phone's share sheet when there is one, otherwise the text is copied.
+async function shareObject(o) {
+  const H = window.FarGemsLogic;
+  const extra = o.kind === 'air' && o.ac ? ((routeText(o.ac) || '') && 'Flying to ' + routeText(o.ac).replace(/<[^>]*>/g, '') + '.') : '';
+  const text = H.shareText(o, extra), url = location.origin + location.pathname.replace(/[^/]*$/, '');
+  try {
+    if (navigator.share) { await navigator.share({ title: o.name + ' in the sky', text, url }); return; }
+    await navigator.clipboard.writeText(text + ' ' + url);
+    toast('Copied. Paste it anywhere to share.');
+  } catch (e) { if (!e || e.name !== 'AbortError') toast('Could not share. Select the details and copy them.'); }
+}
+
 function renderNearby() {
   const el = $('#nearbyList');
   if (!el) return;
   const H = window.FarGemsLogic;
   const heading = state.compass ? state.heading : null;
   const items = state.objs.filter(o => ['air', 'sat', 'body', 'star'].includes(o.kind) && (o.el >= -1 || o.kind === 'body'));
-  const sorted = H.sortNearest(items).slice(0, 60);
+  const sorted = H.pinFirst(H.sortNearest(items), state.pins).slice(0, 60);
   if (!sorted.length) { setHtml(el, '<li class="muted">Nothing above the horizon right now.</li>'); return; }
   const wikiTitle = (o) => H.wikiTitle(o);
   setHtml(el, sorted.map(o => {
     const t = H.typeOf(o);
     return `<li><div class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
       `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
-      `<span class="nm">${esc(o.name)}</span>` +
+      `<span class="nm">${pinButton(o)}${esc(o.name)}</span>` +
       `<span class="meta">${esc(H.formatDistance(o.distKm))}</span>` +
       `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}${wikiTitle(o) ? ` <a class="wiki" href="${H.wikiUrl(wikiTitle(o))}" target="_blank" rel="noopener" aria-label="${esc(o.name)} on Wikipedia">Wikipedia ↗</a>` : ''}</span></div></li>`;
   }).join(''));
@@ -561,8 +602,10 @@ function setPage(name) {
 }
 
 /* ---------- location ---------- */
-function setLoc(lat, lon) {
-  state.loc = { lat, lon }; lsSet('fg.loc', state.loc);
+function setLoc(lat, lon, approxLabel) {
+  state.loc = { lat, lon }; state.approx = approxLabel == null ? null : approxLabel;
+  if (state.approx == null) lsSet('fg.loc', state.loc); // a place guessed from the network is used for now and not remembered
+  showApprox();
   state.declination = state.ori.declination = window.FarGemsDeclination.declination(lat, lon, new Date());
   $('#noLocation').hidden = true;
   state.aircraft = []; state.aircraftAt = 0; state.cloud = null; state.tempC = null;
@@ -738,6 +781,18 @@ function bindUI() {
   $('#zoomIn').onclick = () => { const c = centre(); zoomTo(1.5, c.x, c.y); };
   $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
   $('#zoomReset').onclick = resetView;
+  // Pin and share buttons (the cards and rows are redrawn, so the clicks are caught one level up).
+  document.addEventListener('click', (e) => {
+    const pin = e.target.closest('[data-pin]'), share = e.target.closest('[data-share]');
+    if (pin) { e.stopPropagation(); togglePinned(pin.dataset.pin); }
+    else if (share) { const o = state.byId.get(share.dataset.share); if (o) shareObject(o); }
+  });
+  // The gear: Settings and Help.
+  const gear = $('#gearBtn'), gearList = $('#gearList');
+  const setGear = (open) => { gearList.hidden = !open; gear.setAttribute('aria-expanded', String(open)); };
+  gear.addEventListener('click', (e) => { e.stopPropagation(); setGear(gearList.hidden); });
+  document.addEventListener('click', (e) => { if (!gearList.hidden && !gearList.contains(e.target)) setGear(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gearList.hidden) { setGear(false); gear.focus(); } });
   initAR();
   // On a wide landscape screen the nearby list sits under the object details, in the column beside the radar; otherwise it is
   // the second page next to the radar page.
@@ -750,7 +805,7 @@ function bindUI() {
   $('#tabNearby').onclick = () => setPage('nearby');
   const pickRow = (e) => {
     const b = e.target.closest('[data-id]');
-    if (!b || e.target.closest('a') || hasSelection()) return; // a link opens its page; dragging across a row to select its text is not a tap
+    if (!b || e.target.closest('a, button') || hasSelection()) return; // a link opens its page; dragging across a row to select its text is not a tap
     state.sel = b.dataset.id; state.dirty = true; renderNearby(); renderDetail(); setPage('radar');
   };
   $('#nearbyList').onclick = pickRow;
@@ -772,6 +827,39 @@ function bindUI() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshAircraft(); tick(); } });
 }
 
+/* ---------- a place when none was shared ---------- */
+// Opened without a saved location: use the precise one if the browser already allows it, otherwise a city-level guess from the
+// network address (the relay asks Cloudflare, which knows the city of the address), and say so. Nothing is saved, so the
+// proper permission flow still works, and the guess goes away as soon as a real location exists.
+async function locateWithoutPermission() {
+  $('#noLocation').hidden = false;
+  try {
+    if (navigator.permissions && navigator.geolocation) {
+      const p = await navigator.permissions.query({ name: 'geolocation' });
+      if (p.state === 'granted') {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000, maximumAge: 600000 }));
+        setLoc(pos.coords.latitude, pos.coords.longitude); return;
+      }
+    }
+  } catch { /* fall through to the network guess */ }
+  const url = window.FarGemsLogic.locateProxyUrl(AIRCRAFT_PROXY);
+  if (!url) return;
+  try {
+    const r = await fetchWithTimeout(url, 6000);
+    const place = window.FarGemsLogic.parseIpLocation(await r.json());
+    if (place && !state.loc) setLoc(place.lat, place.lon, place.label || 'your area');
+  } catch { /* no guess: the card asks for a location */ }
+}
+function showApprox() {
+  const el = $('#approxNote');
+  if (!el) return;
+  if (state.approx == null) { el.hidden = true; return; }
+  el.textContent = '';
+  el.append('Showing the sky for about ' + state.approx + ', a guess from your network. ');
+  const a = document.createElement('a'); a.href = 'settings.html'; a.textContent = 'Use your exact location'; el.append(a, '.');
+  el.hidden = false;
+}
+
 /* ---------- timers ---------- */
 function tick() { try { computeSky(new Date()); } catch (e) { console.error(e); } }
 function start() {
@@ -781,12 +869,13 @@ function start() {
   state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
   state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
+  state.pins = L.parsePins(storedValue('fg.pins'));
   if (typeof satellite === 'undefined' || typeof Astronomy === 'undefined') {
     $('#status').innerHTML = '<span class="bad">Sky libraries failed to load. Check your connection and reload.</span>';
   }
   const saved = lsGet('fg.loc');
   if (saved && typeof saved.lat === 'number' && typeof saved.lon === 'number') setLoc(saved.lat, saved.lon);
-  else $('#noLocation').hidden = false;
+  else locateWithoutPermission();
   // Compass permission from settings (or the landing page) turns the compass on without a second prompt.
   try {
     const O = window.FarGemsOnboarding;
@@ -803,5 +892,7 @@ function start() {
   requestAnimationFrame(loop);
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 }
+// For the browser tests: with ?fgtest=1 in the address the tests can reach the page's state and redraw it.
+if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail };
 start();
 })();

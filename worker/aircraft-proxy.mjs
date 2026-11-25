@@ -7,6 +7,7 @@
 //   /aircraft?lat=&lon=&r=   aircraft around a point, as { ac: [...] } in the readsb "v2" format
 //   /route?callsign=         where a flight is coming from and going to
 //   /tle?group=              satellite element sets for "stations" or "visual", as plain text
+//   /locate                  the visitor's rough place (city level), from the network address, as { lat, lon, city, region, country }
 //   /status                  which providers are currently healthy (no provider is called)
 //
 // How it copes with throttling (see docs/IMPLEMENTATION.md for the full story):
@@ -355,6 +356,18 @@ async function cachedAnswer({ key, providers, args, type, staleFor, freshFor, co
   return json(502, { error: what + ' unavailable', tried: r.tried }, { ...cors, 'Retry-After': '10' });
 }
 
+/* ---------- rough location of the visitor ---------- */
+// Cloudflare works out a city for the network address of every request and hands it to the Worker. It is sent straight back
+// to the visitor's own device, rounded to about a kilometre (a city, not a street), and is never stored or cached here.
+function handleLocate(request, cors) {
+  const cf = request.cf || {};
+  const lat = Number(cf.latitude), lon = Number(cf.longitude);
+  const noStore = { ...cors, 'Cache-Control': 'private, no-store' };
+  if (cf.latitude == null || cf.longitude == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return json(404, { error: 'location unknown' }, noStore);
+  const round = (v) => Math.round(v * 100) / 100;
+  return json(200, { lat: round(lat), lon: round(lon), city: String(cf.city || ''), region: String(cf.region || ''), country: String(cf.country || '') }, noStore);
+}
+
 /* ---------- main entry ---------- */
 
 // Dependencies (fetchImpl, cache, health, now) are passed in so the logic can be tested.
@@ -371,6 +384,7 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
   const common = { cors, fetchImpl, cache, health, now };
 
   if (url.pathname === '/status') return handleStatus(cors, health, now);
+  if (url.pathname === '/locate') return handleLocate(request, cors);
 
   if (url.pathname === '/route') {
     const callsign = parseCallsign(url);

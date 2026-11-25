@@ -20,7 +20,13 @@
 <!-- Sky view: the radar and the selected object. Settings live on settings.html. -->
 <header>
   <a class="brand" href="index.html" aria-label="FarGems home"><img class="logo logo-sm" src="icon.svg" alt="" width="34" height="34">Far<b>Gems</b></a>
-  <a class="pill" href="settings.html">Settings</a>
+  <nav class="menu" aria-label="Menu">
+    <button id="gearBtn" class="menu-btn gear" type="button" aria-label="Settings and help" aria-haspopup="true" aria-expanded="false" aria-controls="gearList"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.4 7.4 0 0 0-1.7-1l-.4-2.5a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.6 8.8a.5.5 0 0 0 .1.6l2 1.6a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.5c0 .2.3.4.5.4h3.8c.2 0 .5-.2.5-.4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button>
+    <ul id="gearList" class="menu-list" hidden>
+      <li><a href="settings.html">Settings</a></li>
+      <li><a href="about.html#faq">Help</a></li>
+    </ul>
+  </nav>
 </header>
 
 <main>
@@ -31,6 +37,7 @@
   <div class="pager-view">
   <div id="pager" class="pager">
     <div class="page" id="pageRadar">
+    <p id="approxNote" class="approx" hidden></p>
     <div class="hudrow">
       <div id="hud" class="hud"></div>
       <div id="facing" class="hud facing" hidden></div>
