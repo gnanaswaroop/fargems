@@ -1,12 +1,14 @@
 'use strict';
 // Flights you can see, the plane icon, and route lookup.
 const test = require('node:test');
+const { beforeEach } = test;
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const L = require('../lib/logic.js');
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const W = import('../worker/aircraft-proxy.mjs');
+beforeEach(async () => (await W).resetHealth());
 
 test('horizonKm grows with height: a jet at 11 km can be 370+ km away along the ground', () => {
   assert.equal(L.horizonKm(0), 0);
