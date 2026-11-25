@@ -252,7 +252,8 @@ function draw() {
   // The dome is centred on the zoom pan and scaled by the zoom level. At 1x it is unchanged.
   const V = state.view;
   const cx = W / 2 + V.panX, cy = W / 2 + V.panY, R = (W / 2 - 26) * V.zoom;
-  const rot = state.compass ? state.heading : state.rot, sgn = state.flip ? 1 : -1;
+  // North stays at the top when the compass is on (the sky does not turn as you move); the wedge below shows where you face.
+  const rot = state.compass ? 0 : state.rot, sgn = state.flip ? 1 : -1;
   const P = (az, el) => { const r = (90 - el) / 90 * R, th = (az - rot) * D2R; return { x: cx + sgn * r * Math.sin(th), y: cy - r * Math.cos(th) }; };
 
   const k = Math.max(0, Math.min(1, ((state.sunAlt ?? -30) + 16) / 22));
@@ -278,6 +279,11 @@ function draw() {
     const a = (state.sweep - 90) * D2R;
     ctx.strokeStyle = 'rgba(90,209,230,.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a)); ctx.stroke();
+  }
+  if (state.compass) { // the way you are facing: a soft wedge from the centre to the edge
+    ctx.fillStyle = 'rgba(255,255,255,.10)'; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, cy);
+    for (let d = -25; d <= 25; d += 5) { const q = P(state.heading + d, 0); ctx.lineTo(q.x, q.y); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
   }
   state.hits = [];
   const F = state.filters, sel = state.sel;

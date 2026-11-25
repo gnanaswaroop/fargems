@@ -73,8 +73,10 @@ test('edgeIndicator points at off-screen targets from the screen edge', () => {
 test('wantsAR enters when the phone is raised and leaves when it is laid flat, with hysteresis', () => {
   assert.equal(AR.wantsAR(false, -80), false);
   assert.equal(AR.wantsAR(false, -40), false, 'not raised enough to switch on');
+  assert.equal(AR.wantsAR(false, -30), false, 'phone tilted for reading stays in the radar');
+  assert.equal(AR.wantsAR(false, -16), false);
   assert.equal(AR.wantsAR(false, -10), true);
-  assert.equal(AR.wantsAR(true, -40), true, 'stays on between the two thresholds');
+  assert.equal(AR.wantsAR(true, -30), true, 'stays on between the two thresholds');
   assert.equal(AR.wantsAR(true, -70), false);
   assert.equal(AR.wantsAR(true, NaN), true, 'no reading keeps the current mode');
 });
@@ -136,4 +138,11 @@ test('autoStep closes an open view once the phone has been flat for a moment, an
   const r = run([{ pitch: 0, now: 1000, ...open }, { pitch: -80, now: 2000, ...open }, { pitch: -80, now: 2300, ...open }, { pitch: -80, now: 2800, ...open }]);
   assert.deepEqual(r.actions, [null, null, null, 'close']);
   assert.deepEqual(run([{ pitch: -80, now: 1000 }, { pitch: -80, now: 3000 }]).actions, [null, null]);
+});
+
+test('the radar keeps north at the top with the compass on, and draws the facing wedge instead', () => {
+  const app = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'app.js'), 'utf8');
+  assert.match(app, /const rot = state\.compass \? 0 : state\.rot/);
+  assert.doesNotMatch(app, /state\.compass \? state\.heading : state\.rot/);
+  assert.match(app, /P\(state\.heading \+ d, 0\)/);
 });
