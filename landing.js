@@ -24,7 +24,7 @@
     menuBtn: $('#menuBtn'), menuList: $('#menuList'), perms: $('#permsCard'), hero: $('#heroLink'), menuInstall: $('#menuInstall'),
   };
 
-  // The "..." menu at the top right (About, GitHub). Closes on a tap elsewhere, on Escape, and when a link is used.
+  // The "..." menu at the top right (Settings, About, Install, sample location). Closes on a tap elsewhere, on Escape, and when a link is used.
   function setMenu(open) {
     els.menuList.hidden = !open;
     els.menuBtn.setAttribute('aria-expanded', String(open));

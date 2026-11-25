@@ -146,7 +146,7 @@ test('about page shows the about section, inside the main column, with key facts
   const mainOpen = html.indexOf('<main');
   const mainClose = html.indexOf('</main>');
   assert.ok(html.indexOf('id="about"') > mainOpen && html.indexOf('id="about"') < mainClose, 'inside main');
-  for (const fact of ['What it shows', 'Layers and radar', 'Where the data comes from', 'Privacy', 'Limits', 'CelesTrak', 'astronomy-engine', 'stay on your device']) {
+  for (const fact of ['How it works', 'Where the data comes from', 'Privacy', 'Terms and licence', 'CelesTrak', 'astronomy-engine', 'stay on your device']) {
     assert.ok(html.includes(fact), `about section mentions: ${fact}`);
   }
 });
