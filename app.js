@@ -546,12 +546,14 @@ function setLoc(lat, lon) {
 /* ---------- compass & interaction ---------- */
 function onOri(e) {
   const ori = state.ori; // raw angles for the AR view
-  if (typeof e.beta === 'number') { ori.beta = e.beta; ori.gamma = e.gamma || 0; }
+  const abs = e.absolute === true || e.type === 'deviceorientationabsolute';
+  // Tilt from the same sensor as the heading when there is one: two sensors reporting at different moments blur the pose.
+  if (typeof e.beta === 'number' && (abs || !ori.absolute)) { ori.beta = e.beta; ori.gamma = e.gamma || 0; }
   if (typeof e.webkitCompassHeading === 'number') ori.compassHeading = e.webkitCompassHeading;
-  if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) { ori.alpha = e.alpha; ori.absolute = true; }
+  if (abs && e.alpha != null) { ori.alpha = e.alpha; ori.absolute = true; }
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
-  else if ((e.absolute === true || e.type === 'deviceorientationabsolute') && e.alpha != null) h = norm360(360 - e.alpha);
+  else if (abs && e.alpha != null) h = window.FarGemsAR.facingHeading(e.alpha, e.beta, e.gamma); // where the phone faces at any tilt, not just where its top points
   if (h == null) return;
   if (state.compassPending && !state.compass) { state.compass = true; state.compassPending = false; state.dirty = true; } // a real reading: the sensor exists
   h = window.FarGemsDeclination.trueHeading(h, state.declination); // the sky is laid out from true north, the compass reads magnetic

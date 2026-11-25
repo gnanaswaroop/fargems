@@ -197,6 +197,29 @@ test('sky view: with motion allowed earlier, the iPhone heading (webkitCompassHe
   } finally { await context.close(); }
 });
 
+test('sky view: north stays put while the phone goes from flat to upright and back (Android-style absolute readings)', { skip }, async () => {
+  const { page, context, errors } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
+  try {
+    await page.goto(base + '/viewer.html');
+    const facing = () => page.evaluate(() => window.__test_state ? 0 : document.querySelector('#facing').textContent);
+    // The phone faces magnetic 90 (east). Raise it from flat to upright and lower it again, sending absolute readings.
+    const send = async (tilt, times = 25) => {
+      for (let i = 0; i < times; i++) {
+        await page.evaluate((b) => { const e = new Event('deviceorientationabsolute'); e.alpha = 270; e.beta = b; e.gamma = 0; e.absolute = true; window.dispatchEvent(e); }, tilt);
+        await sleep(10);
+      }
+    };
+    await send(0, 40);
+    const flat = await facing();
+    const seen = new Set();
+    for (const tilt of [20, 45, 70, 90, 100, 90, 70, 45, 20, 0]) { await send(tilt); seen.add(await facing()); }
+    assert.equal(seen.size, 1, 'the heading never moved: ' + [...seen].join(' | '));
+    assert.equal([...seen][0], flat, 'and it is the heading it started at');
+    assert.match(flat, /Facing E 9\d° \(true\)|Facing E[A-Z]* \d+° \(true\)/);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
 test('sky view: an iPhone with nothing stored does not turn the compass on by itself, because that needs a tap', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
