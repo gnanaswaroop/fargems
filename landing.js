@@ -21,7 +21,7 @@
     loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'),
     form: $('#manualForm'), input: $('#manualLoc'),
     installCard: $('#installCard'), installText: $('#installText'), installBtn: $('#installBtn'),
-    menuBtn: $('#menuBtn'), menuList: $('#menuList'),
+    menuBtn: $('#menuBtn'), menuList: $('#menuList'), perms: $('#permsCard'), hero: $('#heroLink'),
   };
 
   // The "..." menu at the top right (About, GitHub). Closes on a tap elsewhere, on Escape, and when a link is used.
@@ -34,6 +34,7 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !els.menuList.hidden) { setMenu(false); els.menuBtn.focus(); } });
 
   let attempted = false;   // the visitor has answered the permission prompts this visit
+  let phase = 'ask';       // what the page is showing (see landingState in lib/onboarding.js)
   let deferredInstall = null;
 
   // Resolve with {lat, lon} or null. Never rejects.
@@ -53,10 +54,16 @@
     const hasLocation = !!O.readLocation(storage);
     const compass = O.readCompass(storage) || (O.compassNeedsPermission(window) ? null : 'na');
     const s = O.landingState({ hasLocation, attempted, compass });
+    phase = s.phase;
+    // Once the permissions are granted the card is not needed any more: just the launch button.
+    els.perms.hidden = s.phase === 'ready';
     els.allow.hidden = !s.showAllow;
     els.allow.disabled = false;
     els.sample.hidden = !s.showSample;
+    els.sample.parentElement.hidden = !s.showSample;
     els.allowAgain.hidden = !s.showAllowAgain;
+    els.allowAgain.parentElement.hidden = !s.showAllowAgain;
+    els.hero.title = s.phase === 'ready' ? 'Open the sky view' : 'Allow location and compass';
     els.open.hidden = !s.showOpen;
     els.form.hidden = !s.showForm;
     els.loc.textContent = hasLocation ? 'Allowed' : (attempted ? 'Not shared' : 'Not asked yet');
@@ -84,10 +91,17 @@
   }
 
   els.allow.addEventListener('click', askPermissions);
-  els.allowAgain.addEventListener('click', askPermissions);
+  els.allowAgain.addEventListener('click', () => { setMenu(false); askPermissions(); });
+
+  // The radar picture is a launch button. With permissions in place it opens the sky view; before that it asks for them.
+  els.hero.addEventListener('click', (e) => {
+    if (phase === 'ask') { e.preventDefault(); askPermissions(); }
+    else if (phase === 'manual') { e.preventDefault(); els.input.focus(); }
+  });
 
   // The sample location opens the sky view directly, with no permissions needed.
   els.sample.addEventListener('click', () => {
+    setMenu(false);
     const s = O.SAMPLE_LOCATION;
     if (O.storeLocation(storage, s.lat, s.lon)) location.href = 'viewer.html';
     else els.msg.textContent = 'Could not save the sample location on this device.';
@@ -111,7 +125,7 @@
 
   function renderInstall() {
     const mode = O.installMode({ standalone, ios, hasPrompt: !!deferredInstall });
-    els.installCard.hidden = mode === 'hidden' || mode === 'none';
+    els.installCard.hidden = mode === 'hidden' || mode === 'none' || phase !== 'ready'; // offered once the app is set up
     els.installBtn.hidden = mode !== 'prompt';
     if (mode === 'prompt') els.installText.textContent = 'Add FarGems to your home screen for a full-screen app.';
     if (mode === 'ios') els.installText.textContent = 'On iPhone or iPad: tap Share, then Add to Home Screen.';

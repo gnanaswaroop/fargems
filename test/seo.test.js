@@ -86,12 +86,10 @@ test('the app pages are kept out of search results', () => {
   for (const f of ['viewer.html', 'settings.html']) assert.match(read(f), /<meta name="robots" content="noindex">/, f);
 });
 
-test('the home page links to About near the top and in the footer', () => {
+test('the home page links to About from the top right menu', () => {
   const html = read('index.html');
   assert.match(html, /<nav class="menu"[^>]*>[\s\S]*id="menuList"[\s\S]*href="about\.html"/, 'About is in the top right menu');
-  assert.doesNotMatch(html, /topnav/);
-  assert.match(html, /<footer class="foot">[\s\S]*href="about\.html"/);
-  assert.ok((html.match(/href="about\.html"/g) || []).length >= 3);
+  assert.doesNotMatch(html, /topnav|<footer/);
 });
 
 test('the site address is never written into the repository files, and the build runs the SEO step', () => {
