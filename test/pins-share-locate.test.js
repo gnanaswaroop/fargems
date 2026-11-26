@@ -74,14 +74,14 @@ test('the viewer header has a gear that opens Settings and Help; Help is also in
 });
 
 /* ---- names stay inside the radar ---- */
-test('shortLabel cuts a long name; the radar keeps every name inside the circle and the canvas', () => {
+test('shortLabel cuts a long name; the radar keeps every name inside the canvas (it may cross the horizon circle)', () => {
   assert.equal(L.shortLabel('Vega'), 'Vega');
   assert.equal(L.shortLabel('Southern Delta Aquariids'), 'Southern Delta Aqua…');
   assert.equal(L.shortLabel('Southern Delta Aquariids').length, 20);
   assert.equal(L.shortLabel(null), '');
   const app = read('app.js');
-  assert.match(app, /Math\.hypot\(x - cx, y - cy\) <= R - 1/, 'all four corners inside the circle');
-  assert.match(app, /fits\(r\) && inside\(r\) && !overlaps\(r\)/);
+  assert.doesNotMatch(app, /Math\.hypot\(x - cx, y - cy\) <= R - 1/, 'a name may go outside the horizon circle');
+  assert.match(app, /fits\(r\) && !overlaps\(r\)/, 'but not off the canvas');
   assert.match(app, /pick\.x \+= \(cx - pick\.x\) \* 0\.08/, 'an important name that has no free spot is moved toward the middle');
   assert.match(app, /o\.id === sel \? o\.name : L\.shortLabel\(o\.name\)/, 'the selected object keeps its full name');
 });
@@ -143,5 +143,5 @@ test('even the selected object\'s full name is cut to fit across the radar', () 
 });
 
 test('the browser tests can reach the page state only when asked with ?fgtest=1', () => {
-  assert.match(read('app.js'), /if \(\/\[\?&\]fgtest=1\\b\/\.test\(location\.search\)\) window\.__fg = \{ state, draw, renderNearby, renderDetail, renderPasses \};/);
+  assert.match(read('app.js'), /if \(\/\[\?&\]fgtest=1\\b\/\.test\(location\.search\)\) window\.__fg = \{ state, draw, renderNearby, renderDetail, renderPasses, closeDetail \};/);
 });

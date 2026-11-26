@@ -538,3 +538,8 @@ iPhone and iPad give the heading of the top of the device, so a screen turned si
 
 The browser tests (WebKit for iPhone and iPad, Chromium for an Android tablet) run as four shards at the same time. `e2e/ios/shard.js` replaces `node:test` in those files: with `FG_SHARD=2/4` a run only registers the tests whose number is 2 modulo 4 (plus one), so the slow ones spread evenly and the answer comes back in the time of the slowest quarter. The unit tests (a few seconds) run in their own job. The job called `safari` waits for all four shards and fails unless they all passed, so it is the one result to look at or to require.
 
+## 24. A dark radar, and closing the details
+
+- **Dark sky.** The radar background is always dark (the light blue day sky is gone), with the horizon circle drawn as an outline. Names may cross the circle (they only have to stay on the canvas), and the Sun, Moon and planets up to 6 degrees below the horizon are drawn just outside the rim.
+- **Closing the details.** Every details card has a cross (and Escape does the same). It clears the selection and the station pass, hides the card (also in the camera view), and the card stays away until something is picked again.
+

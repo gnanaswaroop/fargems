@@ -286,7 +286,7 @@ test('viewer: the detail card shows the nearest flight or satellite, can pin it,
   } finally { await context.close(); }
 });
 
-test('viewer: a long name stays inside the radar circle, also for the selected object near the rim', { skip }, async () => {
+test('viewer: a long name stays on the canvas, also for the selected object near the rim (it may cross the horizon circle)', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
     // The sky libraries would recompute the objects every second and replace the ones this test sets up.
@@ -313,7 +313,7 @@ test('viewer: a long name stays inside the radar circle, also for the selected o
         return { W, worst: Math.max(...corners.map(([x, y]) => Math.hypot(x - c, y - c))) - R, x0, x1 };
       });
       assert.ok(!r.missing, `the selected name is drawn at ${az}°`);
-      assert.ok(r.worst <= 1 && r.x0 >= 0 && r.x1 <= r.W, `az ${az}: the name is ${r.worst.toFixed(1)} px outside the circle (${JSON.stringify(r)})`);
+      assert.ok(r.x0 >= 0 && r.x1 <= r.W, `az ${az}: the name leaves the canvas (${JSON.stringify(r)})`);
     }
   } finally { await context.close(); }
 });
@@ -923,5 +923,99 @@ test('radar: every name can be read on a light day sky and on a dark night sky',
       assert.ok(worst.length >= 6, 'the names were drawn at sun ' + sunAlt + ': ' + JSON.stringify(worst));
       for (const [name, ratio] of worst) assert.ok(ratio >= 6, `sun ${sunAlt}: "${name}" has a contrast of only ${ratio.toFixed(1)} against what is behind it`);
     }
+  } finally { await context.close(); }
+});
+
+// A few objects for the radar, without the sky libraries or the network.
+const DARK_SKY = (sunAlt) => `(() => {
+  const { state, renderNearby, renderDetail, renderPasses, draw } = window.__fg;
+  const mk = (id, kind, name, az, el, extra) => Object.assign({ id, kind, name, az, el, distKm: 1000, range: 1000 }, extra || {});
+  state.objs = [
+    mk('air:a1', 'air', 'AIC144', 200, 31, { az2: 201, el2: 31, ac: { type: 'A20N', gs: 400, track: 90, vr: 0, id: 'a1' }, altFt: 12000 }),
+    mk('body:Moon', 'body', 'Moon', 90, -3, { color: '#ffffff', phase: 0.5 }),
+    mk('star:Vega', 'star', 'Vega', 10, 60),
+  ];
+  state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = null; state.sunAlt = ${sunAlt}; state.compass = false; state.rot = 0; state.flip = true; state.passSel = null; state.detailClosed = null;
+  renderNearby(); renderPasses(); renderDetail(); draw();
+})()`;
+const lumAt = (page, fx, fy) => page.evaluate(([fx, fy]) => {
+  const cv = document.querySelector('#sky'), c = cv.getContext('2d'), s = cv.width / cv.clientWidth, W = cv.clientWidth, st = __fg.state;
+  const cx = W / 2 + st.view.panX, R = (W / 2 - 26) * st.view.zoom, cy = W / 2 + st.view.panY;
+  const d = c.getImageData(Math.round((cx + fx * R) * s), Math.round((cy + fy * R) * s), 1, 1).data;
+  return { r: d[0], g: d[1], b: d[2], a: d[3] };
+}, [fx, fy]);
+
+test('radar: the sky stays dark by day, and a thing just below the horizon is drawn outside the circle', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    for (const sunAlt of [60, 0, -40]) {
+      await page.evaluate(DARK_SKY(sunAlt));
+      const inside = await lumAt(page, -0.5, 0.3);
+      assert.ok(inside.a > 200 && inside.r < 40 && inside.g < 50 && inside.b < 70, `sun ${sunAlt}: the sky is dark, not blue (${JSON.stringify(inside)})`);
+      const rim = await lumAt(page, 0, 1);
+      assert.ok(rim.r > 90 || rim.g > 110, `sun ${sunAlt}: the horizon circle has an outline (${JSON.stringify(rim)})`);
+      // The Moon is 3 degrees below the horizon, due east: 3 degrees outside the rim, on the right.
+      const moon = await lumAt(page, 1 + 3 / 90, 0);
+      assert.ok(moon.a > 200 && moon.r > 200, `sun ${sunAlt}: the Moon below the horizon is drawn outside the circle (${JSON.stringify(moon)})`);
+    }
+  } finally { await context.close(); }
+});
+
+test('details: a cross closes the card until something is picked again, and Escape does the same', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(DARK_SKY(-40));
+    assert.equal(await page.isVisible('#detail'), true, 'the nearest flight is shown by default');
+    assert.equal(await page.isVisible('#detail .close-detail'), true, 'with a cross');
+    assert.equal(await page.getAttribute('#detail .close-detail', 'aria-label'), 'Close the details');
+    // Pick the Moon, then close.
+    await page.click('#tabNearby');
+    await page.click('.nearby-row[data-id="body:Moon"]');
+    assert.equal(await page.evaluate(() => __fg.state.sel), 'body:Moon');
+    assert.match(await page.textContent('#detail'), /Moon/);
+    await page.click('#detail .close-detail');
+    assert.equal(await page.isVisible('#detail'), false, 'the card is gone');
+    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'nothing is selected any more');
+    await page.waitForTimeout(1200);
+    assert.equal(await page.isVisible('#detail'), false, 'and it stays away while the sky updates');
+    // Picking something shows it again.
+    await page.click('#tabNearby');
+    await page.click('.nearby-row[data-id="star:Vega"]');
+    assert.equal(await page.isVisible('#detail'), true);
+    assert.match(await page.textContent('#detail'), /Vega/);
+    // Escape closes it too.
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#detail'), false, 'Escape closes the card');
+    assert.equal(await page.evaluate(() => __fg.state.sel), null);
+    // The default (nothing picked) card can be closed as well, and comes back with the next pick.
+    await page.evaluate(() => { __fg.state.detailClosed = null; __fg.renderDetail(); });
+    assert.equal(await page.isVisible('#detail'), true);
+    await page.click('#detail .close-detail');
+    assert.equal(await page.isVisible('#detail'), false);
+    await page.click('#tabNearby');
+    await page.click('.nearby-row[data-id="air:a1"]');
+    assert.equal(await page.isVisible('#detail'), true);
+    assert.match(await page.textContent('#detail'), /AIC144/);
+  } finally { await context.close(); }
+});
+
+test('details: closing a station pass card clears the pass, and choosing a pass opens the card again', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(PASSES);
+    await page.click('#passes button.pass[data-pass="0"]');
+    assert.match(await page.textContent('#detail'), /next pass/);
+    await page.click('#detail .close-detail');
+    assert.equal(await page.evaluate(() => __fg.state.passSel), null, 'the path is cleared');
+    assert.equal(await page.isVisible('#detail'), false);
+    await page.click('#passes button.pass[data-pass="1"]');
+    assert.equal(await page.isVisible('#detail'), true, 'choosing a pass opens the card again');
+    assert.match(await page.textContent('#detail'), /Tiangong\s*next pass/);
   } finally { await context.close(); }
 });

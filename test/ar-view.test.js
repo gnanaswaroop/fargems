@@ -46,7 +46,7 @@ test('app opens AR from a tap and automatically when the phone is raised, but no
 
 test('the selected-object card is shared between the radar page and the AR overlay', () => {
   const app = read('app.js');
-  assert.match(app, /setHtml\(\$\('#detail'\), h\); setHtml\(\$\('#arDetail'\), h\)/);
+  assert.match(app, /setHtml\(\$\('#detail'\), X \+ h\); setHtml\(\$\('#arDetail'\), X \+ h\)/);
 });
 
 test('the AR overlay sits above the page and fills the screen', () => {
