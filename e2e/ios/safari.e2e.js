@@ -522,3 +522,15 @@ test('the pages ask for the full screen and the notch area, as an installed iPho
   assert.match(index, /apple-mobile-web-app-capable/);
   assert.match(index, /apple-touch-icon/);
 });
+
+test('security: the policy blocks nothing the pages need, and the CDN libraries pass their integrity check', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    const problems = [];
+    page.on('console', (m) => { if (/content security policy|integrity|refused to/i.test(m.text())) problems.push(m.text()); });
+    for (const p of ['/index.html', '/about.html', '/settings.html', '/viewer.html']) await page.goto(base + p);
+    await page.waitForFunction(() => window.satellite && window.Astronomy, null, { timeout: 20000 });
+    assert.deepEqual(problems, []);
+    assert.equal(await page.evaluate(() => typeof satellite.twoline2satrec + typeof Astronomy.Body), 'functionobject');
+  } finally { await context.close(); }
+});
