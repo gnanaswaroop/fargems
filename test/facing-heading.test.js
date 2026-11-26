@@ -69,7 +69,7 @@ test('a flight on the left of the radar is on the left of the camera view once y
 
 test('the sky view takes its heading from where the phone faces, with tilt from the same sensor', () => {
   const app = read('app.js');
-  assert.match(app, /h = window\.FarGemsAR\.facingHeading\(e\.alpha, e\.beta, e\.gamma\)/);
+  assert.match(app, /h = window\.FarGemsAR\.facingHeading\(e\.alpha, e\.beta, e\.gamma, screenAngle\(\)\)/);
   assert.doesNotMatch(app, /norm360\(360 - e\.alpha\)/, 'the top-of-phone heading is gone');
   assert.match(app, /\(abs \|\| !ori\.absolute\)/, 'tilt comes from the absolute sensor when there is one');
   assert.match(app, /trueHeading\(h, state\.declination \+ state\.arOffset\.h\)/, 'still corrected from magnetic to true north');
