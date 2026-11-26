@@ -534,3 +534,7 @@ The radar's background goes from dark blue at night to light blue by day (`skyLo
 
 iPhone and iPad give the heading of the top of the device, so a screen turned sideways needs the same correction as on Android: the heading is the device heading plus the screen turn (`window.orientation`: 0, 90, 180, -90), which makes east show as east in landscape. The heading no longer smooths by a fixed amount: `followHeading` moves further the further away the new reading is (a quarter turn in one reading, a small wobble a quarter of the way), and after a turn (a screen orientation change, an orientationchange event, or the window changing between portrait and landscape) it takes the next reading as it is for 0.6 s, and the camera view forgets its smoothed heading.
 
+## 23. Tests in CI
+
+The browser tests (WebKit for iPhone and iPad, Chromium for an Android tablet) run as four shards at the same time. `e2e/ios/shard.js` replaces `node:test` in those files: with `FG_SHARD=2/4` a run only registers the tests whose number is 2 modulo 4 (plus one), so the slow ones spread evenly and the answer comes back in the time of the slowest quarter. The unit tests (a few seconds) run in their own job. The job called `safari` waits for all four shards and fails unless they all passed, so it is the one result to look at or to require.
+
