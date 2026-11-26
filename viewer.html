@@ -31,19 +31,20 @@
 
 <main>
   <nav class="tabs" role="tablist" aria-label="Views">
-    <button id="tabRadar" class="tab on" type="button" role="tab" aria-selected="true">Radar</button>
-    <button id="tabNearby" class="tab" type="button" role="tab" aria-selected="false">Nearby</button>
+    <button id="tabRadar" class="tab on" type="button" role="tab" aria-selected="true" aria-controls="pageRadar" tabindex="0">Radar</button>
+    <button id="tabNearby" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pageNearby" tabindex="-1">Nearby</button>
   </nav>
   <div class="pager-view">
   <div id="pager" class="pager">
-    <div class="page" id="pageRadar">
+    <div class="page" id="pageRadar" role="tabpanel" aria-labelledby="tabRadar">
     <p id="approxNote" class="approx" hidden></p>
     <div class="hudrow">
       <div id="hud" class="hud"></div>
       <div id="facing" class="hud facing" hidden></div>
     </div>
     <section class="skywrap">
-      <canvas id="sky" aria-label="Radar view of objects above you"></canvas>
+      <canvas id="sky" role="img" tabindex="0" aria-label="Radar view of objects above you" aria-describedby="skyHint"></canvas>
+      <p id="skyHint" class="sr-only">Press the left and right arrow keys to move from one object to the next around the sky. The details are read out below. The Nearby tab lists every object as text.</p>
       <div class="zoombar" role="group" aria-label="Zoom the radar">
         <button id="zoomIn" class="btn" type="button" aria-label="Zoom in">＋</button>
         <button id="zoomOut" class="btn" type="button" aria-label="Zoom out">−</button>
@@ -64,7 +65,7 @@
       <div id="passes" class="card" hidden></div>
     </div>
     </div>
-    <div class="page" id="pageNearby">
+    <div class="page" id="pageNearby" role="tabpanel" aria-labelledby="tabNearby">
       <h2 class="nearby-title">Nearby in the sky</h2>
       <p class="muted small">Nearest first. Tap an object to see its details.</p>
       <ol id="nearbyList" class="nearby-list"></ol>
