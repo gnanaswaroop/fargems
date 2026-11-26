@@ -1019,3 +1019,132 @@ test('details: closing a station pass card clears the pass, and choosing a pass 
     assert.match(await page.textContent('#detail'), /Tiangong\s*next pass/);
   } finally { await context.close(); }
 });
+
+// Two flights 5 km north of the sample place, 2.4 km up: one with a known direction and speed (east, 300 kt), one without
+// (as MLAT-tracked flights often are). The sky libraries run for real here, so the page works out the sky itself.
+const FLIGHTS = { ac: [
+  { hex: 'k1', flight: 'KNOWN1 ', lat: 17.4885, lon: 78.3772, alt_baro: 8000, gs: 300, track: 90, baro_rate: 0, t: 'A320' },
+  { hex: 'm1', flight: 'MLAT01 ', lat: 17.4435, lon: 78.4222, alt_baro: 8000, baro_rate: 0, t: 'A320' },
+] };
+async function liveSky(page, context, { when } = {}) {
+  await context.route('**/api.adsb.lol/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(FLIGHTS) }));
+  if (when) await page.addInitScript((iso) => {
+    const R = Date, off = new R(iso).getTime() - R.now();
+    globalThis.Date = class extends R { constructor(...a) { if (a.length) super(...a); else super(R.now() + off); } static now() { return R.now() + off; } };
+  }, when);
+  await page.goto(base + '/viewer.html?fgtest=1');
+  await page.waitForFunction(() => window.__fg && __fg.state.objs.some((o) => o.kind === 'body'), null, { timeout: 20000 });
+}
+const amberPixels = (page, sel) => page.evaluate((sel) => {
+  const cv = document.querySelector(sel), c = cv.getContext('2d'), d = c.getImageData(0, 0, cv.width, cv.height).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] > 225 && d[i + 1] > 150 && d[i + 1] < 215 && d[i + 2] < 130) n++;
+  return n;
+}, sel);
+
+test('flights: a plane is drawn as a plane only when its direction is known, otherwise as a plain dot', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await liveSky(page, context);
+    await page.waitForFunction(() => __fg.state.objs.filter((o) => o.kind === 'air').length === 2, null, { timeout: 20000 });
+    const kinds = await page.evaluate(() => Object.fromEntries(__fg.state.objs.filter((o) => o.kind === 'air').map((o) => [o.name, o.course])));
+    assert.deepEqual(kinds, { KNOWN1: true, MLAT01: false });
+    await page.evaluate(() => {
+      window.__glyphs = 0;
+      const orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t) { if (t === '✈︎') window.__glyphs++; return orig.apply(this, arguments); };
+      __fg.state.compass = false; __fg.state.rot = 0; __fg.draw();
+    });
+    assert.equal(await page.evaluate(() => window.__glyphs), 1, 'one plane glyph (the flight with a direction); the other is a dot');
+  } finally { await context.close(); }
+});
+
+test('paths: choosing a flight draws the way it is going; a flight with no known direction has no path', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await liveSky(page, context);
+    await page.waitForFunction(() => __fg.state.objs.filter((o) => o.kind === 'air').length === 2, null, { timeout: 20000 });
+    await page.evaluate(() => { const s = __fg.state; s.filters.radar = false; s.filters.grid = false; s.filters.labels = false; s.compass = false; s.rot = 0; s.sel = null; __fg.draw(); });
+    const before = await amberPixels(page, '#sky');
+    const info = await page.evaluate(() => {
+      const k = __fg.state.objs.find((o) => o.name === 'KNOWN1'), m = __fg.state.objs.find((o) => o.name === 'MLAT01');
+      const pts = __fg.pathFor(k);
+      return { first: pts && pts[0], n: pts && pts.length, at: { az: k.az, el: k.el }, mlat: __fg.pathFor(m) };
+    });
+    assert.ok(info.n > 20, 'a path of ' + info.n + ' points');
+    assert.ok(Math.abs(info.first.az - info.at.az) < 2 && Math.abs(info.first.el - info.at.el) < 2, 'it starts where the flight is: ' + JSON.stringify(info));
+    assert.equal(info.mlat, null, 'no direction, no path');
+    await page.evaluate(() => { __fg.state.sel = 'air:k1'; __fg.state.dirty = true; });
+    await sleep(300);
+    const withPath = await amberPixels(page, '#sky');
+    assert.ok(withPath > before + 80, 'the dashed path is on the radar');
+    await page.evaluate(() => { __fg.state.sel = 'air:m1'; __fg.state.dirty = true; });
+    await sleep(300);
+    assert.ok((await amberPixels(page, '#sky')) < withPath - 60, 'far less is drawn for the flight with no direction (just a dot, no dashed line)');
+  } finally { await context.close(); }
+});
+
+test('paths: the Sun, a planet and a star show where they go over the next hours, with a mark each hour', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await liveSky(page, context, { when: '2026-11-26T05:00:00Z' }); // mid-morning at the sample place: the Sun is high
+    const r = await page.evaluate(() => {
+      const objs = __fg.state.objs, sun = objs.find((o) => o.id === 'body:Sun');
+      const star = objs.filter((o) => o.kind === 'star' && o.el > 20).sort((a, b) => b.el - a.el)[0];
+      const sp = __fg.pathFor(sun), tp = star && __fg.pathFor(star);
+      return { sunEl: sun.el, sun: sp && { n: sp.length, hrs: sp.filter((p) => p.hr).map((p) => p.hr), first: sp[0], at: { az: sun.az, el: sun.el } }, star: star && tp && { name: star.name, n: tp.length, hrs: tp.filter((p) => p.hr).length } };
+    });
+    assert.ok(r.sunEl > 30, 'the Sun is up in this test: ' + r.sunEl);
+    assert.ok(r.sun.n >= 15, 'the Sun path has ' + r.sun.n + ' points');
+    assert.ok(r.sun.hrs.length >= 4 && r.sun.hrs[0] === 1, 'a mark each hour: ' + r.sun.hrs);
+    assert.ok(Math.abs(r.sun.first.az - r.sun.at.az) < 1 && Math.abs(r.sun.first.el - r.sun.at.el) < 1, 'it starts at the Sun: ' + JSON.stringify(r.sun));
+    assert.ok(r.star && r.star.n >= 4, 'a star has a path too: ' + JSON.stringify(r.star));
+    // Select the Sun: its path is drawn.
+    await page.evaluate(() => { const s = __fg.state; s.filters.radar = false; s.filters.grid = false; s.filters.labels = false; s.compass = false; s.rot = 0; s.sel = null; __fg.draw(); });
+    const bright = (sel) => page.evaluate((sel) => { const cv = document.querySelector(sel), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] > 200 && d[i + 1] > 215 && d[i + 2] > 240) n++; return n; }, sel);
+    const before = await bright('#sky');
+    await page.evaluate(() => { __fg.state.sel = 'body:Sun'; __fg.state.dirty = true; });
+    await sleep(300);
+    assert.ok((await bright('#sky')) > before + 60, 'the Sun\'s path is drawn on the radar');
+  } finally { await context.close(); }
+});
+
+test('paths: the camera view draws the path of the selected flight too', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await liveSky(page, context);
+    await page.waitForFunction(() => __fg.state.objs.some((o) => o.name === 'KNOWN1'), null, { timeout: 20000 });
+    await page.evaluate(() => { __fg.state.declination = 0; __fg.state.ori.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; });
+    const az = await page.evaluate(() => __fg.state.objs.find((o) => o.name === 'KNOWN1').az);
+    await page.tap('#arBtn');
+    await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
+    // Upright (the camera looks level) and facing the flight.
+    for (let i = 0; i < 40; i++) { await page.evaluate((h) => { const e = new Event('deviceorientation'); e.webkitCompassHeading = h; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); }, az); await sleep(20); }
+    await page.evaluate(() => { __fg.state.sel = null; __fg.state.filters.labels = false; });
+    await sleep(400);
+    const before = await amberPixels(page, '#arCanvas');
+    await page.evaluate(() => { __fg.state.sel = 'air:k1'; });
+    await sleep(500);
+    assert.ok((await amberPixels(page, '#arCanvas')) > before + 80, 'the path is drawn over the camera picture');
+  } finally { await context.close(); }
+});
+
+test('flights: at each poll a wrong or missing direction is taken from the way the flight moved, and the drawn place slides', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    const r = await page.evaluate(() => {
+      const now = Date.now(), east = 78.30 + 2 / 60 / Math.cos(17.4 * Math.PI / 180);
+      const before = [{ id: 'x', lat: 17.40, lon: 78.30, track: 0, gs: 250, altFt: 9000, ageS: 0 }, { id: 'y', lat: 17.40, lon: 78.30, track: 90, gs: 250, altFt: 9000, ageS: 0 }];
+      const list = [{ id: 'x', lat: 17.40, lon: east, track: 0, gs: 250, altFt: 9000, ageS: 0 }, { id: 'y', lat: 17.40, lon: east, track: null, gs: null, altFt: 9000, ageS: 0 }, { id: 'z', lat: 17.5, lon: 78.4, track: null, gs: null, altFt: 9000, ageS: 0 }];
+      __fg.settleCourses(list, before, now - 30000, now);
+      return list.map((a) => ({ id: a.id, track: a.track, gs: a.gs, corr: !!a.corr }));
+    });
+    const by = Object.fromEntries(r.map((a) => [a.id, a]));
+    assert.ok(Math.abs(by.x.track - 90) < 1, 'a reported north that plainly moved east is corrected: ' + by.x.track);
+    assert.ok(Math.abs(by.y.track - 90) < 1 && Math.abs(by.y.gs - 240) < 4, 'a missing direction and speed come from the movement: ' + JSON.stringify(by.y));
+    assert.equal(by.y.corr, true, 'and the drawn place slides');
+    assert.equal(by.z.track, null, 'a flight seen for the first time with no direction stays unknown (drawn as a dot)');
+  } finally { await context.close(); }
+});

@@ -3,13 +3,14 @@
  * passed to create(), so it does not depend on app.js internals. The maths lives in lib/ar.js.
  *
  * create({ root, video, canvas, closeBtn, getObjects, getFilters, getSelected, getOrientation, onSelect, onClose,
- *         getOffset?, onOffset?, getLatitude? })
+ *         getOffset?, onOffset?, getLatitude?, getPath? })
  *   getObjects()     -> [{ id, kind, name, az, el, az2?, el2?, color?, visible?, sunlit?, name }]
  *   getFilters()     -> layer switches { air, sat, sky, labels }
  *   getSelected()    -> id of the selected object, or null
  *   getOrientation() -> { alpha, beta, gamma, compassHeading, absolute }
  *   getOffset()      -> { h, p } degrees the visitor added to the heading and pitch to line the picture up (optional)
  *   onOffset(off)    -> called while the visitor drags the picture in line-up mode (optional)
+ *   getPath()        -> { pts: [{ az, el, hr? }], kind } the path of the selected object, or null (optional)
  *   getLatitude()    -> the visitor's latitude, to turn the Moon's face the way it is turned in the sky (optional)
  * Returns { open(), close(), isOpen(), capture(), setAligning(on), isAligning() }. open() rejects with an Error whose .code is 'unsupported', 'denied' or 'failed'. */
 (function (root) {
@@ -94,6 +95,19 @@
         if (p.onScreen) { ctx.font = '700 16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = '#ffb4a8'; ctx.fillText(name, p.x, p.y - 4); }
       }
 
+      // The path of the selected object, as a dashed line, with a dot at each whole hour for the Sun, Moon, planets and stars.
+      const path = o.getPath && o.getPath();
+      if (path && path.pts.length > 1) {
+        const col = path.kind === 'air' ? '#ffb454' : path.kind === 'sat' ? '#5ad1e6' : path.kind === 'met' ? '#d58cff' : '#dbe6ff';
+        const proj = path.pts.map((q) => AR.projectToScreen(q, cam, view));
+        ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 3;
+        ctx.beginPath(); let pen = false;
+        proj.forEach((p) => { if (p.front && Math.abs(p.x) < 4000 && Math.abs(p.y) < 4000) { if (pen) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); pen = true; } else pen = false; });
+        ctx.stroke(); ctx.setLineDash([]);
+        path.pts.forEach((q, i) => { const p = proj[i]; if (q.hr && p.onScreen) { ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill(); label('+' + q.hr + 'h', p.x + 7, p.y - 6, col, W, 14); } });
+        ctx.restore();
+      }
+
       let selOff = null;
       for (const ob of objects) {
         const air = ob.kind === 'air', sat = ob.kind === 'sat', body = ob.kind === 'body';
@@ -103,7 +117,9 @@
         const isSel = ob.id === sel;
         if (!p.onScreen) { if (isSel) selOff = { ob, p }; continue; }
         ctx.save(); ctx.translate(p.x, p.y);
-        if (air) {
+        if (air && ob.course === false) { // direction not known: a plain dot
+          ctx.fillStyle = '#ffb454'; ctx.beginPath(); ctx.arc(0, 0, isSel ? 7 : 6, 0, 7); ctx.fill();
+        } else if (air) {
           const q = ob.az2 != null ? AR.projectToScreen({ az: ob.az2, el: ob.el2 }, cam, view) : null;
           const ang = q && q.front ? Math.atan2(q.y - p.y, q.x - p.x) : -Math.PI / 4;
           ctx.rotate(L.planeRotation(ang)); ctx.fillStyle = '#ffb454'; ctx.font = (isSel ? 34 : 28) + 'px ' + FONT_SYMBOLS;

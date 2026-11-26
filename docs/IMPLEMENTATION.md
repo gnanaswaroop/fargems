@@ -543,3 +543,8 @@ The browser tests (WebKit for iPhone and iPad, Chromium for an Android tablet) r
 - **Dark sky.** The radar background is always dark (the light blue day sky is gone), with the horizon circle drawn as an outline. Names may cross the circle (they only have to stay on the canvas), and the Sun, Moon and planets up to 6 degrees below the horizon are drawn just outside the rim.
 - **Closing the details.** Every details card has a cross (and Escape does the same). It clears the selection and the station pass, hides the card (also in the camera view), and the card stays away until something is picked again.
 
+## 25. Flight direction and paths
+
+- **Direction.** A missing speed or direction stays missing (it used to become 0, so a flight with no direction was drawn heading north, and one with no speed did not move and its plane pointed a random way). `reconcileCourse` fills them in from how the flight moved between two polls, and replaces a reported direction that is more than 45 degrees from a clear movement. A flight whose direction is still not known is drawn as a plain dot, never as a plane. The position uses its age (`seen_pos`), and at each poll the drawn place slides from the old place to the new one over 20 seconds (`applyCorrection`), so flights no longer jump and look as if they move at an angle.
+- **Paths.** The object you pick gets its path: a flight, 15 minutes straight ahead; a satellite, the next 40 minutes of its orbit until it sets (nothing for one that hardly moves across the sky, such as a geostationary one); the Sun, Moon, planets, stars and meteor radiants, the next 12 hours from where they rise to where they set, with a dot and a label each hour. It is drawn as a dashed line on the radar and in the camera view.
+

@@ -90,6 +90,22 @@ const AC_PROVIDERS = [
 // When the site has an aircraft proxy (config.js), use it: browsers cannot read the providers directly.
 const AIRCRAFT_PROXY = (window.FARGEMS_CONFIG && window.FARGEMS_CONFIG.aircraftProxy) || '';
 const AIRCRAFT_POLL_MS = 30000;
+// Compare a new poll with the last one: fill in a missing direction or speed from the way each flight moved, correct a
+// direction that disagrees with the movement, and note how far the flight was from where it had been drawn, so it can slide
+// to its new place instead of jumping (and never looks as if it flies sideways).
+function settleCourses(list, before, beforeAt, now) {
+  const H = window.FarGemsLogic, prev = new Map(before.map((a) => [a.id, a]));
+  for (const a of list) {
+    const o = prev.get(a.id);
+    if (!o || !beforeAt) continue;
+    const dtPos = ((now - (a.ageS || 0) * 1000) - (beforeAt - (o.ageS || 0) * 1000)) / 1000;
+    const r = H.reconcileCourse(o, a, dtPos);
+    a.track = r.track; a.gs = r.gs;
+    const was = H.applyCorrection(advance(o, Math.min(60, (now - beforeAt) / 1000) + (o.ageS || 0)), o.corr, now), target = advance(a, a.ageS || 0);
+    const dLat = was.lat - target.lat, dLon = was.lon - target.lon;
+    a.corr = Math.hypot(dLat * 60, dLon * 60 * Math.cos(a.lat * D2R)) < 3 ? { dLat, dLon, at: now } : null; // 3 nm or more is a real turn or a glitch: no sliding
+  }
+}
 async function refreshAircraft() {
   if (!state.loc || document.hidden) return;
   const la = state.loc.lat.toFixed(3), lo = state.loc.lon.toFixed(3);
@@ -99,6 +115,7 @@ async function refreshAircraft() {
   for (const p of sources) {
     try {
       const list = p.parse(await getJSON(p.url(la, lo, 150)));
+      settleCourses(list, state.aircraft, state.aircraftAt, Date.now());
       state.aircraft = list; state.aircraftAt = Date.now();
       state.status.air = { src: p.name, n: list.length, t: state.aircraftAt };
       state.dirty = true; return;
@@ -255,19 +272,58 @@ function computeSky(now) {
   const dt = Math.min(60, Math.max(0, (now - state.aircraftAt) / 1000));
   state.airTotal = 0; state.airVisible = 0;
   if (state.aircraftAt) for (const a of state.aircraft) {
-    const p = advance(a, dt), L = lookGd(p.lat, p.lon, p.altKm);
+    const H0 = window.FarGemsLogic, age = a.ageS || 0;
+    const p = H0.applyCorrection(advance(a, dt + age), a.corr, now.getTime()), L = lookGd(p.lat, p.lon, p.altKm);
     if (L.el < 0) continue;
     state.airTotal++;
     const H = window.FarGemsLogic, seen = H.isVisibleFlight(L.el, H.distanceKm(state.loc.lat, state.loc.lon, p.lat, p.lon), { maxRangeKm: state.flightRangeKm });
     if (seen) state.airVisible++;
     if (state.visOnly && !seen) continue; // too far or too low to see from here
-    const q = advance(a, dt + 15), L2 = lookGd(q.lat, q.lon, q.altKm);
+    const q = advance(a, dt + age + 15), L2 = lookGd(q.lat, q.lon, q.altKm);
     objs.push({
       id: 'air:' + a.id, kind: 'air', name: a.call || a.reg || a.id.toUpperCase(), az: L.az, el: L.el, az2: L2.az, el2: L2.el,
-      range: L.range, distKm: L.range, ac: a, altFt: a.altFt + (a.vr || 0) * dt / 60
+      range: L.range, distKm: L.range, ac: a, altFt: a.altFt + (a.vr || 0) * dt / 60, course: H.hasCourse(a)
     });
   }
   state.objs = objs; state.byId = new Map(objs.map(o => [o.id, o])); state.dirty = true;
+}
+
+/* ---------- the path of the selected object ---------- */
+// Flights: the next 15 minutes straight ahead. Satellites: the next 40 minutes of the orbit, until it sets. The Sun, Moon,
+// planets, stars and meteor radiants: the next 12 hours, from where they rise to where they set. A satellite that hardly
+// moves (geostationary) and a flight whose direction is not known have no path.
+function pathFor(o) {
+  if (!o || !state.loc || typeof Astronomy === 'undefined' || typeof satellite === 'undefined') return null;
+  const now = Date.now(), key = o.id + '|' + (o.kind === 'air' ? state.aircraftAt : 0), c = state.pathCache;
+  if (c && c.key === key && now - c.at < 20000) return c.pts;
+  let pts = null;
+  try { pts = computePath(o, now); } catch { pts = null; }
+  state.pathCache = { key, at: now, pts };
+  return pts;
+}
+function computePath(o, now) {
+  const H = window.FarGemsLogic, ao = new Astronomy.Observer(state.loc.lat, state.loc.lon, 0);
+  let pts;
+  const isAir = o.kind === 'air';
+  if (isAir) {
+    if (!o.course) return null;
+    const a = o.ac, dt = Math.min(60, (now - state.aircraftAt) / 1000) + (a.ageS || 0);
+    pts = H.samplePath((s) => { const p = advance(a, dt + s); return lookGd(p.lat, p.lon, p.altKm); }, { stepS: 15, maxS: 900, minEl: 0, skipLeading: false });
+    return pts.length > 1 ? pts : null;
+  }
+  if (o.kind === 'sat') {
+    const rec = (state.sats.find((x) => x.norad === o.norad) || {}).rec;
+    if (!rec) return null;
+    pts = H.samplePath((s) => lookSat(rec, new Date(now + s * 1000)), { stepS: 30, maxS: 2400, minEl: 0, skipLeading: false });
+    return H.isMoving(pts, 2) ? pts : null;
+  }
+  let at;
+  if (o.kind === 'body') at = (t) => Astronomy.Equator(o.name, t, ao, true, true);
+  else if (o.kind === 'star') { const st = STARS.find((x) => x[0] === o.name); if (!st) return null; at = () => ({ ra: st[1] / 15, dec: st[2] }); }
+  else if (o.kind === 'met' && o.shower) at = () => ({ ra: o.shower.ra / 15, dec: o.shower.dec });
+  else return null;
+  pts = H.samplePath((s) => { const t = new Date(now + s * 1000), eq = at(t), h = Astronomy.Horizon(t, ao, eq.ra, eq.dec, 'normal'); return { az: h.azimuth, el: h.altitude }; }, { stepS: 900, maxS: 43200, minEl: -6, skipLeading: true });
+  return pts.length > 1 ? pts : null;
 }
 
 /* ---------- drawing ---------- */
@@ -329,6 +385,23 @@ function draw() {
     const a = P(chosen.path[0].az, chosen.path[0].el), z = P(chosen.path[chosen.path.length - 1].az, chosen.path[chosen.path.length - 1].el);
     ctx.fillStyle = COL.sat; ctx.beginPath(); ctx.arc(a.x, a.y, 4, 0, 7); ctx.fill();
     ctx.beginPath(); ctx.moveTo(z.x, z.y); ctx.arc(z.x, z.y, 4, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+  // The path of the selected object: where a flight or a satellite is going next, or where the Sun, Moon, a planet or a star goes
+  // over the next hours. Nothing for an object that does not move (a geostationary satellite).
+  const selObj = state.sel && state.byId.get(state.sel), selPath = selObj && pathFor(selObj);
+  if (selPath && selPath.length > 1) {
+    const col = selObj.kind === 'air' ? COL.air : selObj.kind === 'sat' ? COL.sat : selObj.kind === 'met' ? COL.met : '#dbe6ff';
+    ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.9; ctx.setLineDash([5, 4]); ctx.beginPath();
+    const pp = selPath.map((q) => P(q.az, Math.max(-6, q.el)));
+    pp.forEach((p, i) => { if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+    ctx.stroke(); ctx.setLineDash([]);
+    if (selObj.kind === 'air' || selObj.kind === 'sat') { // an arrow head at the far end, pointing the way it goes
+      const e = pp[pp.length - 1], d = pp[Math.max(0, pp.length - 3)], a = Math.atan2(e.y - d.y, e.x - d.x);
+      ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x - 9 * Math.cos(a - 0.45), e.y - 9 * Math.sin(a - 0.45)); ctx.lineTo(e.x - 9 * Math.cos(a + 0.45), e.y - 9 * Math.sin(a + 0.45)); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+    selPath.forEach((q, i) => { if (q.hr) { ctx.beginPath(); ctx.arc(pp[i].x, pp[i].y, 2.6, 0, 7); ctx.fill(); haloText('+' + q.hr + 'h', pp[i].x + 5, pp[i].y - 4); } });
     ctx.restore();
   }
   state.hits = [];
@@ -395,6 +468,11 @@ function draw() {
     if (o.kind !== 'air' || !F.air) continue;
     const p = P(o.az, o.el), q = P(o.az2, o.el2);
     const ang = Math.atan2(q.y - p.y, q.x - p.x);
+    if (o.course === false) { // direction not known: a plain dot, not a plane pointing some way it is not going
+      ctx.fillStyle = COL.air; ctx.beginPath(); ctx.arc(p.x, p.y, o.id === sel ? 5 : 4, 0, 7); ctx.fill();
+      if (o.id === sel || state.objs.length < 60) label(o, p, 8, -6, 'rgba(255,180,84,.9)'); hit(o, p, 12);
+      continue;
+    }
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(window.FarGemsLogic.planeRotation(ang)); ctx.fillStyle = COL.air;
     ctx.font = (o.id === sel ? 24 : 19) + 'px "Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -770,6 +848,7 @@ function initAR() {
     root: $('#ar'), video: $('#arVideo'), canvas: $('#arCanvas'), closeBtn: $('#arClose'),
     getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
     onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
+    getPath: () => { const so = state.sel && state.byId.get(state.sel), pts = so && pathFor(so); return pts ? { pts, kind: so.kind } : null; },
     getOffset: () => state.arOffset, getLatitude: () => (state.loc ? state.loc.lat : null),
     onOffset: (off) => { state.arOffset = off; state.dirty = true; lsSet('fg.arOffset', off); },
     onClose: () => { arState.openedBy = null; arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
@@ -1046,6 +1125,6 @@ function start() {
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 }
 // For the browser tests: with ?fgtest=1 in the address the tests can reach the page's state and redraw it.
-if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses, closeDetail };
+if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses, closeDetail, pathFor, settleCourses };
 start();
 })();
