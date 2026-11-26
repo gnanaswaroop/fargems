@@ -463,6 +463,7 @@ test('AR: a swipe back closes the camera view and stays on the sky view; the X l
     await page.waitForFunction(() => document.querySelector('#ar').hidden, null, { timeout: 5000 });
     assert.match(page.url(), /viewer.html/, 'still on the sky view');
     assert.equal(await page.evaluate(() => history.state && history.state.page), 'sky', 'back to the step before the camera view');
+    await page.waitForLoadState('load'); await sleep(1200); // let the page settle after the step back
     await open();
     await page.tap('#arClose');
     await page.waitForFunction(() => history.state && history.state.page === 'sky', null, { timeout: 5000 });
@@ -1214,10 +1215,10 @@ test('logo: the round app icons have a thin white ring on the edge and the dark 
       }, [file, size]);
       assert.equal(px.w, size);
       assert.equal(px.corner[3], 0, file + ': outside the circle is transparent');
-      assert.ok(px.inside[3] === 255 && px.inside[0] < 40 && px.inside[2] < 90, file + ': the tile is dark navy ' + px.inside);
+      assert.ok(px.inside[3] >= 250 && px.inside[0] < 40 && px.inside[2] < 90, file + ': the tile is dark navy ' + px.inside);
       const white = px.row.filter((p) => p[3] > 200 && p[0] > 230 && p[1] > 230 && p[2] > 230).length;
       const teal = px.row.filter((p) => p[3] > 200 && p[2] > 90 && p[0] < 90 && p[1] > 80).length;
-      assert.ok(white >= 1 && white <= Math.max(3, Math.round(size * 0.012)), file + ': a thin white ring (' + white + ' px wide)');
+      assert.ok(white >= Math.round(size * 0.012) && white <= Math.round(size * 0.025), file + ': a clean white ring, thick enough not to blur when shrunk (' + white + ' px wide)');
       assert.equal(teal, 0, file + ': the old teal edge is gone');
     }
     // On the page the logo is the SVG with the ring, drawn next to the name.

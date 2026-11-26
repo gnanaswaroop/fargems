@@ -6,6 +6,10 @@ from PIL import Image
 
 for path in sys.argv[1:]:
     img = Image.open(path).convert("RGBA")
-    pal = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE)
+    if img.getchannel("A").getextrema()[0] == 255:
+        # No transparency (the full-bleed icons): the better palette method, and no dithering, so the edge of the ring stays a clean line.
+        pal = img.convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    else:
+        pal = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE)
     pal.save(path, "PNG", optimize=True)
     print(path, "palette", len(pal.getpalette()) // 3 if pal.getpalette() else "-")
