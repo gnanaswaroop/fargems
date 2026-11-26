@@ -667,6 +667,29 @@ test('AR: a crosshair marks the centre of the camera view, with a gap in the mid
   } finally { await context.close(); }
 });
 
+test('AR: facing east, the East pole stands above the crosshair and a red arrow at the left edge points toward North', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, () => {}); // the test compass says 90, east
+    await sleep(500);
+    const seen = await page.evaluate(() => {
+      const c = document.querySelector('#arCanvas'), x = c.getContext('2d'), k = c.width / c.clientWidth, W = c.width, H = c.height;
+      const count = (x0, y0, x1, y1, test) => { const d = x.getImageData(Math.round(x0), Math.round(y0), Math.max(1, Math.round(x1 - x0)), Math.max(1, Math.round(y1 - y0))).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && test(d[i], d[i + 1], d[i + 2])) n++; return n; };
+      const light = (r, g, b) => r > 200 && g > 190 && b > 190, red = (r, g, b) => r > 220 && g > 80 && g < 150 && b > 70 && b < 130;
+      return {
+        pole: count(W / 2 - 20 * k, H / 2 - 160 * k, W / 2 + 20 * k, H / 2 - 30 * k, light),     // the East pole, between the top letter and the crosshair
+        arrow: count(0, H / 2 - 160 * k, 60 * k, H / 2 + 40 * k, red),                          // North is to the left, out of the picture
+        right: count(W - 60 * k, H / 2 - 160 * k, W, H / 2 + 40 * k, red),                      // and nothing red on the right
+      };
+    });
+    assert.ok(seen.pole > 40, 'a light pole above the crosshair: ' + seen.pole);
+    assert.ok(seen.arrow > 15, 'a red arrow at the left edge: ' + seen.arrow);
+    assert.equal(seen.right, 0, 'no red on the right edge');
+  } finally { await context.close(); }
+});
+
 test('AR: the Photo button makes a PNG of the picture with the overlay and shares it', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
@@ -1224,7 +1247,7 @@ test('logo: the round app icons have a thin white ring on the edge and the dark 
       assert.equal(px.corner[3], 0, file + ': outside the circle is transparent');
       assert.ok(px.inside[3] >= 250 && px.inside[0] < 40 && px.inside[2] < 90, file + ': the tile is dark navy ' + px.inside);
       const white = px.row.filter((p) => p[3] > 200 && p[0] > 230 && p[1] > 230 && p[2] > 230).length;
-      const teal = px.row.filter((p) => p[3] > 200 && p[2] > 90 && p[0] < 90 && p[1] > 80).length;
+      const teal = px.row.filter((p) => p[3] > 200 && p[2] > 180 && p[0] < 90 && p[1] > 150).length; // real cyan, not a blended edge pixel
       assert.ok(white >= Math.round(size * 0.012) && white <= Math.round(size * 0.025), file + ': a clean white ring, thick enough not to blur when shrunk (' + white + ' px wide)');
       assert.equal(teal, 0, file + ': the old teal edge is gone');
     }

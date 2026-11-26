@@ -587,6 +587,14 @@ The camera view adds one step to the browser history when it opens. A swipe back
 
 The camera view draws a thin cross with a gap in the middle at the centre of the screen: a dark edge under a light line, so it shows on a bright or dark sky. It marks the point the camera is aimed at, which helps when lining the overlay up on the real Moon or a star with Align. It is drawn first each frame, so it is there before the sensors start, and it is in the photo too.
 
-## 34. Icon ring and browser-test setup
+## 34. Icons drawn at their own size, and browser-test setup
 
-The ring on the installed icons is 10 px at 512 px (about 2% of the full-bleed icons), not a hairline, so it stays a clean line when the phone shrinks the icon; the full-bleed icons keep it inside the 40% radius a round mask leaves. The opaque icons are palette-reduced without dithering. In CI the browser install step has short apt timeouts and three time-limited attempts, because a stalled package mirror made one shard wait ten minutes.
+`scripts/make-icons.js` draws every app icon from `icon.svg` at the icon's own pixel size (512, 192, 512 maskable, 180 for iPhone): the dark tile, the artwork without the SVG's own ring, and a white ring (2% of the size on the round icons, 2.2% on the full-bleed ones, whose ring stays inside the 40% radius a round mask leaves). A browser takes the picture at one device pixel per pixel, so nothing is shrunk or palette-squeezed and the ring stays a clean line. In CI the browser install step has short apt timeouts and three time-limited attempts, because a stalled package mirror made one shard wait ten minutes.
+
+## 35. Node 24 in CI
+
+The workflows run the project's scripts on Node 24, and use releases of the GitHub actions (checkout, setup-node, cache, upload-pages-artifact, deploy-pages) that run on Node 24 themselves, each pinned to a commit. `test/node-version.test.js` fails if an action goes back to a Node 20 release.
+
+## 36. Compass points in the camera view
+
+The camera view draws the eight compass points as poles standing on the horizon (12 degrees tall) with their names on top, North in red. When magnetic north is more than half a degree from true north (the declination), it is added as a dashed cyan pole labelled Mag N. A major point that is out of the picture is shown as an arrow with its letter on the left or right edge, by the shorter turn toward it; two on one edge are stacked, the nearer first. The crosshair is small (arms 4 to 14 px from the centre).
