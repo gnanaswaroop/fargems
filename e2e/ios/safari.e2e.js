@@ -835,3 +835,55 @@ test('legend: a closed key explains every symbol, including the meteor shower pl
     assert.equal(await page.$$eval('#legend svg, #legend .sym', (els) => els.every((e) => e.getAttribute('aria-hidden') === 'true' || e.closest('[aria-hidden="true"]'))), true, 'the pictures are hidden from screen readers, the words carry the meaning');
   } finally { await context.close(); }
 });
+
+test('compass: an iPad or iPhone turned sideways reports the top of the screen, and a turn is followed at once', { skip }, async () => {
+  const { page, context } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { __fg.state.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; });
+    const send = (mag, n) => page.evaluate(([m, n]) => { for (let i = 0; i < n; i++) { const e = new Event('deviceorientation'); e.webkitCompassHeading = m; e.alpha = 0; e.beta = 0; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); } return __fg.state.heading; }, [mag, n]);
+    const near = (a, b, tol = 1) => Math.abs(((a - b + 540) % 360) - 180) <= tol;
+    // Upright in portrait: the top of the screen is the top of the device.
+    await page.evaluate(() => Object.defineProperty(window, 'orientation', { get: () => 0, configurable: true }));
+    assert.ok(near(await send(40, 60), 40), 'portrait: the heading is the device heading');
+    // Turned a quarter (landscape): the top of the screen is the device's right side, a quarter turn clockwise.
+    await page.evaluate(() => { Object.defineProperty(window, 'orientation', { get: () => 90, configurable: true }); window.dispatchEvent(new Event('orientationchange')); });
+    assert.ok(near(await send(40, 1), 130), 'landscape (90): the very first reading after the turn is already right, east is east');
+    await page.evaluate(() => { Object.defineProperty(window, 'orientation', { get: () => -90, configurable: true }); window.dispatchEvent(new Event('orientationchange')); });
+    assert.ok(near(await send(40, 1), 310), 'landscape the other way (-90)');
+    await page.evaluate(() => { Object.defineProperty(window, 'orientation', { get: () => 180, configurable: true }); window.dispatchEvent(new Event('orientationchange')); });
+    assert.ok(near(await send(40, 1), 220), 'upside down (180)');
+  } finally { await context.close(); }
+});
+
+test('compass: without a turn event, a big swing of the heading is followed within a few readings', { skip }, async () => {
+  const { page, context } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { __fg.state.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; Object.defineProperty(window, 'orientation', { get: () => 0, configurable: true }); });
+    const send = (mag, n) => page.evaluate(([m, n]) => { for (let i = 0; i < n; i++) { const e = new Event('deviceorientation'); e.webkitCompassHeading = m; e.alpha = 0; e.beta = 0; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); } return __fg.state.heading; }, [mag, n]);
+    await send(10, 60);
+    const h = await send(190, 3); // half way round
+    assert.ok(Math.abs(((h - 190 + 540) % 360) - 180) < 3, 'three readings after a half turn the heading is ' + h.toFixed(1));
+    const small = await send(196, 1);
+    assert.ok(small > 190 && small < 196, 'a 6 degree wobble is still smoothed: ' + small.toFixed(2));
+  } finally { await context.close(); }
+});
+
+test('compass: the window changing shape between portrait and landscape counts as a turn', { skip }, async () => {
+  const { page, context } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { __fg.state.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; Object.defineProperty(window, 'orientation', { get: () => 0, configurable: true }); });
+    const send = (mag, n) => page.evaluate(([m, n]) => { for (let i = 0; i < n; i++) { const e = new Event('deviceorientation'); e.webkitCompassHeading = m; e.alpha = 0; e.beta = 0; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); } return __fg.state.heading; }, [mag, n]);
+    await send(20, 60);
+    const vp = page.viewportSize();
+    await page.setViewportSize({ width: vp.height, height: vp.width }); // turned
+    await page.waitForTimeout(100);
+    const h = await send(35, 1);
+    assert.ok(Math.abs(h - 35) < 0.5, 'the first reading after the window turned is taken as it is: ' + h.toFixed(2));
+  } finally { await context.close(); }
+});

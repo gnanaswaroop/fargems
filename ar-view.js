@@ -68,7 +68,7 @@
       // The compass reads magnetic north and the sky is laid out from true north, so add the declination.
       const off = AR.clampOffset(o.getOffset ? o.getOffset() : null); // the visitor's hand adjustment, for a compass that is a few degrees off
       const trueHead = ((AR.chooseHeading(ori.compassHeading, pose.heading) + (ori.declination || 0) + off.h) % 360 + 360) % 360;
-      heading = AR.smoothHeading(heading, trueHead, 0.25);
+      heading = AR.followHeading(heading, trueHead, false); // big changes (the screen was turned) catch up fast, small ones are smoothed
       const cam = { heading, pitch: pose.pitch + off.p }, view = { W, H, vfov: VFOV };
       lastFocal = AR.focalFor(H, VFOV);
       const objects = o.getObjects(), sun = objects.find((b) => b.kind === 'body' && b.name === 'Sun');
@@ -190,7 +190,7 @@
       if (!isOpen) return;
       isOpen = false; aligning = false; cancelAnimationFrame(raf); stopCamera(); o.root.hidden = true; document.body.classList.remove('ar-on');
     }
-    return { open, close, isOpen: () => isOpen, capture, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
+    return { open, close, isOpen: () => isOpen, capture, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
   }
 
   root.FarGemsARView = { create };

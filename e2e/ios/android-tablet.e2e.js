@@ -191,3 +191,25 @@ test('tablet: raising it upright does not move north', { skip }, async () => {
     }
   } finally { await context.close(); }
 });
+
+test('tablet: turning the screen between portrait and landscape is followed at once, and east stays east', { skip }, async () => {
+  const { page, context } = await tablet({ permission: true, storage: { 'fg.loc': JSON.stringify({ lat: 17.4435, lon: 78.3772 }) } });
+  try {
+    await page.addInitScript(() => { window.__angle = 0; Object.defineProperty(Object.getPrototypeOf(screen.orientation), 'angle', { get: () => window.__angle, configurable: true }); });
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { __fg.state.declination = 0; __fg.state.ori.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; });
+    const near = (a, b, tol = 1) => Math.abs(((a - b + 540) % 360) - 180) <= tol;
+    // The tablet lies flat and its screen top points east (90). Then it is turned a quarter, so the screen top is a
+    // different edge of the device. The user has not moved: the screen top now points where the device's top-left edge does.
+    await sensorAt(page, (360 - 90) % 360, 0, 0, 60); // angle 0: device top = screen top = east
+    assert.ok(near(await page.evaluate(() => __fg.state.heading), 90), 'portrait: east');
+    // Turned by 90 (a quarter), the screen top is the device x axis. A device whose x axis points south reads alpha 90 - 180.
+    await page.evaluate(() => { window.__angle = 90; screen.orientation.dispatchEvent(new Event('change')); });
+    await sensorAt(page, (90 - 180 + 360) % 360, 0, 0, 1); // ONE reading
+    assert.ok(near(await page.evaluate(() => __fg.state.heading), 180), 'after the turn the first reading is already right: ' + await page.evaluate(() => __fg.state.heading));
+    // And back: east is east again straight away.
+    await page.evaluate(() => { window.__angle = 0; screen.orientation.dispatchEvent(new Event('change')); });
+    await sensorAt(page, (360 - 90) % 360, 0, 0, 1);
+    assert.ok(near(await page.evaluate(() => __fg.state.heading), 90), 'back in portrait: east again');
+  } finally { await context.close(); }
+});
