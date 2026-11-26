@@ -21,6 +21,9 @@ test('parseQuery accepts valid coordinates and clamps the radius', async () => {
   assert.deepEqual(parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38&r=150')), { lat: 17.44, lon: 78.38, r: 150 });
   assert.equal(parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38')).r, 150, 'default radius');
   assert.equal(parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38&r=9999')).r, 250, 'radius is capped');
+  const r = (v) => parseQuery(new URL('https://x/aircraft?lat=17.44&lon=78.38&r=' + v)).r;
+  assert.deepEqual([r(100.001), r(100.002), r(101), r(100)], [125, 125, 125, 100], 'made-up radii fall into a few steps, so they share one cache entry');
+  assert.equal(r(0.4), 25);
 });
 
 test('parseQuery rejects missing, non-numeric or out-of-range coordinates', async () => {
@@ -120,4 +123,21 @@ test('handle answers preflight requests from allowed origins and refuses other m
   assert.equal(pre.status, 204);
   const post = await handle(new Request('https://worker.example/aircraft?lat=1&lon=1', { method: 'POST' }), ENV, { fetchImpl: fakeFetch([]).fetchImpl, cache: fakeCache() });
   assert.equal(post.status, 405);
+});
+
+test('a script that asks too often is told to wait; people and /status are not limited', async () => {
+  const { handle, tooMany } = await W;
+  const hits = new Map(), t = 1000000;
+  for (let i = 0; i < 120; i++) assert.equal(tooMany('1.2.3.4', hits, t + i), false);
+  assert.equal(tooMany('1.2.3.4', hits, t + 200), true, 'the 121st request in a minute');
+  assert.equal(tooMany('5.6.7.8', hits, t + 200), false, 'another address is not affected');
+  assert.equal(tooMany('1.2.3.4', hits, t + 61000), false, 'a minute later it may ask again');
+  assert.equal(tooMany(null, hits, t), false);
+  const req = (path) => new Request('https://relay.example' + path, { headers: { 'CF-Connecting-IP': '9.9.9.9' } });
+  const busy = new Map([['9.9.9.9', Array.from({ length: 130 }, () => Date.now())]]);
+  const res = await handle(req('/aircraft?lat=1&lon=2'), {}, { hits: busy, cache: {}, fetchImpl: () => { throw new Error('no provider is called'); } });
+  assert.equal(res.status, 429);
+  assert.equal(res.headers.get('Retry-After'), '60');
+  const status = await handle(req('/status'), {}, { hits: busy, cache: {} });
+  assert.equal(status.status, 200);
 });

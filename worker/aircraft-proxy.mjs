@@ -33,6 +33,8 @@ export const USER_AGENT = 'FarGems-proxy/1.0 (+https://github.com/gnanaswaroop/f
 const CELL_DEG = 0.25;
 const DEFAULT_RADIUS = 150;
 const MAX_RADIUS = 250;
+const RADIUS_STEP = 25;          // radii are rounded up to a multiple of this, so a made-up radius cannot get round the cache
+const RATE_LIMIT = 120, RATE_WINDOW_MS = 60000; // requests per address per minute that this instance answers
 const PROVIDER_TIMEOUT_MS = 6000;
 
 // How long an answer counts as fresh, and how long it may still be served when every provider is failing.
@@ -56,7 +58,7 @@ export function parseQuery(url) {
   const lat = Number(url.searchParams.get('lat'));
   const lon = Number(url.searchParams.get('lon'));
   const rRaw = url.searchParams.get('r');
-  const r = rRaw === null ? DEFAULT_RADIUS : Math.min(Number(rRaw), MAX_RADIUS);
+  const r = rRaw === null ? DEFAULT_RADIUS : Math.min(Math.ceil(Number(rRaw) / RADIUS_STEP) * RADIUS_STEP, MAX_RADIUS);
   if (url.searchParams.get('lat') === null || url.searchParams.get('lon') === null) return null;
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(r) || r <= 0) return null;
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
@@ -97,6 +99,18 @@ function json(status, obj, headers) {
 // What the worker remembers about each provider, per running instance: { fails, until, reason }.
 // It is passed in (and reset) by the tests. In production one shared map lives as long as the instance does.
 const sharedHealth = new Map();
+
+// A simple per-address limit for this instance: a script that asks far more often than a person looking at the sky
+// is told to wait. (Instances do not share counts, so this is a brake, not a wall; a WAF rule can add a hard cap.)
+const sharedHits = new Map();
+export function tooMany(ip, hits = sharedHits, now = Date.now()) {
+  if (!ip) return false;
+  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  recent.push(now);
+  hits.set(ip, recent);
+  if (hits.size > 5000) for (const [k, v] of hits) if (!v.some((t) => now - t < RATE_WINDOW_MS)) hits.delete(k);
+  return recent.length > RATE_LIMIT;
+}
 export function resetHealth(health = sharedHealth) { health.clear(); }
 
 // Retry-After is either a number of seconds or an HTTP date. Returns seconds, or null.
@@ -371,7 +385,7 @@ function handleLocate(request, cors) {
 /* ---------- main entry ---------- */
 
 // Dependencies (fetchImpl, cache, health, now) are passed in so the logic can be tested.
-export async function handle(request, env, { fetchImpl = fetch, cache = caches.default, health = sharedHealth, now = Date.now } = {}) {
+export async function handle(request, env, { fetchImpl = fetch, cache = caches.default, health = sharedHealth, now = Date.now, hits = sharedHits } = {}) {
   const origin = request.headers.get('Origin');
   const cors = corsHeaders(origin, env);
 
@@ -382,6 +396,10 @@ export async function handle(request, env, { fetchImpl = fetch, cache = caches.d
 
   const url = new URL(request.url);
   const common = { cors, fetchImpl, cache, health, now };
+
+  if (url.pathname !== '/status' && tooMany(request.headers.get('CF-Connecting-IP'), hits, now())) {
+    return json(429, { error: 'too many requests, slow down' }, { ...cors, 'Retry-After': '60', 'Cache-Control': 'no-store' });
+  }
 
   if (url.pathname === '/status') return handleStatus(cors, health, now);
   if (url.pathname === '/locate') return handleLocate(request, cors);

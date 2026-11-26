@@ -303,7 +303,7 @@ upstream request, which is what keeps free feeds from throttling us.
 
 | Endpoint | Answer | Cache: fresh for | Served stale when all providers fail, for |
 |---|---|---|---|
-| `/aircraft?lat=&lon=&r=` | `{ ac: [...] }` in the readsb v2 format | 30 s | 3 min |
+| `/aircraft?lat=&lon=&r=` | `{ ac: [...] }` in the readsb v2 format (the radius is rounded up to a multiple of 25 km, so made-up radii share one cache entry) | 30 s | 3 min |
 | `/route?callsign=` | `{ callsign, origin, destination }` | 30 min (10 min when unknown) | 24 h |
 | `/tle?group=stations\|visual` | element sets as plain text | 6 h | 3 days |
 | `/locate` | `{ lat, lon, city, region, country }`: the city Cloudflare knows for the visitor's network address, rounded to about 1 km | never cached or stored (`private, no-store`) | — |
