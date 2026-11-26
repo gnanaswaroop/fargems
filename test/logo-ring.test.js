@@ -32,11 +32,15 @@ test('the artwork fits inside the ring with room to spare', () => {
   assert.ok(Math.max(...far) + 3 < 146 - 2, 'nothing touches the ring: ' + Math.max(...far).toFixed(1) + ' against 146');
 });
 
-test('the round app icons are made by a script that repaints only the edge, and the maskable and iPhone icons are untouched', () => {
+test('all four app icons have the ring, made by a script that also shrinks them', () => {
   const s = read('scripts/make-icons.js');
   assert.match(s, /const RING = 5;/);
-  assert.match(s, /x\.strokeStyle = '#ffffff'; x\.lineWidth = RING;/);
-  assert.match(s, /icon-512\.png[\s\S]*icon-192\.png/);
-  assert.doesNotMatch(s, /icon-maskable|apple-touch/, 'the full-bleed icons are not changed: the system crops them');
-  for (const f of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png']) assert.ok(fs.existsSync(path.join(__dirname, '..', f)), f);
+  assert.match(s, /x\.strokeStyle = '#ffffff'; x\.lineWidth = RING;/, 'the round icons: the old edge is repainted and a ring drawn');
+  assert.match(s, /const SAFE_RADIUS = 0\.395;/, 'the full-bleed icons: the ring sits inside the part no mask cuts');
+  for (const f of ['icon-512.png', 'icon-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png']) assert.ok(s.includes(f), f);
+  assert.match(s, /shrink-png\.py/, 'and the PNGs are shrunk');
+  assert.match(read('scripts/shrink-png.py'), /quantize\(colors=256/);
+  // Together the four icons are what the service worker downloads when it installs: a canvas export came to 600 KB.
+  const total = ['icon-512.png', 'icon-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png'].reduce((n, f) => n + fs.statSync(path.join(__dirname, '..', f)).size, 0);
+  assert.ok(total < 80 * 1024, 'the four icons are ' + Math.round(total / 1024) + ' KB');
 });

@@ -30,7 +30,7 @@ test('update: version.json is asked for with a changing query and not more than 
 test('update: the pages load the check, the deploy writes the build id twice, and the service worker leaves version.json alone', () => {
   for (const page of ['index.html', 'about.html', 'settings.html', 'viewer.html']) {
     const html = read(page);
-    assert.match(html, /<script src="config\.js"><\/script>/, `${page} loads config.js (it carries the build id)`);
+    assert.match(html, /<script defer src="config\.js"><\/script>/, `${page} loads config.js (it carries the build id)`);
     assert.ok(html.indexOf('lib/update.js') < html.indexOf('src="update.js"'), `${page}: helpers before the glue`);
   }
   const wf = read('.github/workflows/pages.yml');
