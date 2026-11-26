@@ -383,3 +383,16 @@ body.viewer .side > #legend { flex: none; margin: 0; }
 .close-detail { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0; }
 .close-detail:hover, .close-detail:focus-visible { color: var(--text); border-color: var(--accent); outline: none; }
 .detail[hidden] { display: none; }
+
+/* The airline, and the route of a flight: where it came from and where it is going, with the same weight */
+.detail .airline { margin: 2px 0 6px; font-size: 14px; color: var(--muted); }
+.route { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; margin: 10px 0 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, .03); }
+.route .stop { display: grid; gap: 1px; min-width: 0; }
+.route .stop:last-child { text-align: right; }
+.route .stop small { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.route .stop b { font-size: 16px; line-height: 1.2; overflow-wrap: anywhere; }
+.route .stop b.unknown { font-weight: 500; color: var(--muted); }
+.route .code { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--accent); }
+.route .arrow { color: var(--accent); font-size: 22px; line-height: 1; }
+.route-far { display: block; margin: 2px 0 6px; font-size: 12px; color: var(--muted); }
+.nearby-row .airline-name { font-weight: 600; color: var(--text); }

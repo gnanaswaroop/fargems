@@ -563,3 +563,8 @@ The logo has a thin white ring: `icon.svg` draws it as an outline (nothing is pa
 - **Icons.** The four app icons are a few flat colours, but a canvas export compresses badly (600 KB together, which the service worker downloads when it installs). `scripts/shrink-png.py` gives them a 256-colour palette: about 45 KB together, with a faint banding in the dark gradient that is not visible at icon size.
 - **Ring on every icon.** `scripts/make-icons.js` also draws the thin white ring on the Android maskable icon and the iPhone icon, inside the middle 80% that no launcher mask cuts, so the installed icon shows it whatever shape the phone uses.
 
+## 29. The airline and the route on a flight card
+
+- **Airline.** The first three letters of a flight number are the airline's ICAO code (AIC144 is Air India), looked up in a list of about 140 airlines (`airlineOf` in `lib/logic.js`). The card shows the name right under the flight number, and the nearby list shows it beside the word Aircraft. Registrations (N123AB) and airlines not in the list show none.
+- **Route.** Where the flight came from and where it is going are drawn by the same code, side by side, with the same size, weight and colour: the city on top of its code, with From and To above and an arrow between, and the distance to go below. An unknown start says Not known at the same size, only lighter. Sharing a flight says it in words (for example Air India. Flying from Hyderabad (HYD) to Delhi (DEL).).
+

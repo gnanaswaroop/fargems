@@ -1283,3 +1283,80 @@ test('logo: the maskable and iPhone icons have the ring too, inside the part no 
     }
   } finally { await context.close(); }
 });
+
+// A flight whose route the relay knows: Hyderabad to Delhi. The relay is a stand-in that answers /route.
+const ROUTE_JSON = { callsign: 'AIC144', origin: { iata: 'HYD', icao: 'VOHS', name: 'Rajiv Gandhi International Airport', city: 'Hyderabad', lat: 17.24, lon: 78.43 }, destination: { iata: 'DEL', icao: 'VIDP', name: 'Indira Gandhi International Airport', city: 'Delhi', lat: 28.56, lon: 77.1 } };
+async function routeSetup(page, context, route) {
+  await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+  await context.route('**/config.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.FARGEMS_CONFIG = { aircraftProxy: "https://relay.test/aircraft", build: "" };' }));
+  await context.route('https://relay.test/**', (r) => {
+    const u = new URL(r.request().url()), h = { 'Access-Control-Allow-Origin': '*' };
+    if (u.pathname === '/route') return r.fulfill({ status: 200, headers: h, contentType: 'application/json', body: JSON.stringify(route) });
+    return r.fulfill({ status: 503, headers: h, contentType: 'application/json', body: '{}' });
+  });
+  await page.goto(base + '/viewer.html?fgtest=1');
+}
+const flightSky = (call) => `(() => {
+  const { state, renderNearby, renderDetail } = window.__fg;
+  const o = { id: 'air:a1', kind: 'air', name: '${call}', az: 200, el: 31, distKm: 12, range: 12, altFt: 12000, course: true, ac: { call: '${call}', type: 'A20N', gs: 400, track: 90, vr: 0, id: 'a1', lat: 17.5, lon: 78.4 } };
+  state.objs = [o]; state.byId = new Map([[o.id, o]]); state.sel = o.id; state.routes.clear(); state.detailClosed = null;
+  renderNearby(); renderDetail();
+})()`;
+
+test('flight card: the airline is named under the flight number, and From and To have the same weight', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await routeSetup(page, context, ROUTE_JSON);
+    await page.evaluate(flightSky('AIC144'));
+    await page.waitForSelector('#detail .route .stop', { timeout: 8000 });
+    assert.equal((await page.textContent('#detail .airline')).trim(), 'Air India');
+    assert.ok((await page.innerHTML('#detail')).indexOf('class="airline"') < (await page.innerHTML('#detail')).indexOf('class="route"'), 'the airline comes first, then the route');
+    const stops = await page.$$eval('#detail .route .stop', (els) => els.map((e) => { const b = e.querySelector('b'), cs = getComputedStyle(b), small = e.querySelector('small'); return { label: small.textContent, place: b.textContent, code: (e.querySelector('.code') || {}).textContent, size: cs.fontSize, weight: cs.fontWeight, color: cs.color, opacity: cs.opacity }; }));
+    assert.deepEqual(stops.map((s) => [s.label, s.place, s.code]), [['From', 'Hyderabad', 'HYD'], ['To', 'Delhi', 'DEL']]);
+    assert.equal(stops[0].size, stops[1].size, 'the same size');
+    assert.equal(stops[0].weight, stops[1].weight, 'the same weight');
+    assert.equal(stops[0].color, stops[1].color, 'the same colour: the start is not greyed out');
+    assert.equal(stops[0].opacity, stops[1].opacity);
+    assert.equal(await page.$$eval('#detail .route .arrow', (e) => e.length), 1);
+    assert.match(await page.textContent('#detail .route-far'), /^[\d,.]+ (km|mi|nm) to go$/);
+    assert.doesNotMatch(await page.textContent('#detail'), /Flying to/);
+    // The camera view's card has them too.
+    assert.equal((await page.textContent('#arDetail .airline')).trim(), 'Air India');
+    assert.equal(await page.$$eval('#arDetail .route .stop', (e) => e.length), 2);
+    // Both ends are on the screen, side by side.
+    const boxes = await page.$$eval('#detail .route .stop', (els) => els.map((e) => { const b = e.getBoundingClientRect(); return [b.left, b.right, b.top]; }));
+    assert.ok(boxes[0][1] <= boxes[1][0] + 1 && Math.abs(boxes[0][2] - boxes[1][2]) < 4 && boxes[1][1] <= 390, 'From on the left, To on the right, in one row, inside the phone width: ' + JSON.stringify(boxes));
+  } finally { await context.close(); }
+});
+
+test('flight card: an unknown start is shown as unknown, at the same size as the known end; a flight with no airline shows none', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await routeSetup(page, context, { ...ROUTE_JSON, callsign: 'N123AB', origin: null });
+    await page.evaluate(flightSky('N123AB'));
+    await page.waitForSelector('#detail .route .stop', { timeout: 8000 });
+    assert.equal(await page.$$eval('#detail .airline', (e) => e.length), 0, 'a registration has no airline line');
+    const stops = await page.$$eval('#detail .route .stop b', (els) => els.map((b) => [b.textContent, getComputedStyle(b).fontSize]));
+    assert.deepEqual(stops.map((s) => s[0]), ['Not known', 'Delhi']);
+    assert.equal(stops[0][1], stops[1][1], 'the same size');
+  } finally { await context.close(); }
+});
+
+test('flights in the list name their airline beside the type, and the share text has the airline and the route in words', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await routeSetup(page, context, ROUTE_JSON);
+    await page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
+    await page.evaluate(flightSky('AIC144'));
+    await page.waitForSelector('#detail .route .stop', { timeout: 8000 });
+    await page.click('#tabNearby');
+    const row = await page.textContent('.nearby-row[data-id="air:a1"] .where');
+    assert.match(row, /Aircraft\s+Air India/, 'the type in words, then the airline: ' + row);
+    await page.click('#tabRadar');
+    await page.click('#detail [data-share]');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    const text = await page.evaluate(() => window.__copied[0]);
+    assert.match(text, /Air India\. Flying from Hyderabad \(HYD\) to Delhi \(DEL\)\./);
+    assert.doesNotMatch(text, /FromHyderabad|<|Not known/, 'no markup in the text');
+  } finally { await context.close(); }
+});
