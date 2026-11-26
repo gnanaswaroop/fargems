@@ -576,3 +576,5 @@ Tell a friend is in the home page "..." menu, the sky view gear menu and, under 
 
 Radar and Nearby are one rounded control: the chosen tab is filled in the accent colour, each tab has an icon, Nearby shows how many things are in its list, and each is at least 40 px tall. They are still a proper tab list for keyboards and screen readers (the earlier accessibility work, which changes nothing you can see).
 
+The browser tests now run as six parallel jobs: the Safari (WebKit) tests in five shards and the Android tablet tests (Chromium) in one. Each job installs only its own browser (before, every job installed both, which took 40 to 70 seconds of a 70 to 120 second job) and keeps the downloaded browsers between runs with a cache.
+
