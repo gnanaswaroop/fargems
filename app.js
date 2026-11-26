@@ -55,7 +55,7 @@ const state = {
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
   tempC: null, unit: (() => { try { return window.FarGemsLogic.parseUnit(localStorage.getItem('fg.unit')); } catch { return 'C'; } })(),
   pins: [], approx: null, // pinned object ids; the label of a place guessed from the network (null when the place is real)
-  objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
+  objs: [], byId: new Map(), unseen: new Map(), sel: null, linkId: null, sunAlt: null, moonIllum: null, showerView: [],
   sweep: 0, lastT: 0, // radar sweep angle (degrees) and last animation frame time
   view: { zoom: 1, panX: 0, panY: 0 }, // radar zoom and pan (see lib/logic.js)
   passes: [], passSel: null, dirty: true, hits: [], status: {}
@@ -228,7 +228,7 @@ async function refreshCloud() {
 function computeSky(now) {
   if (!state.loc || typeof Astronomy === 'undefined' || typeof satellite === 'undefined') return;
   const ao = new Astronomy.Observer(state.loc.lat, state.loc.lon, 0);
-  const objs = [];
+  const objs = [], unseen = new Map(); // unseen: objects that exist but are not to be seen from here right now (for a link to one)
 
   for (const [name, color] of BODIES) {
     const eq = Astronomy.Equator(name, now, ao, true, true);
@@ -258,7 +258,7 @@ function computeSky(now) {
     const pv = satellite.propagate(s.rec, now);
     if (!pv.position || typeof pv.position === 'boolean') continue;
     const la = satellite.ecfToLookAngles(obsGd(), satellite.eciToEcf(pv.position, gmst));
-    const el = la.elevation * R2D; if (el < 0) continue;
+    const el = la.elevation * R2D; if (el < 0) { unseen.set('sat:' + s.norad, { why: 'below', name: s.name, el, az: la.azimuth * R2D }); continue; }
     const p = pv.position, d = (p.x * sun.x + p.y * sun.y + p.z * sun.z) / sl;
     const sunlit = d > 0 || Math.sqrt(Math.max(0, p.x * p.x + p.y * p.y + p.z * p.z - d * d)) > 6371;
     const v = pv.velocity || { x: 0, y: 0, z: 0 };
@@ -274,18 +274,19 @@ function computeSky(now) {
   if (state.aircraftAt) for (const a of state.aircraft) {
     const H0 = window.FarGemsLogic, age = a.ageS || 0;
     const p = H0.applyCorrection(advance(a, dt + age), a.corr, now.getTime()), L = lookGd(p.lat, p.lon, p.altKm);
-    if (L.el < 0) continue;
+    const aname = a.call || a.reg || a.id.toUpperCase();
+    if (L.el < 0) { unseen.set('air:' + a.id, { why: 'below', name: aname, el: L.el, az: L.az }); continue; }
     state.airTotal++;
     const H = window.FarGemsLogic, seen = H.isVisibleFlight(L.el, H.distanceKm(state.loc.lat, state.loc.lon, p.lat, p.lon), { maxRangeKm: state.flightRangeKm });
     if (seen) state.airVisible++;
-    if (state.visOnly && !seen) continue; // too far or too low to see from here
+    if (state.visOnly && !seen) { unseen.set('air:' + a.id, { why: 'far', name: aname, el: L.el, az: L.az, rangeKm: L.range }); continue; } // too far or too low to see from here
     const q = advance(a, dt + age + 15), L2 = lookGd(q.lat, q.lon, q.altKm);
     objs.push({
       id: 'air:' + a.id, kind: 'air', name: a.call || a.reg || a.id.toUpperCase(), az: L.az, el: L.el, az2: L2.az, el2: L2.el,
       range: L.range, distKm: L.range, ac: a, altFt: a.altFt + (a.vr || 0) * dt / 60, course: H.hasCourse(a)
     });
   }
-  state.objs = objs; state.byId = new Map(objs.map(o => [o.id, o])); state.dirty = true;
+  state.objs = objs; state.byId = new Map(objs.map(o => [o.id, o])); state.unseen = unseen; state.dirty = true;
 }
 
 /* ---------- the path of the selected object ---------- */
@@ -608,7 +609,27 @@ function passCard(p) {
     + kv('More', wiki ? `<a href="${wiki}" target="_blank" rel="noopener">Wikipedia ↗</a>` : null);
   return `<h3>${esc(p.name)} <small class="muted">next pass</small></h3><dl>${rows}</dl><p class="muted small">The dashed line on the radar is its path across the sky.</p>`;
 }
-function renderDetail() {
+// The card for a linked object that is not on the radar: what it is, and why it cannot be seen from here right now.
+function missingCard(id) {
+  const H = window.FarGemsLogic, u = state.unseen.get(id);
+  const m = window.FarGemsLink.missing(id, {
+    unseen: u, dir: u ? dir16(u.az) : '', rangeText: u && u.rangeKm != null ? H.lengthText(u.rangeKm, state.units) : null,
+    ready: { loc: !!state.loc, aircraft: !!state.aircraftAt, sats: !!state.satsAt },
+  });
+  const more = id.startsWith('sat:') ? `<p class="wikirow"><a href="https://www.n2yo.com/satellite/?s=${esc(id.slice(4))}" target="_blank" rel="noopener">N2YO ↗</a></p>` : '';
+  return `<h3>${esc(m.title)}</h3><p class="notvis" role="status" data-notvis="${m.kind}">${esc(m.text)}</p>${more}`;
+}
+// A line above the details when the object is known but cannot be seen right now: under the horizon, or its layer is off.
+const LAYER_OF = { air: 'air', sat: 'sat', body: 'sky', star: 'star', met: 'met' };
+function notVisibleLine(o) {
+  const parts = [];
+  if (o.el < 0) parts.push(`Below the horizon right now: ${Math.max(1, Math.round(-o.el))}° under it, toward the ${dir16(o.az)}.`);
+  const key = LAYER_OF[o.kind];
+  if (key && state.filters[key] === false) parts.push(`Its layer is switched off, so it is not drawn. Turn it on in Layers.`);
+  return parts.length ? `<p class="notvis" role="status" data-notvis="${o.el < 0 ? 'below' : 'hidden'}">${esc(parts.join(' '))}</p>` : '';
+}
+function renderDetail() { renderDetailCard(); syncLink(); }
+function renderDetailCard() {
   // The same card shows under the radar and over the camera picture.
   // The details can be closed with the cross (or Escape): the card goes away until something is picked again.
   const closed = !!state.detailClosed && state.detailClosed.sel === state.sel;
@@ -619,6 +640,7 @@ function renderDetail() {
   const put = (h) => { setHtml($('#detail'), X + h); setHtml($('#arDetail'), X + h); };
   const H = window.FarGemsLogic;
   let o = state.sel && state.byId.get(state.sel), nearest = false;
+  if (!o && state.sel && state.sel === state.linkId) { put(missingCard(state.sel)); return; } // opened from a link to an object that is not up: say why, do not show another one
   if (!o) { // nothing picked: show the nearest flight or satellite above the horizon
     o = H.sortNearest(state.objs.filter(x => (x.kind === 'air' || x.kind === 'sat') && x.el >= 0))[0];
     nearest = !!o;
@@ -657,8 +679,9 @@ function renderDetail() {
   const blurb = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
   const more = link ? `<p class="wikirow">${link}</p>` : '';
   const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
-  setHtml($('#detail'), `${X}<h3>${title}</h3>${airlineLine}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
-  setHtml($('#arDetail'), `${X}<h3>${title}</h3>${airlineLine}${routeBlock}<dl>${rows}</dl>${more}`);
+  const nv = notVisibleLine(o);
+  setHtml($('#detail'), `${X}<h3>${title}</h3>${nv}${airlineLine}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
+  setHtml($('#arDetail'), `${X}<h3>${title}</h3>${nv}${airlineLine}${routeBlock}<dl>${rows}</dl>${more}`);
 }
 
 // What Wikipedia says about an article, fetched once the first time an object is looked at. An article that does not exist
@@ -719,11 +742,33 @@ function shareRoute(a) {
   const route = st && st.to ? 'Flying ' + (st.from ? 'from ' + say(st.from) + ' ' : '') + 'to ' + say(st.to) + '.' : '';
   return [airline && airline + '.', route].filter(Boolean).join(' ');
 }
-// Share an object: the phone's share sheet when there is one, otherwise the text is copied.
+// The permanent address of one object: opening it picks that object, the same as tapping it on the radar.
+function objectUrl(id) {
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'viewer.html';
+  return window.FarGemsLink.objectLink(base, id) || base;
+}
+// Opening the page with #o=<object> (or changing that in the address) picks the object, whether or not it is up.
+function applyLink() {
+  const id = window.FarGemsLink && window.FarGemsLink.parseLink(location.hash);
+  if (!id || id === state.sel) return;
+  state.linkId = id; state.sel = id; state.passSel = null; state.detailClosed = null; state.dirty = true;
+  renderDetail(); renderNearby(); renderPasses(); setPage('radar');
+}
+// The address bar always holds the link to the picked object (and loses it when the card is closed), so it can be copied as it is.
+function syncLink() {
+  const K = window.FarGemsLink;
+  if (!K || !window.history || !history.replaceState) return;
+  const closed = !!state.detailClosed && state.detailClosed.sel === state.sel;
+  const want = state.sel && !closed ? K.objectLink('', state.sel) || '' : '';
+  const cur = location.hash;
+  if (want ? cur === want : !K.parseLink(cur)) return; // already right, or there is no object link to remove
+  try { history.replaceState(history.state, '', location.pathname + location.search + want); } catch { /* the address stays as it is */ }
+}
+// Share an object: the phone's share sheet when there is one, otherwise the text and its link are copied.
 async function shareObject(o) {
   const H = window.FarGemsLogic;
   const extra = o.kind === 'air' && o.ac ? shareRoute(o.ac) : '';
-  const text = H.shareText(o, extra), url = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const text = H.shareText(o, extra), url = objectUrl(o.id);
   try {
     if (navigator.share) { await navigator.share({ title: o.name + ' in the sky', text, url }); return; }
     await navigator.clipboard.writeText(text + ' ' + url);
@@ -1135,6 +1180,10 @@ function showApprox() {
 /* ---------- timers ---------- */
 function tick() { try { computeSky(new Date()); } catch (e) { console.error(e); } }
 function start() {
+  // Opened from a link to an object: it is the pick from the very first draw (anything that draws the card first would otherwise
+  // find nothing picked and take the link out of the address).
+  const first = window.FarGemsLink && window.FarGemsLink.parseLink(location.hash);
+  if (first) { state.linkId = first; state.sel = first; }
   bindUI();
   // Choices made in settings.html.
   state.flip = storedValue('fg.flip') !== '0';
@@ -1156,6 +1205,7 @@ function start() {
     const O = window.FarGemsOnboarding;
     if (O && O.shouldAutoEnableCompass(localStorage, window)) startCompass(O.readCompass(localStorage) !== 'granted');
   } catch { /* storage blocked */ }
+  window.addEventListener('hashchange', applyLink);
   renderAll();
   refreshSats();
   setInterval(() => { tick(); }, 1000);

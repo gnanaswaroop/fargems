@@ -55,7 +55,8 @@ test('the app shares through the phone share sheet, or copies the text', () => {
   assert.match(app, /navigator\.clipboard\.writeText\(text \+ ' ' \+ url\)/);
   assert.match(app, /e\.name !== 'AbortError'/, 'closing the share sheet is not an error');
   assert.match(app, /data-share="\$\{esc\(o\.id\)\}">Share</);
-  assert.match(app, /url = location\.origin \+ location\.pathname\.replace\(\/\[\^\/\]\*\$\/, ''\)/, 'the link is this site, taken from where it is served');
+  assert.match(app, /url = objectUrl\(o\.id\)/, 'the link is the permalink of this object');
+  assert.match(app, /location\.origin \+ location\.pathname\.replace\(\/\[\^\/\]\*\$\/, ''\) \+ 'viewer\.html'/, 'on this site, taken from where it is served');
 });
 
 /* ---- gear menu ---- */

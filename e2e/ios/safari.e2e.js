@@ -281,8 +281,89 @@ test('viewer: the detail card shows the nearest flight or satellite, can pin it,
     const text = await page.evaluate(() => window.__copied[0]);
     assert.match(text, /^AIC144 \(aircraft\) is 31° above the horizon in the SSW \(200°\) right now\./);
     assert.match(text, /Airbus_A320neo_family/);
-    assert.match(text, /https?:\/\/localhost:\d+\/$/, 'ends with the address of this site');
+    assert.match(text, /https?:\/\/localhost:\d+\/viewer\.html#o=air:a1$/, 'ends with the permalink of this flight');
     assert.doesNotMatch(text, /17\.4|78\.3/, 'no coordinates');
+  } finally { await context.close(); }
+});
+
+// A link to one object (viewer.html#o=<id>): the sky libraries are blocked so the test sets up the objects itself.
+const linked = async (hash, setup) => {
+  const r = await iphone({ storage: SAVED });
+  await r.context.route('https://cdn.jsdelivr.net/**', (x) => x.abort());
+  await r.page.goto(base + '/viewer.html?fgtest=1' + hash);
+  if (setup) await r.page.evaluate(setup);
+  return r;
+};
+
+test('permalink: a link to an object that is up picks it like a tap, on the radar page, and Share sends that link', { skip }, async () => {
+  const { page, context } = await linked('#o=sat:25544', FAKE_SKY);
+  try {
+    assert.equal(await page.evaluate(() => window.__fg.state.sel), 'sat:25544');
+    const card = await page.textContent('#detail');
+    assert.match(card, /ISS \(ZARYA\)/); assert.doesNotMatch(card, /Nearest/, 'picked, not the nearest');
+    assert.equal(await page.isVisible('#detail .notvis'), false, 'it is up: nothing to call out');
+    assert.equal(await page.evaluate(() => document.querySelector('#pager').classList.contains('nearby')), false, 'the radar page is the one in view');
+    assert.equal(await page.evaluate(() => location.hash), '#o=sat:25544', 'the address holds the link to the picked object');
+    await page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
+    await page.click('#detail [data-share]');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    assert.match(await page.evaluate(() => window.__copied[0]), /^ISS \(ZARYA\) \(space station\) is [\s\S]* http:\/\/localhost:\d+\/viewer\.html#o=sat:25544$/, 'the text ends with the permalink of this object');
+    // Picking another object moves the link along, and closing the card removes it.
+    await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.renderDetail(); });
+    assert.equal(await page.evaluate(() => location.hash), '#o=body:Moon');
+    await page.click('#detail [data-close-detail]');
+    assert.equal(await page.evaluate(() => location.hash), '', 'closed: no object in the address');
+    // The address can be changed by hand (or by a link opened in this tab): the new object is picked.
+    await page.evaluate(() => { location.hash = '#o=star:Vega'; });
+    await page.waitForFunction(() => window.__fg.state.sel === 'star:Vega');
+    assert.match(await page.textContent('#detail'), /Vega/);
+  } finally { await context.close(); }
+});
+
+test('permalink: a flight that is not around any more says so, and is picked up when it appears', { skip }, async () => {
+  const { page, context } = await linked('#o=air:zz9999', `window.__fg.state.aircraftAt = Date.now(); ${FAKE_SKY}`);
+  try {
+    const note = page.locator('#detail .notvis');
+    assert.equal(await note.isVisible(), true);
+    assert.match(await page.textContent('#detail h3'), /Flight ZZ9999 is not in your sky/);
+    assert.match(await note.textContent(), /landed|out of range/);
+    assert.doesNotMatch(await page.textContent('#detail'), /Nearest|AIC144/, 'not swapped for another flight');
+    assert.match(await page.evaluate(() => document.querySelector('#arDetail .notvis').textContent), /landed|out of range/, 'also in the card over the camera picture');
+    await page.evaluate(() => {
+      const { state, renderDetail } = window.__fg;
+      state.objs.push({ id: 'air:zz9999', kind: 'air', name: 'EIN123', az: 300, el: 25, distKm: 40, range: 40, ac: { type: 'A320', gs: 400, track: 90, vr: 0, id: 'zz9999' }, altFt: 9000 });
+      state.byId = new Map(state.objs.map((o) => [o.id, o])); renderDetail();
+    });
+    assert.match(await page.textContent('#detail h3'), /EIN123/, 'the flight is shown as soon as it is up');
+    assert.equal(await page.isVisible('#detail .notvis'), false);
+  } finally { await context.close(); }
+});
+
+test('permalink: an object under the horizon, or too far, or on a layer that is off, is called out', { skip }, async () => {
+  const { page, context } = await linked('#o=sat:48274', `window.__fg.state.aircraftAt = Date.now(); window.__fg.state.satsAt = Date.now(); window.__fg.state.unseen = new Map([['sat:48274', { why: 'below', name: 'CSS (TIANHE)', el: -23.6, az: 45 }], ['air:far1', { why: 'far', name: 'VTABC', el: 3, az: 90, rangeKm: 280 }]]); ${FAKE_SKY}`);
+  try {
+    assert.match(await page.textContent('#detail h3'), /CSS \(TIANHE\) is below the horizon/);
+    assert.match(await page.textContent('#detail .notvis'), /24° below the horizon, toward the NE/);
+    await page.evaluate(() => { window.__fg.state.sel = window.__fg.state.linkId = 'air:far1'; window.__fg.renderDetail(); });
+    assert.match(await page.textContent('#detail h3'), /VTABC is too far to see/);
+    assert.match(await page.textContent('#detail .notvis'), /about \d+ (km|mi) away/);
+    // A known object under the horizon (the Sun at night) gets a line above its facts; a hidden layer is named too.
+    await page.evaluate(() => {
+      const { state, renderDetail } = window.__fg;
+      state.objs.push({ id: 'body:Sun', kind: 'body', name: 'Sun', az: 330, el: -35, distKm: 1.5e8, mag: null, phase: null, color: '#ffe08a' });
+      state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = 'body:Sun'; renderDetail();
+    });
+    assert.match(await page.textContent('#detail .notvis'), /Below the horizon right now: 35° under it, toward the NNW/);
+    await page.evaluate(() => { const { state, renderDetail } = window.__fg; state.filters.sky = false; renderDetail(); });
+    assert.match(await page.textContent('#detail .notvis'), /layer is switched off/);
+  } finally { await context.close(); }
+});
+
+test('permalink: a link with nothing usable in it changes nothing', { skip }, async () => {
+  const { page, context } = await linked('#o=ship:1%3Cscript%3E', FAKE_SKY);
+  try {
+    assert.equal(await page.evaluate(() => window.__fg.state.sel), null);
+    assert.match(await page.textContent('#detail'), /Nearest flight/);
   } finally { await context.close(); }
 });
 

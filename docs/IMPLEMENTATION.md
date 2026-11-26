@@ -485,7 +485,7 @@ If a CDN sits in front of the site it can keep old copies of the files for hours
   with a star. An aircraft is pinned by its hex id, so the pin matters only while that flight is overhead.
 - **Share.** The detail card's Share button calls `navigator.share` when the browser has it and otherwise copies the text. The text
   says what the object is and where to look (angle and compass direction, never coordinates), adds the Wikipedia link when
-  there is one, and ends with the address of the site taken from where it is served.
+  there is one, and ends with the permalink of the object (section 37).
 - **Wikipedia.** `wikiTitle` in `lib/logic.js` maps planets, the Sun and Moon, the bright stars, meteor showers, space stations,
   constellations and common aircraft types to an article. The detail card asks Wikipedia's summary endpoint once per article,
   shows the opening, and hides the link when the article does not exist.
@@ -598,3 +598,11 @@ The workflows run the project's scripts on Node 24, and use releases of the GitH
 ## 36. Compass points in the camera view
 
 The camera view draws the eight compass points as poles standing on the horizon (12 degrees tall) with their names on top, North in red. When magnetic north is more than half a degree from true north (the declination), it is added as a dashed cyan pole labelled Mag N. A major point that is out of the picture is shown as an arrow with its letter on the left or right edge, by the shorter turn toward it; two on one edge are stacked, the nearer first. The crosshair is small (arms 4 to 14 px from the centre).
+
+## 37. A permanent link to one object
+
+Every object has an address of its own: `viewer.html#o=<id>`, with the ids the sky already uses: `sat:25544` (NORAD number), `air:4ca7b2` (transponder address), `body:Mars`, `star:Vega`, `met:Perseids` (`lib/permalink.js`; only ids of that shape are read or written). The link names the object only, never a place: whoever opens it sees the object from where they are.
+
+- **Opening it** picks the object before the first draw, on the radar page, exactly like a tap: the card, the highlight, the dashed path, and the same in the camera view. Changing the address by hand (or opening another link in the same tab) picks the new object.
+- **The address follows the pick.** `renderDetail()` ends with `syncLink()`, which sets `#o=<id>` with `history.replaceState` (so Back and the camera view's history step are untouched) and removes it when the card is closed. Share sends the same link.
+- **When the object cannot be seen it says so**, in a card with an amber line (`.notvis`): below the horizon (with how far under and which way), too far or too low to see (flights hidden by "visible only"), not among the flights around you (landed, or out of range of where you are), a satellite FarGems does not have, or a meteor shower that is not on. `computeSky` keeps those in `state.unseen` for the card. While the place, the flights or the satellites have not arrived yet it says it is looking, not that the object is gone, and the object is picked up as soon as it appears. Objects that are listed but out of sight (the Sun at night) get the line above their facts, and so does an object whose layer is switched off.
