@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; connect-src 'self' https:; font-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>FarGems: Augmented Reality Sky Map of Planes, ISS and Satellites</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Free live sky map with an augmented reality camera view: see the planes, ISS, satellites, planets and Moon above you, and point your phone to name them.">
@@ -114,7 +115,7 @@
     </ul>
     <button id="allowBtn" class="btn primary wide" type="button">Allow location and compass</button>
     <p id="msg" class="muted small" role="status"></p>
-    <p class="muted small privacy-note">Location and compass stay on your device. They are used only to calculate positions and to fetch public data for your area.</p>
+    <p class="muted small privacy-note">Location and compass stay on your device. Only a rounded area (about 1 km) is sent to public data services, to fetch what is overhead.</p>
   </section>
 
   <form id="manualForm" class="card manual" hidden>
