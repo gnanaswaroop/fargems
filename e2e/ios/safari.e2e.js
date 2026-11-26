@@ -544,6 +544,8 @@ test('accessibility: arrow keys switch tabs and walk the radar, and the hidden p
     assert.equal(await page.evaluate(() => document.querySelector('#pageNearby').inert), false);
     await page.keyboard.press('ArrowLeft');
     assert.equal(await page.getAttribute('#tabRadar', 'aria-selected'), 'true');
+  } finally { await context.close(); }
+});
 
 test('security: the policy blocks nothing the pages need, and the CDN libraries pass their integrity check', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
