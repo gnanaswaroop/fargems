@@ -34,12 +34,18 @@ test('the artwork fits inside the ring with room to spare', () => {
 
 test('all four app icons have the ring, made by a script that also shrinks them', () => {
   const s = read('scripts/make-icons.js');
-  assert.match(s, /const RING = 5;/);
+  assert.match(s, /const RING = 10;/);
   assert.match(s, /x\.strokeStyle = '#ffffff'; x\.lineWidth = RING;/, 'the round icons: the old edge is repainted and a ring drawn');
-  assert.match(s, /const SAFE_RADIUS = 0\.395;/, 'the full-bleed icons: the ring sits inside the part no mask cuts');
+  assert.match(s, /const SAFE_RADIUS = 0\.385;/, 'the full-bleed icons: the ring sits inside the part no mask cuts');
+  assert.match(s, /const FULL_RING = 0\.022;/);
+  // Thick enough to stay a clean line when the phone shrinks the icon (the old ring was a hairline and came out blurry),
+  // and its outer edge inside the 40% radius of a round mask.
+  assert.ok(0.385 + 0.022 / 2 <= 0.4, 'the ring is not cut by a round mask');
+  assert.ok(0.022 * 144 >= 3, 'about three pixels or more at a 144 px home-screen icon');
   for (const f of ['icon-512.png', 'icon-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png']) assert.ok(s.includes(f), f);
   assert.match(s, /shrink-png\.py/, 'and the PNGs are shrunk');
   assert.match(read('scripts/shrink-png.py'), /quantize\(colors=256/);
+  assert.match(read('scripts/shrink-png.py'), /dither=Image\.Dither\.NONE/, 'no dithering on the ring edge');
   // Together the four icons are what the service worker downloads when it installs: a canvas export came to 600 KB.
   const total = ['icon-512.png', 'icon-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png'].reduce((n, f) => n + fs.statSync(path.join(__dirname, '..', f)).size, 0);
   assert.ok(total < 80 * 1024, 'the four icons are ' + Math.round(total / 1024) + ' KB');

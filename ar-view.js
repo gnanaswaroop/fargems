@@ -64,10 +64,23 @@
       ctx.fillStyle = color || '#fff'; ctx.fillText(text, x, y);
     }
 
+    // A thin cross with a gap in the middle, a dark edge under a light line so it shows on a bright or a dark sky.
+    function crosshair(W, H) {
+      const cx = W / 2, cy = H / 2, gap = 6, arm = 18;
+      ctx.save(); ctx.lineCap = 'round';
+      for (const [w, c] of [[4, 'rgba(0,0,0,.55)'], [1.5, 'rgba(255,255,255,.95)']]) {
+        ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath();
+        ctx.moveTo(cx - gap - arm, cy); ctx.lineTo(cx - gap, cy); ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + gap + arm, cy);
+        ctx.moveTo(cx, cy - gap - arm); ctx.lineTo(cx, cy - gap); ctx.moveTo(cx, cy + gap); ctx.lineTo(cx, cy + gap + arm);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     function drawFrame() {
       raf = requestAnimationFrame(drawFrame);
       const { W, H } = fitCanvas();
       ctx.clearRect(0, 0, W, H);
+      crosshair(W, H); // the point the camera is aimed at, so the phone can be lined up on the real Moon or a star
       const ori = o.getOrientation() || {};
       const knowsHeading = typeof ori.compassHeading === 'number' || (ori.absolute && ori.alpha != null);
       if (ori.beta == null) { label('Move the phone to start the sensors', 16, H / 2, '#fff'); return; }

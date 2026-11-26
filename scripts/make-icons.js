@@ -13,8 +13,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
-const RING = 5;        // white ring thickness at 512 px
-const SAFE_RADIUS = 0.395; // of the icon size: inside the 40% radius that no mask cuts
+const RING = 10;       // white ring thickness at 512 px (thick enough to stay a clean line when the phone shrinks the icon)
+const SAFE_RADIUS = 0.385; // of the icon size: with the ring's half width it stays inside the 40% radius that no mask cuts
+const FULL_RING = 0.022;   // ring thickness of the full-bleed icons, as a share of the icon size
 const BAND = 12;       // width of the old teal edge that is repainted in the tile colour, at 512 px
 
 function load() {
@@ -48,13 +49,13 @@ async function main() {
   const full = {};
   for (const file of ['icon-maskable-512.png', 'apple-touch-icon.png']) {
     const url = 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, file)).toString('base64');
-    full[file] = await page.evaluate(async ({ url, SAFE_RADIUS }) => {
+    full[file] = await page.evaluate(async ({ url, SAFE_RADIUS, FULL_RING }) => {
       const img = new Image(); img.src = url; await img.decode();
       const n = img.naturalWidth, c = document.createElement('canvas'); c.width = n; c.height = n;
       const x = c.getContext('2d'); x.drawImage(img, 0, 0);
-      x.strokeStyle = '#ffffff'; x.lineWidth = Math.max(2, n * 0.0098); x.beginPath(); x.arc(n / 2, n / 2, n * SAFE_RADIUS, 0, Math.PI * 2); x.stroke();
+      x.strokeStyle = '#ffffff'; x.lineWidth = Math.max(2, n * FULL_RING); x.beginPath(); x.arc(n / 2, n / 2, n * SAFE_RADIUS, 0, Math.PI * 2); x.stroke();
       return c.toDataURL('image/png');
-    }, { url, SAFE_RADIUS });
+    }, { url, SAFE_RADIUS, FULL_RING });
   }
   await browser.close();
   const png = (url) => Buffer.from(url.split(',')[1], 'base64');

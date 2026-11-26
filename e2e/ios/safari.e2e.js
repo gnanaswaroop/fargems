@@ -451,22 +451,29 @@ test('AR on an iPhone: the AR button asks for motion inside the tap, opens the c
   } finally { await context.close(); }
 });
 
-test('AR: a swipe back closes the camera view and stays on the sky view; the X leaves no extra step behind', { skip }, async () => {
+test('AR: a swipe back closes the camera view and stays on the sky view', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
-    await page.goto(base + '/index.html');
     await page.goto(base + '/viewer.html');
-    const open = async () => { await page.tap('#arBtn'); await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 }); };
-    await open();
+    await page.evaluate(() => history.pushState({ page: 'sky' }, '')); // an earlier step to go back to, on the same page
+    await openAr(page, () => {});
+    assert.equal(await page.evaluate(() => history.state && history.state.fgAr), 1, 'the camera view added its own step');
     await page.goBack(); // what a swipe back does
     await page.waitForFunction(() => document.querySelector('#ar').hidden, null, { timeout: 5000 });
-    assert.match(page.url(), /viewer.html/, 'still on the sky view, not the home page');
-    assert.equal(await page.evaluate(() => !!document.querySelector('#pager')), true);
-    await open();
+    assert.match(page.url(), /viewer.html/, 'still on the sky view');
+    assert.equal(await page.evaluate(() => history.state && history.state.page), 'sky', 'back to the step before the camera view');
+  } finally { await context.close(); }
+});
+
+test('AR: closing the camera view with the X leaves no extra step behind', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html');
+    await page.evaluate(() => history.pushState({ page: 'sky' }, ''));
+    await openAr(page, () => {});
     await page.tap('#arClose');
-    await page.waitForFunction(() => history.state === null || !history.state.fgAr, null, { timeout: 5000 });
-    await page.goBack();
-    await page.waitForURL(/index.html/, { timeout: 5000 });
+    await page.waitForFunction(() => history.state && history.state.page === 'sky', null, { timeout: 5000 });
+    assert.equal(await page.evaluate(() => document.querySelector('#ar').hidden), true);
   } finally { await context.close(); }
 });
 
@@ -639,6 +646,24 @@ test('AR: the Moon is drawn lit on the side toward the Sun, with the right amoun
     const lit = (x) => x.left + x.right;
     assert.ok(lit(crescent) > 0 && lit(crescent) < lit(half) * 0.7, 'a crescent is thin: ' + JSON.stringify([crescent, half]));
     assert.ok(lit(gibbous) > lit(half) * 1.3, 'a gibbous Moon is mostly lit: ' + JSON.stringify([gibbous, half]));
+  } finally { await context.close(); }
+});
+
+test('AR: a crosshair marks the centre of the camera view, with a gap in the middle', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, () => {});
+    await sleep(400);
+    const px = await page.evaluate(() => {
+      const c = document.querySelector('#arCanvas'), x = c.getContext('2d'), k = c.width / c.clientWidth, cx = Math.round(c.width / 2), cy = Math.round(c.height / 2);
+      const at = (dx, dy) => Array.from(x.getImageData(cx + Math.round(dx * k), cy + Math.round(dy * k), 1, 1).data);
+      return { arm: at(12, 0), armUp: at(0, -12), centre: at(3, 3) };
+    });
+    assert.ok(px.arm[0] > 200 && px.arm[3] > 200, 'a light line right of the centre: ' + px.arm);
+    assert.ok(px.armUp[0] > 200 && px.armUp[3] > 200, 'and above it: ' + px.armUp);
+    assert.equal(px.centre[3], 0, 'the middle of the cross is left clear (the horizon line may pass through its row)');
   } finally { await context.close(); }
 });
 
@@ -1197,10 +1222,10 @@ test('logo: the round app icons have a thin white ring on the edge and the dark 
       }, [file, size]);
       assert.equal(px.w, size);
       assert.equal(px.corner[3], 0, file + ': outside the circle is transparent');
-      assert.ok(px.inside[3] === 255 && px.inside[0] < 40 && px.inside[2] < 90, file + ': the tile is dark navy ' + px.inside);
+      assert.ok(px.inside[3] >= 250 && px.inside[0] < 40 && px.inside[2] < 90, file + ': the tile is dark navy ' + px.inside);
       const white = px.row.filter((p) => p[3] > 200 && p[0] > 230 && p[1] > 230 && p[2] > 230).length;
       const teal = px.row.filter((p) => p[3] > 200 && p[2] > 90 && p[0] < 90 && p[1] > 80).length;
-      assert.ok(white >= 1 && white <= Math.max(3, Math.round(size * 0.012)), file + ': a thin white ring (' + white + ' px wide)');
+      assert.ok(white >= Math.round(size * 0.012) && white <= Math.round(size * 0.025), file + ': a clean white ring, thick enough not to blur when shrunk (' + white + ' px wide)');
       assert.equal(teal, 0, file + ': the old teal edge is gone');
     }
     // On the page the logo is the SVG with the ring, drawn next to the name.

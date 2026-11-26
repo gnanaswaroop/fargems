@@ -21,7 +21,7 @@ jobs:
   shard:
     name: shard ${{ matrix.id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -46,9 +46,17 @@ jobs:
           key: playwright-${{ matrix.browser }}-${{ hashFiles('e2e/ios/package-lock.json') }}
       - name: Install the test browser
         working-directory: e2e/ios
+        # The system packages come from a mirror that now and then stalls for ten minutes, so give apt short timeouts and
+        # retries, and give each attempt of the install a time limit instead of letting one attempt hang the job.
+        timeout-minutes: 8
         run: |
+          echo 'Acquire::http::Timeout "20"; Acquire::https::Timeout "20"; Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/99ci-timeouts > /dev/null
           npm ci
-          npx playwright install --with-deps ${{ matrix.browser }}
+          for attempt in 1 2 3; do
+            if timeout 150 npx playwright install --with-deps ${{ matrix.browser }}; then exit 0; fi
+            echo "install attempt $attempt did not finish, trying again"; sudo pkill -x apt-get || true; sudo pkill -x dpkg || true; sleep 3
+          done
+          exit 1
       - name: Run the browser tests
         run: node --test --test-reporter=spec ${{ matrix.file }}
 
