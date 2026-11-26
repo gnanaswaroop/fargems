@@ -678,6 +678,15 @@ function setLoc(lat, lon, approxLabel) {
 }
 
 /* ---------- compass & interaction ---------- */
+// How far the screen is turned from the device's natural position: 0, 90, 180 or 270 degrees. Android tablets are
+// naturally sideways, and an installed app can be locked to one direction, so this is often not 0 there.
+function screenAngle() {
+  try {
+    if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+    if (typeof window.orientation === 'number') return (window.orientation + 360) % 360;
+  } catch { /* no screen orientation */ }
+  return 0;
+}
 function onOri(e) {
   const ori = state.ori; // raw angles for the AR view
   const abs = e.absolute === true || e.type === 'deviceorientationabsolute';
@@ -687,7 +696,7 @@ function onOri(e) {
   if (abs && e.alpha != null) { ori.alpha = e.alpha; ori.absolute = true; }
   let h = null;
   if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
-  else if (abs && e.alpha != null) h = window.FarGemsAR.facingHeading(e.alpha, e.beta, e.gamma); // where the phone faces at any tilt, not just where its top points
+  else if (abs && e.alpha != null) h = window.FarGemsAR.facingHeading(e.alpha, e.beta, e.gamma, screenAngle()); // where the phone faces at any tilt, and the top of the screen when the screen is turned
   if (h == null) return;
   if (state.compassPending && !state.compass) { state.compass = true; state.compassPending = false; state.dirty = true; } // a real reading: the sensor exists
   h = window.FarGemsDeclination.trueHeading(h, state.declination + state.arOffset.h); // the sky is laid out from true north, the compass reads magnetic; the offset is the visitor's own correction
