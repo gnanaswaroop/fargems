@@ -1037,6 +1037,8 @@ async function liveSky(page, context, { when } = {}) {
 }
 // Tap AR; if the camera view has not opened a few seconds later (a slow machine), tap once more, and say what the page said.
 async function openArWithRetry(page) {
+  // A camera without a camera, put on the page itself (on some builds a plain assignment from the start-up script does not stick).
+  await page.evaluate(() => { const fake = { getTracks: () => [{ stop() {} }] }; Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: async () => fake, configurable: true, writable: true }); });
   for (let attempt = 0; attempt < 3; attempt++) {
     await page.tap('#arBtn');
     try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 6000 }); return; } catch { /* tap again */ }
