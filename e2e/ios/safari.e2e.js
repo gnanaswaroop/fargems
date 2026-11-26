@@ -1041,7 +1041,7 @@ async function openArWithRetry(page) {
     await page.tap('#arBtn');
     try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 6000 }); return; } catch { /* tap again */ }
   }
-  throw new Error('the camera view did not open; the page said: ' + JSON.stringify(await page.evaluate(() => ({ toasts: window.__toasts, ar: document.querySelector('#ar').hidden, status: document.querySelector('#status').textContent }))));
+  throw new Error('the camera view did not open; the page said: ' + JSON.stringify(await page.evaluate(() => ({ toasts: window.__toasts, ar: document.querySelector('#ar').hidden, status: document.querySelector('#status').textContent, gum: String(navigator.mediaDevices && navigator.mediaDevices.getUserMedia).slice(0, 70), same: navigator.mediaDevices === navigator.mediaDevices, src: String(Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'srcObject') && Object.getOwnPropertyDescriptor(HTMLVideoElement.prototype, 'srcObject').get).slice(0, 60) }))));
 }
 const amberPixels = (page, sel) => page.evaluate((sel) => {
   const cv = document.querySelector(sel), c = cv.getContext('2d'), d = c.getImageData(0, 0, cv.width, cv.height).data;
@@ -1057,13 +1057,16 @@ test('flights: a plane is drawn as a plane only when its direction is known, oth
     await page.waitForFunction(() => __fg.state.objs.filter((o) => o.kind === 'air').length === 2, null, { timeout: 20000 });
     const kinds = await page.evaluate(() => Object.fromEntries(__fg.state.objs.filter((o) => o.kind === 'air').map((o) => [o.name, o.course])));
     assert.deepEqual(kinds, { KNOWN1: true, MLAT01: false });
-    await page.evaluate(() => {
-      window.__glyphs = 0;
+    // One drawing, counted in the same step (the radar redraws by itself every frame, which would double the count).
+    const glyphs = await page.evaluate(() => {
+      let n = 0;
       const orig = CanvasRenderingContext2D.prototype.fillText;
-      CanvasRenderingContext2D.prototype.fillText = function (t) { if (t === '✈︎') window.__glyphs++; return orig.apply(this, arguments); };
+      CanvasRenderingContext2D.prototype.fillText = function (t) { if (t === '✈︎') n++; return orig.apply(this, arguments); };
       __fg.state.compass = false; __fg.state.rot = 0; __fg.draw();
+      CanvasRenderingContext2D.prototype.fillText = orig;
+      return n;
     });
-    assert.equal(await page.evaluate(() => window.__glyphs), 1, 'one plane glyph (the flight with a direction); the other is a dot');
+    assert.equal(glyphs, 1, 'one plane glyph (the flight with a direction); the other is a dot');
   } finally { await context.close(); }
 });
 
