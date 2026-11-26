@@ -1188,3 +1188,75 @@ test('logo: the round app icons have a thin white ring on the edge and the dark 
     assert.equal(ring, true);
   } finally { await context.close(); }
 });
+
+test('phone on its side: the sky view fits the screen with the whole radar in view, the controls beside it and the details in their own column', { skip }, async () => {
+  for (const device of ['iPhone 14 landscape', 'iPhone SE landscape', 'iPhone 14 Pro Max landscape']) {
+    const { page, context } = await iphone({ storage: SAVED, device });
+    try {
+      await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+      await page.goto(base + '/viewer.html?fgtest=1');
+      await page.evaluate(DARK_SKY(-40));
+      await page.waitForTimeout(300);
+      const m = await page.evaluate(() => {
+        const r = (s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height }; };
+        return { vw: innerWidth, vh: innerHeight, docH: document.documentElement.scrollHeight, docW: document.documentElement.scrollWidth, sky: r('#sky'), side: r('.side'), zoomIn: r('#zoomIn'), ar: r('#arBtn'), gear: r('#gearBtn'), radius: getComputedStyle(document.querySelector('#sky')).borderRadius };
+      });
+      const tag = device + ' ' + m.vw + 'x' + m.vh;
+      assert.ok(m.vw > m.vh, tag + ' is on its side');
+      assert.ok(m.docH <= m.vh + 1, `${tag}: the page does not scroll (${m.docH} tall on a ${m.vh} screen)`);
+      assert.ok(m.docW <= m.vw + 1, `${tag}: nothing sticks out sideways`);
+      assert.ok(m.sky.t >= 0 && m.sky.b <= m.vh + 1, `${tag}: the whole radar is on the screen (${Math.round(m.sky.t)} to ${Math.round(m.sky.b)} of ${m.vh})`);
+      assert.ok(m.sky.h > m.vh * 0.6, `${tag}: and not tiny (${Math.round(m.sky.h)} px)`);
+      assert.ok(Math.abs(m.sky.w - m.sky.h) < 2, tag + ': it is round (square canvas)');
+      assert.ok(m.zoomIn.l >= m.sky.r - 1 && m.ar.b <= m.vh + 1 && m.ar.r <= m.vw, `${tag}: the zoom buttons stand beside the radar, on the screen`);
+      assert.ok(m.side.l >= m.zoomIn.r - 1, `${tag}: the details column is to the right`);
+      assert.ok(m.gear.r <= m.vw && m.gear.t >= 0, tag + ': the gear is on the screen');
+      assert.equal(m.radius, '0px', tag + ': the canvas is not clipped to a circle, so names outside the horizon circle show');
+    } finally { await context.close(); }
+  }
+});
+
+test('phone on its side: the home page fits too, in two columns', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED, device: 'iPhone 14 landscape' });
+  try {
+    await page.goto(base + '/index.html');
+    const m = await page.evaluate(() => ({ vh: innerHeight, docH: document.documentElement.scrollHeight, intro: document.querySelector('.intro').getBoundingClientRect().right, actions: document.querySelector('.actions').getBoundingClientRect().left, hero: getComputedStyle(document.querySelector('.hero-row')).display }));
+    assert.ok(m.docH <= m.vh + 2, `no scrolling (${m.docH} on ${m.vh})`);
+    assert.ok(m.actions >= m.intro, 'the introduction is on the left and the actions on the right');
+    assert.equal(m.hero, 'none', 'the picture is dropped to make room');
+  } finally { await context.close(); }
+});
+
+test('phone in portrait is not affected by the sideways layout', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    const m = await page.evaluate(() => { const s = document.querySelector('#sky').getBoundingClientRect(); return { vw: innerWidth, sky: s.width, tabs: getComputedStyle(document.querySelector('.tabs')).display, side: getComputedStyle(document.querySelector('#pageRadar')).display }; });
+    assert.ok(m.sky > m.vw * 0.8, 'the radar is as wide as the page: ' + m.sky + ' of ' + m.vw);
+    assert.notEqual(m.tabs, 'none', 'the Radar and Nearby tabs are there');
+    assert.notEqual(m.side, 'grid');
+  } finally { await context.close(); }
+});
+
+test('gear menu: Install app is offered in the sky view, and says how when the browser has no install prompt', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.tap('#gearBtn');
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'Help', 'Install app']);
+    assert.equal(await page.isVisible('#gearInstall'), true);
+    await page.tap('#gearInstall');
+    assert.equal(await page.isVisible('#gearList'), false, 'the menu closes');
+    await page.waitForFunction(() => /Share button, then Add to Home Screen/.test(document.querySelector('#toast').textContent));
+    // Once the app is installed the item goes, also on the next visit.
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await page.tap('#gearBtn');
+    assert.equal(await page.isVisible('#gearInstall'), false);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'Help']);
+    await page.reload();
+    await page.tap('#gearBtn');
+    assert.equal(await page.isVisible('#gearInstall'), false, 'still gone on the next visit');
+  } finally { await context.close(); }
+});

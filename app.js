@@ -755,7 +755,7 @@ function setPage(name) {
 // The page that is slid out of sight must not be reachable by keyboard or screen reader. Where both pages are shown
 // side by side (a wide landscape tablet) neither is hidden.
 function syncPages() {
-  const wide = window.matchMedia('(min-width: 900px) and (min-aspect-ratio: 5/4)').matches;
+  const wide = window.matchMedia('(min-width: 560px) and (min-aspect-ratio: 5/4)').matches;
   const nearby = $('#pager').classList.contains('nearby');
   $('#pageRadar').inert = !wide && nearby;
   $('#pageNearby').inert = !wide && !nearby;
@@ -1000,6 +1000,21 @@ function bindUI() {
   const gear = $('#gearBtn'), gearList = $('#gearList');
   const setGear = (open) => { gearList.hidden = !open; gear.setAttribute('aria-expanded', String(open)); };
   gear.addEventListener('click', (e) => { e.stopPropagation(); setGear(gearList.hidden); });
+  // Install the app from here too: the browser's own prompt when it offers one, otherwise how to do it from its menu. The
+  // item goes once the app is installed (or when this already is the installed app).
+  const O = window.FarGemsOnboarding, install = { prompt: null };
+  const store = { getItem: (k) => storedValue(k), setItem: (k, v) => { try { localStorage.setItem(k, v); } catch { /* blocked */ } } };
+  const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const syncInstall = () => { $('#gearInstall').parentElement.hidden = O.installMode({ standalone, installed: O.readInstalled(store), ios, hasPrompt: !!install.prompt }) === 'hidden'; };
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); install.prompt = e; O.storeInstalled(store, false); syncInstall(); });
+  window.addEventListener('appinstalled', () => { install.prompt = null; O.storeInstalled(store, true); syncInstall(); });
+  $('#gearInstall').addEventListener('click', async () => {
+    setGear(false);
+    if (install.prompt) { const p = install.prompt; install.prompt = null; p.prompt(); try { await p.userChoice; } catch { /* closed */ } syncInstall(); return; }
+    toast(O.installHelp({ ios }), 7000);
+  });
+  syncInstall();
   document.addEventListener('click', (e) => { if (!gearList.hidden && !gearList.contains(e.target)) setGear(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gearList.hidden) { setGear(false); gear.focus(); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gearList.hidden && (state.sel || state.passSel) && !/INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '')) closeDetail(); });
@@ -1007,7 +1022,7 @@ function bindUI() {
   initAR();
   // On a wide landscape screen the nearby list sits under the object details, in the column beside the radar; otherwise it is
   // the second page next to the radar page.
-  const wide = window.matchMedia('(min-width: 900px) and (min-aspect-ratio: 5/4)');
+  const wide = window.matchMedia('(min-width: 560px) and (min-aspect-ratio: 5/4)');
   const placeNearby = () => { syncPages(); const to = wide.matches ? document.querySelector('.side') : $('#pager'), pn = $('#pageNearby'); if (to && pn.parentElement !== to) to.append(pn); };
   if (wide.addEventListener) wide.addEventListener('change', placeNearby);
   placeNearby();

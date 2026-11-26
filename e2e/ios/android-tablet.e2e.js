@@ -213,3 +213,32 @@ test('tablet: turning the screen between portrait and landscape is followed at o
     assert.ok(near(await page.evaluate(() => __fg.state.heading), 90), 'back in portrait: east again');
   } finally { await context.close(); }
 });
+
+test('tablet: the gear menu in the sky view starts the browser install, and the item goes once installed or in the installed app', { skip }, async () => {
+  const saved = { 'fg.loc': JSON.stringify({ lat: 17.4435, lon: 78.3772 }) };
+  const { page, context } = await tablet({ permission: true, storage: saved });
+  try {
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.tap('#gearBtn');
+    assert.equal(await page.isVisible('#gearInstall'), true, 'offered');
+    await page.keyboard.press('Escape');
+    // Chrome offers the install: the item starts it.
+    await page.evaluate(() => { window.__prompted = 0; const e = new Event('beforeinstallprompt'); e.prompt = () => { window.__prompted++; }; e.userChoice = Promise.resolve({ outcome: 'accepted' }); window.dispatchEvent(e); });
+    await page.tap('#gearBtn');
+    await page.tap('#gearInstall');
+    assert.equal(await page.evaluate(() => window.__prompted), 1, 'the browser\'s own install prompt was started');
+    assert.equal(await page.isVisible('#gearList'), false);
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await page.tap('#gearBtn');
+    assert.equal(await page.isVisible('#gearInstall'), false, 'gone once installed');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.installed')), '1');
+  } finally { await context.close(); }
+  // The installed app itself (display mode standalone) never shows it.
+  const b = await tablet({ permission: true, storage: saved });
+  try {
+    await b.page.addInitScript(() => { const mm = window.matchMedia.bind(window); window.matchMedia = (q) => (/display-mode:\s*standalone/.test(q) ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : mm(q)); });
+    await b.page.goto(base + '/viewer.html?fgtest=1');
+    await b.page.tap('#gearBtn');
+    assert.equal(await b.page.isVisible('#gearInstall'), false, 'not shown inside the installed app');
+  } finally { await b.context.close(); }
+});
