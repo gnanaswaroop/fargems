@@ -9,6 +9,7 @@
     "worker:dev": "node scripts/dev-worker.mjs",
     "test:android": "node --test e2e/android/compass.e2e.js e2e/android/ar.e2e.js",
     "test:ios": "node --test e2e/ios/safari.e2e.js",
+    "test:tablet": "node --test e2e/ios/android-tablet.e2e.js",
     "test:live": "node --test --test-reporter=spec e2e/live/live-data.e2e.js",
     "serve": "python -m http.server 8080 --bind 0.0.0.0",
     "serve:https": "node scripts/serve-https.js"

@@ -96,5 +96,7 @@
 
   showLocation();
   showCompass();
+  // Only iPhone and iPad ask for the compass. Everywhere else there is nothing to allow, so the card is not shown.
+  if (!O.compassNeedsPermission(window)) { const card = $('#compassBtn').closest('section'); if (card) card.hidden = true; }
   renderLayers();
 })();
