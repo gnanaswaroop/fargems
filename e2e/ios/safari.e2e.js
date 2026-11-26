@@ -642,6 +642,24 @@ test('AR: the Moon is drawn lit on the side toward the Sun, with the right amoun
   } finally { await context.close(); }
 });
 
+test('AR: a crosshair marks the centre of the camera view, with a gap in the middle', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, () => {});
+    await sleep(400);
+    const px = await page.evaluate(() => {
+      const c = document.querySelector('#arCanvas'), x = c.getContext('2d'), k = c.width / c.clientWidth, cx = Math.round(c.width / 2), cy = Math.round(c.height / 2);
+      const at = (dx, dy) => Array.from(x.getImageData(cx + Math.round(dx * k), cy + Math.round(dy * k), 1, 1).data);
+      return { arm: at(12, 0), armUp: at(0, -12), centre: at(3, 3) };
+    });
+    assert.ok(px.arm[0] > 200 && px.arm[3] > 200, 'a light line right of the centre: ' + px.arm);
+    assert.ok(px.armUp[0] > 200 && px.armUp[3] > 200, 'and above it: ' + px.armUp);
+    assert.equal(px.centre[3], 0, 'the middle of the cross is left clear (the horizon line may pass through its row)');
+  } finally { await context.close(); }
+});
+
 test('AR: the Photo button makes a PNG of the picture with the overlay and shares it', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {

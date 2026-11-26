@@ -582,3 +582,7 @@ The browser tests now run as six parallel jobs: the Safari (WebKit) tests in fiv
 ## 32. Back from the camera view
 
 The camera view adds one step to the browser history when it opens. A swipe back or the phone Back button closes the view and stays on the sky view. Closing it with the X, or by laying the phone flat, removes that step again so Back still goes to the page before.
+
+## 33. Crosshair
+
+The camera view draws a thin cross with a gap in the middle at the centre of the screen: a dark edge under a light line, so it shows on a bright or dark sky. It marks the point the camera is aimed at, which helps when lining the overlay up on the real Moon or a star with Align. It is drawn first each frame, so it is there before the sensors start, and it is in the photo too.
