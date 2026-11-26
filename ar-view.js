@@ -51,8 +51,14 @@
       return { W: w, H: h };
     }
 
-    function label(text, x, y, color) {
-      ctx.font = '600 13px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    function label(text, x, y, color, W, flipBy) {
+      ctx.font = '600 13px system-ui, sans-serif'; ctx.textBaseline = 'middle';
+      // A name that would run off the right edge goes to the left of its object (flipBy is the gap from the object).
+      const w = W ? ctx.measureText(text).width : 0;
+      let align = 'left';
+      if (W && x + w > W - 6) { align = 'right'; x -= flipBy || 0; }
+      if (W && align === 'right' && x - w < 4) { align = 'left'; x = Math.max(4, Math.min(x, W - 6 - w)); }
+      ctx.textAlign = align;
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.strokeText(text, x, y);
       ctx.fillStyle = color || '#fff'; ctx.fillText(text, x, y);
     }
@@ -120,7 +126,7 @@
         }
         ctx.restore();
         if (isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 24, 0, 7); ctx.stroke(); }
-        if (F.labels || isSel) label(ob.name, p.x + (ob.name === 'Moon' ? 24 : 18), p.y - 14, air ? '#ffd9a0' : '#fff');
+        if (F.labels || isSel) { const gap = ob.name === 'Moon' ? 24 : 18; label(ob.name, p.x + gap, Math.max(14, Math.min(H - 14, p.y - 14)), air ? '#ffd9a0' : '#fff', W, 2 * gap); }
         items.push({ id: ob.id, x: p.x, y: p.y, r: 30 });
       }
 

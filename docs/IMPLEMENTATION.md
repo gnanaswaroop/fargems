@@ -526,6 +526,10 @@ From a million km on (the Sun, planets) a distance is shown short in the visitor
 - **Passes.** The ISS and Tiangong rows under the radar are buttons. Choosing one draws its path across the sky as a dashed line (with a dot where it comes up and a ring where it goes down) and shows a card: when it rises, where, how high it gets, where it sets, how long it stays above 10 degrees, and a Wikipedia link. A station that is above the horizon already is selected on the radar instead, and shows its normal card. Choosing the same pass again clears it.
 - **The key.** A closed `details` block under the details and passes explains the radar: the middle is straight overhead and the edge is the horizon (an object is drawn at a distance from the middle of 90 minus its height in degrees), and every symbol, including the dashed circle with a plus for a meteor shower radiant.
 
+## 21. Reading the radar by day
+
+The radar's background goes from dark blue at night to light blue by day (`skyLook` in `lib/logic.js` gives the colours for a brightness). Names were light grey and white, which vanished on the light sky. Now every name (and the 30 and 60 degree numbers) is drawn with a dark outline, the star names are near white, the rings and lines get brighter by day, and the dots have an edge so a pale Moon still shows. In the camera view a name that would run off the right edge goes to the left of its object.
+
 ## 22. Turning the screen
 
 iPhone and iPad give the heading of the top of the device, so a screen turned sideways needs the same correction as on Android: the heading is the device heading plus the screen turn (`window.orientation`: 0, 90, 180, -90), which makes east show as east in landscape. The heading no longer smooths by a fixed amount: `followHeading` moves further the further away the new reading is (a quarter turn in one reading, a small wobble a quarter of the way), and after a turn (a screen orientation change, an orientationchange event, or the window changing between portrait and landscape) it takes the next reading as it is for 0.6 s, and the camera view forgets its smoothed heading.

@@ -887,3 +887,41 @@ test('compass: the window changing shape between portrait and landscape counts a
     assert.ok(Math.abs(h - 35) < 0.5, 'the first reading after the window turned is taken as it is: ' + h.toFixed(2));
   } finally { await context.close(); }
 });
+
+test('radar: every name can be read on a light day sky and on a dark night sky', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__texts = [];
+      const orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { window.__texts.push({ t, x, y, a: this.textAlign, w: this.measureText(t).width, s: this.canvas.width / this.canvas.clientWidth }); return orig.apply(this, arguments); };
+    });
+    const sky = (sunAlt) => `(() => {
+      const { state, draw } = window.__fg;
+      const mk = (id, kind, name, az, el, extra) => Object.assign({ id, kind, name, az, el, distKm: 1, range: 1 }, extra || {});
+      state.objs = [mk('star:Vega', 'star', 'Vega', 40, 50), mk('star:Altair', 'star', 'Altair', 100, 35), mk('body:Mars', 'body', 'Mars', 220, 40, { mag: 0.5, color: '#ff7a5c' }),
+        mk('body:Moon', 'body', 'Moon', 300, 20, { color: '#e9edf5', phase: 0.5 }), mk('met:Leonids', 'met', 'Leonids', 150, 30), mk('air:a1', 'air', 'AIC144', 10, 25, { az2: 12, el2: 25, ac: { type: 'A20N' } })];
+      state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sunAlt = ${sunAlt}; state.compass = false; state.rot = 0; state.flip = true; state.sel = null;
+      window.__texts = []; draw();
+    })()`;
+    for (const sunAlt of [45, 0, -30]) {
+      await page.evaluate(sky(sunAlt));
+      const worst = await page.evaluate(() => {
+        const cv = document.querySelector('#sky'), c = cv.getContext('2d'), out = [];
+        const L = (r, g, b) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+        for (const t of window.__texts) {
+          if (!/^(Vega|Altair|Mars|Moon|Leonids|AIC144|30°|60°)$/.test(t.t)) continue;
+          const x0 = Math.max(0, Math.floor((t.a === 'left' ? t.x : t.a === 'right' ? t.x - t.w : t.x - t.w / 2) * t.s)), y0 = Math.max(0, Math.floor((t.y - 10) * t.s)), w = Math.ceil(t.w * t.s), h = Math.ceil(13 * t.s);
+          const d = c.getImageData(x0, y0, w, h).data; let lo = 9, hi = 0;
+          for (let i = 0; i < d.length; i += 4) { const l = L(d[i], d[i + 1], d[i + 2]); if (l < lo) lo = l; if (l > hi) hi = l; }
+          out.push([t.t, (hi + 0.05) / (lo + 0.05)]);
+        }
+        return out;
+      });
+      assert.ok(worst.length >= 6, 'the names were drawn at sun ' + sunAlt + ': ' + JSON.stringify(worst));
+      for (const [name, ratio] of worst) assert.ok(ratio >= 6, `sun ${sunAlt}: "${name}" has a contrast of only ${ratio.toFixed(1)} against what is behind it`);
+    }
+  } finally { await context.close(); }
+});

@@ -286,16 +286,18 @@ function draw() {
   const P = (az, el) => { const r = (90 - el) / 90 * R, th = (az - rot) * D2R; return { x: cx + sgn * r * Math.sin(th), y: cy - r * Math.cos(th) }; };
 
   const k = Math.max(0, Math.min(1, ((state.sunAlt ?? -30) + 16) / 22));
+  const look = window.FarGemsLogic.skyLook(k); // text and line colours that read on this sky, dark or light
   const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
   g.addColorStop(0, `rgb(${mix([6, 10, 24], [40, 92, 160], k)})`);
   g.addColorStop(1, `rgb(${mix([14, 22, 44], [120, 170, 215], k)})`);
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
-  ctx.strokeStyle = 'rgba(160,180,210,.28)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = look.grid; ctx.lineWidth = 1;
   if (state.filters.grid) for (const el of [0, 30, 60]) { ctx.beginPath(); ctx.arc(cx, cy, (90 - el) / 90 * R, 0, 7); ctx.stroke(); }
-  ctx.font = '11px system-ui'; ctx.fillStyle = 'rgba(160,180,210,.6)'; ctx.textAlign = 'left';
+  ctx.font = '11px system-ui'; ctx.fillStyle = look.ring; ctx.textAlign = 'left';
+  const haloText = (text, x, y) => { ctx.lineJoin = 'round'; ctx.lineWidth = look.haloWidth; ctx.strokeStyle = look.halo; ctx.strokeText(text, x, y); ctx.fillText(text, x, y); };
   const fixed = []; // text already on the dial, which object names keep clear of
   if (state.filters.grid) {
-    ctx.fillText('30°', cx + 3, cy - (60 / 90) * R + 12); ctx.fillText('60°', cx + 3, cy - (30 / 90) * R + 12);
+    haloText('30°', cx + 3, cy - (60 / 90) * R + 12); haloText('60°', cx + 3, cy - (30 / 90) * R + 12);
     fixed.push({ x0: cx + 2, x1: cx + 26, y0: cy - (60 / 90) * R + 2, y1: cy - (60 / 90) * R + 15 }, { x0: cx + 2, x1: cx + 26, y0: cy - (30 / 90) * R + 2, y1: cy - (30 / 90) * R + 15 });
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '600 13px system-ui';
@@ -359,7 +361,7 @@ function draw() {
         pick = { x: spots[0].x, y: spots[0].y, a: 'center' };
         for (let i = 0; i < 24 && !(fits(box(pick)) && inside(box(pick))); i++) { pick.x += (cx - pick.x) * 0.08; pick.y += (cy - pick.y) * 0.08; }
       }
-      ctx.fillStyle = L.col; ctx.textAlign = pick.a; ctx.fillText(L.text, pick.x, pick.y);
+      ctx.fillStyle = L.col; ctx.textAlign = pick.a; haloText(L.text, pick.x, pick.y);
       placed.push(box(pick));
     }
     ctx.textAlign = 'left';
@@ -369,7 +371,8 @@ function draw() {
   for (const o of state.objs) { // stars
     if (o.kind !== 'star' || !F.star || o.el < 0) continue;
     const p = P(o.az, o.el); ctx.fillStyle = COL.star; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8, 0, 7); ctx.fill();
-    label(o, p, 5, -4, 'rgba(170,182,204,.75)'); hit(o, p, 10);
+    ctx.strokeStyle = look.dotOutline; ctx.lineWidth = 1; ctx.stroke();
+    label(o, p, 5, -4, look.star); hit(o, p, 10);
   }
   for (const o of state.objs) { // meteor radiants
     if (o.kind !== 'met' || !F.met || o.el < -5) continue;
@@ -403,6 +406,7 @@ function draw() {
     const r = big ? 8 : Math.max(2.5, 5.5 - (o.mag ?? 0) * 0.8);
     ctx.fillStyle = o.color; ctx.shadowColor = o.color; ctx.shadowBlur = big ? 14 : 6;
     ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = look.dotOutline; ctx.lineWidth = 1; ctx.stroke(); // an edge, so a pale Moon still shows on a pale sky
     label(o, p, r + 4, 4, '#fff'); hit(o, p, r + 8);
   }
   placeLabels();
