@@ -58,7 +58,7 @@ const state = {
   objs: [], byId: new Map(), sel: null, sunAlt: null, moonIllum: null, showerView: [],
   sweep: 0, lastT: 0, // radar sweep angle (degrees) and last animation frame time
   view: { zoom: 1, panX: 0, panY: 0 }, // radar zoom and pan (see lib/logic.js)
-  passes: [], dirty: true, hits: [], status: {}
+  passes: [], passSel: null, dirty: true, hits: [], status: {}
 };
 
 /* ---------- helpers ---------- */
@@ -167,21 +167,31 @@ function nextPass(rec, from, hours = 36) {
   let inPass = false, p = null;
   for (let t = from.getTime(); t < end; t += step) {
     const la = lookSat(rec, new Date(t)); if (!la) continue;
-    if (!inPass && la.el > MIN) { inPass = true; p = { start: t, max: la.el, riseAz: la.az }; }
+    if (!inPass && la.el > MIN) { inPass = true; p = { start: t, max: la.el, maxAz: la.az, riseAz: la.az }; }
     else if (inPass) {
-      if (la.el > p.max) p.max = la.el;
+      if (la.el > p.max) { p.max = la.el; p.maxAz = la.az; }
       if (la.el <= MIN) { p.end = t; p.setAz = la.az; return p; }
     }
   }
   return p;
+}
+// Where a pass goes across the sky, as points { az, el } from where it comes up to where it goes down (above the horizon).
+function passPath(rec, p) {
+  const pts = [], from = p.start - 5 * 60e3, to = (p.end || p.start + 10 * 60e3) + 5 * 60e3;
+  for (let t = from; t <= to; t += 15000) { const la = lookSat(rec, new Date(t)); if (la && la.el >= 0) pts.push({ az: la.az, el: la.el }); }
+  return pts;
 }
 function updatePasses() {
   if (!state.loc || !state.sats.length) return;
   const out = [];
   for (const re of [/^ISS \(ZARYA\)/, /^CSS \(TIANHE\)/]) {
     const s = state.sats.find(x => re.test(x.name));
-    if (s) { const p = nextPass(s.rec, new Date()); if (p) out.push({ name: re.source.includes('ISS') ? 'ISS' : 'Tiangong', ...p }); }
+    if (s) {
+      const p = nextPass(s.rec, new Date());
+      if (p) out.push({ name: re.source.includes('ISS') ? 'ISS' : 'Tiangong', id: 'sat:' + s.norad, satName: s.name, ...p, path: passPath(s.rec, p) });
+    }
   }
+  if (state.passSel && !out.some((p) => p.name === state.passSel)) state.passSel = null;
   state.passes = out; state.passesAt = Date.now();
 }
 
@@ -305,6 +315,17 @@ function draw() {
     const a = (state.sweep - 90) * D2R;
     ctx.strokeStyle = 'rgba(90,209,230,.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy);
     ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a)); ctx.stroke();
+  }
+  // The path of the station pass that was chosen in the list: a dashed line from where it comes up to where it goes down.
+  const chosen = state.passSel && state.passes.find((p) => p.name === state.passSel);
+  if (chosen && chosen.path && chosen.path.length > 1) {
+    ctx.save(); ctx.strokeStyle = COL.sat; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.beginPath();
+    chosen.path.forEach((q, i) => { const p = P(q.az, q.el); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+    ctx.stroke(); ctx.setLineDash([]);
+    const a = P(chosen.path[0].az, chosen.path[0].el), z = P(chosen.path[chosen.path.length - 1].az, chosen.path[chosen.path.length - 1].el);
+    ctx.fillStyle = COL.sat; ctx.beginPath(); ctx.arc(a.x, a.y, 4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(z.x, z.y); ctx.arc(z.x, z.y, 4, 0, 7); ctx.stroke();
+    ctx.restore();
   }
   state.hits = [];
   const F = state.filters, sel = state.sel;
@@ -440,8 +461,20 @@ function renderPasses() {
   const el = $('#passes');
   if (!state.passes.length) { el.hidden = true; return; }
   el.hidden = false;
-  setHtml(el, '<h3>Next station passes (≥10°)</h3><dl>' + state.passes.map(p =>
-    `<dt>${esc(p.name)}</dt><dd>${esc(fmtDay(p.start))} · max ${Math.round(p.max)}° · ${dir16(p.riseAz)} → ${p.setAz != null ? dir16(p.setAz) : '…'}</dd>`).join('') + '</dl>');
+  setHtml(el, '<h3>Next station passes (≥10°)</h3><p class="muted small">Tap a pass to see its path across the sky.</p><ul class="pass-list">' + state.passes.map((p, i) => {
+    const on = state.passSel === p.name;
+    return `<li><button type="button" class="pass${on ? ' on' : ''}" data-pass="${i}" aria-pressed="${on}"><b>${esc(p.name)}</b><span>${esc(fmtDay(p.start))} · max ${Math.round(p.max)}° · ${dir16(p.riseAz)} → ${p.setAz != null ? dir16(p.setAz) : '…'}</span></button></li>`;
+  }).join('') + '</ul>');
+}
+// Choose a station pass: its path is drawn on the radar and the card says when and where to look. A station that is
+// above the horizon right now is selected as well, so its own card shows.
+function choosePass(i) {
+  const p = state.passes[i];
+  if (!p) return;
+  if (state.passSel === p.name) { state.passSel = null; if (state.sel === p.id) state.sel = null; }
+  else { state.passSel = p.name; state.sel = state.byId.has(p.id) ? p.id : null; }
+  state.dirty = true; renderPasses(); renderDetail(); renderNearby();
+  if (state.passSel) setPage('radar');
 }
 function riseSet(name) {
   try {
@@ -472,6 +505,18 @@ function routeText(a) {
   const far = d.lat != null ? ` · ${H.lengthText(H.distanceKm(a.lat, a.lon, d.lat, d.lon), state.units)} to go` : '';
   return esc(H.describeAirport(d)) + far + (o ? `<br><small class="muted">from ${esc(H.describeAirport(o))}</small>` : '');
 }
+// The card for a station pass that has not started yet (or is below the horizon right now).
+function passCard(p) {
+  const H = window.FarGemsLogic, kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
+  const wiki = H.wikiUrl(H.wikiTitle({ kind: 'sat', name: p.satName }));
+  const mins = p.end ? Math.max(1, Math.round((p.end - p.start) / 60000)) : null;
+  const rows = kv('Rises', `${esc(H.untilText(p.start - Date.now()))} · ${esc(fmtDay(p.start))}, in the ${dir16(p.riseAz)}`)
+    + kv('Highest', `${Math.round(p.max)}° up in the ${dir16(p.maxAz != null ? p.maxAz : p.riseAz)}`)
+    + kv('Sets', p.setAz != null ? `in the ${dir16(p.setAz)}` : null)
+    + kv('Above 10° for', mins ? mins + ' min' : null)
+    + kv('More', wiki ? `<a href="${wiki}" target="_blank" rel="noopener">Wikipedia ↗</a>` : null);
+  return `<h3>${esc(p.name)} <small class="muted">next pass</small></h3><dl>${rows}</dl><p class="muted small">The dashed line on the radar is its path across the sky.</p>`;
+}
 function renderDetail() {
   // The same card shows under the radar and over the camera picture.
   const put = (h) => { setHtml($('#detail'), h); setHtml($('#arDetail'), h); };
@@ -481,6 +526,8 @@ function renderDetail() {
     o = H.sortNearest(state.objs.filter(x => (x.kind === 'air' || x.kind === 'sat') && x.el >= 0))[0];
     nearest = !!o;
   }
+  const ps = state.passSel && state.passes.find((p) => p.name === state.passSel);
+  if (ps && !state.byId.has(ps.id) && (!state.sel || state.sel === ps.id)) { put(passCard(ps)); return; } // the station is not up yet: say when
   if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '';
@@ -866,6 +913,7 @@ function bindUI() {
   };
   $('#nearbyList').onclick = pickRow;
   $('#nearbyList').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickRow(e); } };
+  $('#passes').addEventListener('click', (e) => { const b = e.target.closest('[data-pass]'); if (b) choosePass(Number(b.dataset.pass)); });
   const pager = $('#pager'); let sw = null;
   pager.addEventListener('pointerdown', e => {
     if (e.target.closest('#sky, .zoombar')) return;
@@ -952,6 +1000,6 @@ function start() {
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 }
 // For the browser tests: with ?fgtest=1 in the address the tests can reach the page's state and redraw it.
-if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail };
+if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses };
 start();
 })();

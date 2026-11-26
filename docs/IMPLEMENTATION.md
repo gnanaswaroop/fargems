@@ -520,3 +520,8 @@ From a million km on (the Sun, planets) a distance is shown short in the visitor
 - **Manifest.** `orientation` is `any`; it used to lock the installed app to portrait, which turned a tablet sideways.
 - **Tests.** `e2e/ios/android-tablet.e2e.js` runs an Android tablet profile in Chromium on every pull request.
 
+## 20. Station passes and the key
+
+- **Passes.** The ISS and Tiangong rows under the radar are buttons. Choosing one draws its path across the sky as a dashed line (with a dot where it comes up and a ring where it goes down) and shows a card: when it rises, where, how high it gets, where it sets, how long it stays above 10 degrees, and a Wikipedia link. A station that is above the horizon already is selected on the radar instead, and shows its normal card. Choosing the same pass again clears it.
+- **The key.** A closed `details` block under the details and passes explains the radar: the middle is straight overhead and the edge is the horizon (an object is drawn at a distance from the middle of 90 minus its height in degrees), and every symbol, including the dashed circle with a plus for a meteor shower radiant.
+
