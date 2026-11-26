@@ -1246,7 +1246,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.tap('#gearBtn');
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'Help', 'Install app']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'Help', 'Install app', 'Share FarGems']);
     assert.equal(await page.isVisible('#gearInstall'), true);
     await page.tap('#gearInstall');
     assert.equal(await page.isVisible('#gearList'), false, 'the menu closes');
@@ -1255,7 +1255,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false);
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'Help']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'Help', 'Share FarGems']);
     await page.reload();
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false, 'still gone on the next visit');
