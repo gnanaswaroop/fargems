@@ -519,4 +519,5 @@ From a million km on (the Sun, planets) a distance is shown short in the visitor
 - **Installed.** The browser fires `appinstalled` once; the page writes `fg.installed` so a later visit in a browser tab stops offering the install. `beforeinstallprompt` only fires while the app is not installed, so it clears the note.
 - **Manifest.** `orientation` is `any`; it used to lock the installed app to portrait, which turned a tablet sideways.
 - **Tests.** `e2e/ios/android-tablet.e2e.js` runs an Android tablet profile in Chromium on every pull request.
+- **Compass on a turned screen.** The orientation sensors belong to the device, not to the screen. An Android tablet is naturally sideways, and an installed app can be held in portrait, so `facingHeading` takes `screen.orientation.angle` and follows the top of the screen (the device y axis turned by that angle). iPhone and iPad give a heading of their own and are left alone.
 

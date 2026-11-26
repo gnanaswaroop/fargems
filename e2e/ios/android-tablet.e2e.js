@@ -150,3 +150,44 @@ test('tablet: Settings has no compass card, because there is nothing to allow', 
     assert.equal(await page.isVisible('#geoBtn'), true, 'location is still there');
   } finally { await context.close(); }
 });
+
+// The sensors belong to the device. A tablet's natural position is sideways, and the installed app may be held in portrait,
+// so the top of the screen is not the device's own top. Chrome reports where the screen is turned in screen.orientation.angle.
+async function sensorAt(page, alpha, beta, gamma, times = 40) {
+  for (let i = 0; i < times; i++) {
+    await page.evaluate(([a, b, g]) => { const e = new Event('deviceorientationabsolute'); e.alpha = a; e.beta = b; e.gamma = g; e.absolute = true; window.dispatchEvent(e); }, [alpha, beta, gamma]);
+  }
+}
+
+test('tablet: lying flat, the radar north follows the top of the screen whichever way the screen is turned', { skip }, async () => {
+  const saved = { 'fg.loc': JSON.stringify({ lat: 17.4435, lon: 78.3772 }) };
+  const heading = 100; // the top of the screen points here
+  // Angle 0 (natural position): the device's own top is the top of the screen. Angle 90: the device x axis is. 270: minus x.
+  const cases = [[0, (360 - heading) % 360], [90, (90 - heading + 360) % 360], [270, (270 - heading + 360) % 360], [180, (360 - (heading + 180) % 360) % 360]];
+  for (const [angle, alpha] of cases) {
+    const { page, context } = await tablet({ permission: true, storage: saved });
+    try {
+      await page.addInitScript((angle) => { Object.defineProperty(screen.orientation, 'angle', { get: () => angle, configurable: true }); }, angle);
+      await page.goto(base + '/viewer.html?fgtest=1');
+      await page.evaluate(() => { __fg.state.declination = 0; __fg.state.ori.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; });
+      await sensorAt(page, alpha, 0, 0);
+      const h = await page.evaluate(() => __fg.state.heading);
+      assert.ok(Math.abs(((h - heading + 540) % 360) - 180) < 1, 'screen angle ' + angle + ': the radar faces ' + heading + ' but shows ' + h.toFixed(1));
+    } finally { await context.close(); }
+  }
+});
+
+test('tablet: raising it upright does not move north', { skip }, async () => {
+  const { page, context } = await tablet({ permission: true, storage: { 'fg.loc': JSON.stringify({ lat: 17.4435, lon: 78.3772 }) } });
+  try {
+    await page.addInitScript(() => { Object.defineProperty(screen.orientation, 'angle', { get: () => 90, configurable: true }); });
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { __fg.state.declination = 0; __fg.state.ori.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; });
+    const heading = 250, alpha = (90 - heading + 360) % 360;
+    for (const tilt of [0, 20, 45, 70, 90]) {
+      await sensorAt(page, alpha, 0, -tilt, 40);
+      const h = await page.evaluate(() => __fg.state.heading);
+      assert.ok(Math.abs(((h - heading + 540) % 360) - 180) < 1.5, 'tilt ' + tilt + ': ' + h.toFixed(1));
+    }
+  } finally { await context.close(); }
+});
