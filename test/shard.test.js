@@ -64,7 +64,7 @@ test('the browser test files use the sharding loader, and CI runs four shards wi
   assert.deepEqual([chr[0].file, chr[0].i, chr[0].n], ['e2e/ios/android-tablet.e2e.js', 1, 1]);
   assert.match(wf, /FG_SHARD: \$\{\{ matrix\.shard \}\}/);
   assert.match(wf, /npx playwright install --with-deps \$\{\{ matrix\.browser \}\}/, 'each job installs only its own browser');
-  assert.match(wf, /uses: actions\/cache@[0-9a-f]{40} # v4\n\s+with:\n\s+path: ~\/\.cache\/ms-playwright\n\s+key: playwright-\$\{\{ matrix\.browser \}\}-\$\{\{ hashFiles\('e2e\/ios\/package-lock\.json'\) \}\}/, 'the browsers are kept between runs');
+  assert.match(wf, /uses: actions\/cache@[0-9a-f]{40} # v\d+\.\d+\.\d+\n\s+with:\n\s+path: ~\/\.cache\/ms-playwright\n\s+key: playwright-\$\{\{ matrix\.browser \}\}-\$\{\{ hashFiles\('e2e\/ios\/package-lock\.json'\) \}\}/, 'the browsers are kept between runs');
   assert.match(wf, /run: node --test --test-reporter=spec \$\{\{ matrix\.file \}\}/);
   assert.match(wf, /\n  safari:\n    name: safari\n    needs: shard\n    if: \$\{\{ always\(\) \}\}/, 'one job called safari that waits for every shard');
   assert.match(wf, /test "\$\{\{ needs\.shard\.result \}\}" = "success"/, 'and fails unless all of them passed');

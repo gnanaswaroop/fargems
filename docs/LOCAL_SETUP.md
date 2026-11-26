@@ -9,7 +9,7 @@ FarGems has no build step and no packages to install. The site is plain files, a
 
 | Need | Why | Notes |
 |---|---|---|
-| Node.js 18 or newer (22 recommended) | tests, local proxy, HTTPS server | CI uses 22 |
+| Node.js 18 or newer (24 recommended) | tests, local proxy, HTTPS server | CI uses 24 |
 | Git | clone and branches | |
 | A way to serve files | the browser needs `http://localhost`, not `file://` | `npm run serve` (uses Python), or any static server |
 | `openssl` on your PATH | only for testing on a real phone over Wi-Fi | |

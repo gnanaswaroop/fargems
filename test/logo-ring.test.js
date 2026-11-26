@@ -32,21 +32,33 @@ test('the artwork fits inside the ring with room to spare', () => {
   assert.ok(Math.max(...far) + 3 < 146 - 2, 'nothing touches the ring: ' + Math.max(...far).toFixed(1) + ' against 146');
 });
 
-test('all four app icons have the ring, made by a script that also shrinks them', () => {
+test('all four app icons are drawn from icon.svg at their own size, with a ring that is thick enough to stay sharp', () => {
+  const M = require('../scripts/make-icons.js');
   const s = read('scripts/make-icons.js');
-  assert.match(s, /const RING = 10;/);
-  assert.match(s, /x\.strokeStyle = '#ffffff'; x\.lineWidth = RING;/, 'the round icons: the old edge is repainted and a ring drawn');
-  assert.match(s, /const SAFE_RADIUS = 0\.385;/, 'the full-bleed icons: the ring sits inside the part no mask cuts');
-  assert.match(s, /const FULL_RING = 0\.022;/);
-  // Thick enough to stay a clean line when the phone shrinks the icon (the old ring was a hairline and came out blurry),
-  // and its outer edge inside the 40% radius of a round mask.
-  assert.ok(0.385 + 0.022 / 2 <= 0.4, 'the ring is not cut by a round mask');
-  assert.ok(0.022 * 144 >= 3, 'about three pixels or more at a 144 px home-screen icon');
-  for (const f of ['icon-512.png', 'icon-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png']) assert.ok(s.includes(f), f);
-  assert.match(s, /shrink-png\.py/, 'and the PNGs are shrunk');
-  assert.match(read('scripts/shrink-png.py'), /quantize\(colors=256/);
-  assert.match(read('scripts/shrink-png.py'), /dither=Image\.Dither\.NONE/, 'no dithering on the ring edge');
-  // Together the four icons are what the service worker downloads when it installs: a canvas export came to 600 KB.
-  const total = ['icon-512.png', 'icon-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png'].reduce((n, f) => n + fs.statSync(path.join(__dirname, '..', f)).size, 0);
-  assert.ok(total < 80 * 1024, 'the four icons are ' + Math.round(total / 1024) + ' KB');
+  // Drawn, not resized: every icon is a screenshot of a page the size of the icon, and no palette squeeze is applied afterwards.
+  assert.match(s, /viewport: \{ width: size, height: size \}, deviceScaleFactor: 1/);
+  assert.doesNotMatch(s, /drawImage|imageSmoothing|shrink-png/, 'no picture is scaled');
+  assert.equal(fs.existsSync(path.join(__dirname, '..', 'scripts', 'shrink-png.py')), false);
+  assert.deepEqual(M.ICONS.map((i) => [i.file, i.size, i.round]), [['icon-512.png', 512, true], ['icon-192.png', 192, true], ['icon-maskable-512.png', 512, false], ['apple-touch-icon.png', 180, false]]);
+  for (const { file, size } of M.ICONS) {
+    const png = fs.readFileSync(path.join(__dirname, '..', file));
+    assert.equal(png.readUInt32BE(16), size, file + ' is ' + size + ' px wide');
+    assert.equal(png.readUInt32BE(20), size, file + ' is ' + size + ' px high');
+    assert.notEqual(png[25], 3, file + ' is not a palette image');
+  }
+  // The ring: at least 3 px thick at a 144 px home-screen icon, and on the full-bleed icons its outer edge stays inside the 40% radius a round mask leaves.
+  assert.ok(M.FULL_RING * 144 >= 3 && M.ROUND_RING * 144 >= 2.5);
+  assert.ok(M.SAFE_RADIUS + M.FULL_RING / 2 <= 0.4, 'the ring is not cut by a round mask');
+  // The geometry in the SVG it draws: the ring is centred where the numbers say, and the artwork inside is smaller than the ring.
+  const round = M.iconSvg('<g id="art"/>', 512, true), full = M.iconSvg('<g id="art"/>', 512, false);
+  assert.match(round, /<circle cx="256" cy="256" r="250\.88" fill="none" stroke="#ffffff" stroke-width="10\.24"/, 'the ring touches the edge of the round icon');
+  assert.match(full, new RegExp('<circle cx="256" cy="256" r="' + (512 * M.SAFE_RADIUS) + '" fill="none" stroke="#ffffff"'));
+  for (const svg of [round, full]) { const k = +svg.match(/scale\(([\d.]+)\)/)[1]; assert.ok(k * M.ART_RADIUS < 250, 'the artwork is inside the ring'); }
+  // The artwork is taken from icon.svg without its own ring.
+  const art = read('icon.svg');
+  assert.match(art, /<circle id="ring"/);
+  assert.ok(s.includes('inner.replace(/<circle id="ring"'), 'the ring of icon.svg is left out of the artwork');
+  // Together the icons are what the service worker downloads when it installs; drawn at full quality they are bigger than the squeezed ones were, but stay modest.
+  const total = M.ICONS.reduce((n, i) => n + fs.statSync(path.join(__dirname, '..', i.file)).size, 0);
+  assert.ok(total < 450 * 1024, 'the four icons are ' + Math.round(total / 1024) + ' KB');
 });

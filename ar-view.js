@@ -64,11 +64,51 @@
       ctx.fillStyle = color || '#fff'; ctx.fillText(text, x, y);
     }
 
+    // The compass points around the horizon. Each one stands on the horizon as a pole with its name on top, so it reads as a
+    // marker in the space around you and not as a letter on the glass. North is red, magnetic north (when it differs from true
+    // north) is a dashed cyan pole, and a point that is out of the picture is shown as an arrow at the edge on its side.
+    function drawCompass(cam, view, W, H, declination) {
+      const TOP = 12; // how many degrees up a pole reaches
+      const away = [];
+      for (const pt of AR.compassPoints(declination)) {
+        const base = AR.projectToScreen({ az: pt.az, el: 0 }, cam, view), top = AR.projectToScreen({ az: pt.az, el: TOP }, cam, view);
+        const col = pt.mag ? '#5ad1e6' : pt.north ? '#ff6b5b' : pt.major ? '#ffd1c9' : 'rgba(255,255,255,.75)';
+        if (base.front && top.front && (base.onScreen || top.onScreen)) {
+          ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = pt.major ? 2 : 1.25; ctx.lineCap = 'round';
+          if (pt.mag) ctx.setLineDash([5, 4]);
+          ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
+          ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(top.x, top.y); ctx.stroke(); ctx.restore();
+          const size = pt.north ? 20 : pt.major ? 16 : 12;
+          ctx.save(); ctx.font = '700 ' + size + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.strokeText(pt.name, top.x, top.y - 3);
+          ctx.fillStyle = col; ctx.fillText(pt.name, top.x, top.y - 3); ctx.restore();
+        } else if (pt.major && !pt.mag) {
+          // Out of the picture: which side is it on? Turning toward it by the shorter way (a point behind you counts as the side it is nearer to).
+          const rel = ((pt.az - cam.heading + 540) % 360) - 180;
+          away.push({ pt, col, rel });
+        }
+      }
+      // The arrows sit on the left or right edge at the height of the horizon; two on one edge are stacked, the nearer one first.
+      const horizonY = (side) => { const q = AR.projectToScreen({ az: cam.heading + side * 90, el: 0 }, cam, view); return q.front && Number.isFinite(q.y) ? Math.max(40, Math.min(H - 60, q.y)) : H / 2; };
+      for (const side of [-1, 1]) {
+        const group = away.filter((a) => (a.rel < 0 ? -1 : 1) === side).sort((a, b) => Math.abs(a.rel) - Math.abs(b.rel));
+        group.forEach((a, k) => {
+          const x = side < 0 ? 24 : W - 24, y = Math.min(H - 40, horizonY(side) - 22 + k * 30);
+          ctx.save(); ctx.translate(x, y); ctx.fillStyle = a.col; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2;
+          ctx.save(); if (side > 0) ctx.scale(-1, 1); // the arrow points toward the edge it sits on
+          ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(4, -8); ctx.lineTo(1, 0); ctx.lineTo(4, 8); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore();
+          ctx.font = '700 ' + (a.pt.north ? 18 : 15) + 'px system-ui, sans-serif'; ctx.textAlign = side < 0 ? 'left' : 'right'; ctx.textBaseline = 'middle';
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.strokeText(a.pt.name, side < 0 ? 12 : -12, 0);
+          ctx.fillStyle = a.col; ctx.fillText(a.pt.name, side < 0 ? 12 : -12, 0); ctx.restore();
+        });
+      }
+    }
+
     // A thin cross with a gap in the middle, a dark edge under a light line so it shows on a bright or a dark sky.
     function crosshair(W, H) {
-      const cx = W / 2, cy = H / 2, gap = 6, arm = 18;
+      const cx = W / 2, cy = H / 2, gap = 4, arm = 10;
       ctx.save(); ctx.lineCap = 'round';
-      for (const [w, c] of [[4, 'rgba(0,0,0,.55)'], [1.5, 'rgba(255,255,255,.95)']]) {
+      for (const [w, c] of [[3, 'rgba(0,0,0,.55)'], [1.25, 'rgba(255,255,255,.95)']]) {
         ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath();
         ctx.moveTo(cx - gap - arm, cy); ctx.lineTo(cx - gap, cy); ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + gap + arm, cy);
         ctx.moveTo(cx, cy - gap - arm); ctx.lineTo(cx, cy - gap); ctx.moveTo(cx, cy + gap); ctx.lineTo(cx, cy + gap + arm);
@@ -103,10 +143,7 @@
         if (p.front && Math.abs(p.y) < 4000 && Math.abs(p.x) < 4000) { if (pen) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); pen = true; } else pen = false;
       }
       ctx.stroke();
-      for (const [name, az] of [['N', 0], ['E', 90], ['S', 180], ['W', 270]]) {
-        const p = AR.projectToScreen({ az, el: 0 }, cam, view);
-        if (p.onScreen) { ctx.font = '700 16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = '#ffb4a8'; ctx.fillText(name, p.x, p.y - 4); }
-      }
+      drawCompass(cam, view, W, H, ori.declination);
 
       // The path of the selected object, as a dashed line, with a dot at each whole hour for the Sun, Moon, planets and stars.
       const path = o.getPath && o.getPath();
