@@ -14,9 +14,18 @@ permissions:
   contents: read
 
 jobs:
-  safari:
+  # The browser tests are split into four shards that run at the same time (see e2e/ios/shard.js), so the answer comes back
+  # in the time of the slowest quarter. The job called "safari" at the end is the one result to look at (and to require).
+  shard:
+    name: shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/4', '2/4', '3/4', '4/4']
+    env:
+      FG_SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -29,3 +38,14 @@ jobs:
           npx playwright install --with-deps webkit chromium
       - name: Run the iPhone and iPad Safari tests
         run: node --test --test-reporter=spec e2e/ios/safari.e2e.js e2e/ios/android-tablet.e2e.js
+
+  safari:
+    name: safari
+    needs: shard
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed
+        run: |
+          echo "shards: ${{ needs.shard.result }}"
+          test "${{ needs.shard.result }}" = "success"
