@@ -456,7 +456,7 @@ test('AR: a swipe back closes the camera view and stays on the sky view; the X l
   try {
     await page.goto(base + '/index.html');
     await page.goto(base + '/viewer.html');
-    const open = async () => { await page.tap('#arBtn'); await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 }); };
+    const open = () => openArWithRetry(page); // the same stand-in camera the other AR tests use
     await open();
     await page.goBack(); // what a swipe back does
     await page.waitForFunction(() => document.querySelector('#ar').hidden, null, { timeout: 5000 });
