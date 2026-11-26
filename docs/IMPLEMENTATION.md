@@ -512,3 +512,11 @@ If a CDN sits in front of the site it can keep old copies of the files for hours
 
 From a million km on (the Sun, planets) a distance is shown short in the visitor's units (`149.6 million km`, `93.0 million mi`, `4.5 billion km`). Settings can switch the Sun and planets to astronomical units (`fg.far` = `au`; one AU is the average Earth to Sun distance, 149,597,870.7 km, explained in a tooltip on the detail card) or to light travel time (`light`, for example `8 min 19 s by light`). The detail card for these objects also has a Light takes row. Nearer things (the Moon, satellites, flights) keep the full number.
 
+## 19. Android tablets, permissions and installing
+
+- **One permission.** Only iPhone and iPad ask for the compass (`compassNeedsPermission` also checks the device is an Apple one, because other browsers can have the same function and answer "granted" without asking). Elsewhere the home page asks for the location only, and Settings has no compass card. The camera is never asked for on the home page: only the AR button (or a camera view that was allowed before) uses it.
+- **Opening the sky view.** After the location is allowed the page goes straight in, also when the browser already had the permission (the first visit; later visits find the stored place and stay). If the device cannot work out a position (no GPS, location switched off, timeout) that is not a refusal: the sky view opens with an area guessed from the network. Only a refusal (code 1) asks for coordinates.
+- **Installed.** The browser fires `appinstalled` once; the page writes `fg.installed` so a later visit in a browser tab stops offering the install. `beforeinstallprompt` only fires while the app is not installed, so it clears the note.
+- **Manifest.** `orientation` is `any`; it used to lock the installed app to portrait, which turned a tablet sideways.
+- **Tests.** `e2e/ios/android-tablet.e2e.js` runs an Android tablet profile in Chromium on every pull request.
+
