@@ -143,5 +143,5 @@ test('even the selected object\'s full name is cut to fit across the radar', () 
 });
 
 test('the browser tests can reach the page state only when asked with ?fgtest=1', () => {
-  assert.match(read('app.js'), /if \(\/\[\?&\]fgtest=1\\b\/\.test\(location\.search\)\) window\.__fg = \{ state, draw, renderNearby, renderDetail \};/);
+  assert.match(read('app.js'), /if \(\/\[\?&\]fgtest=1\\b\/\.test\(location\.search\)\) window\.__fg = \{ state, draw, renderNearby, renderDetail, renderPasses \};/);
 });

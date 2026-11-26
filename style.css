@@ -324,3 +324,20 @@ header .menu { margin: 0; }
 .ar-alignbar p { margin: 0 0 8px; }
 .ar-canvas { touch-action: none; }
 body.ar-on .toast { z-index: 70; }
+
+/* Station passes: each one is a button that shows its path on the radar */
+.pass-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.pass { width: 100%; display: grid; gap: 2px; text-align: left; background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; cursor: pointer; }
+.pass span { color: var(--muted); font-size: 13px; }
+.pass.on, .pass:hover, .pass:focus-visible { border-color: var(--accent); outline: none; }
+.pass.on b { color: var(--accent); }
+
+/* The key to the radar symbols */
+.legend summary { cursor: pointer; font-weight: 600; }
+.legend summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.legend p { margin: 8px 0; }
+.legend-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.legend-list li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; }
+.legend-list .sym { display: grid; place-items: center; height: 24px; }
+.legend-list .plane { color: #ffb454; font-size: 20px; }
+body.viewer .side > #legend { flex: none; margin: 0; }

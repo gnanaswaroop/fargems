@@ -741,3 +741,93 @@ test('distances: the Sun and planets are short, can be shown in AU or light time
     assert.equal(await meta('body:Moon'), '238,855 mi');
   } finally { await context.close(); }
 });
+
+// Two station passes, with a path across the sky each (the real ones need the satellite library and element sets).
+const PASSES = `(() => {
+  const { state, renderPasses, renderDetail, renderNearby } = window.__fg;
+  const now = Date.now();
+  const path = (a0, a1) => Array.from({ length: 21 }, (_, i) => ({ az: a0 + (a1 - a0) * i / 20, el: Math.max(0, 70 * Math.sin(Math.PI * i / 20)) }));
+  state.objs = []; state.byId = new Map(); state.sel = null; state.passSel = null;
+  state.passes = [
+    { name: 'ISS', id: 'sat:25544', satName: 'ISS (ZARYA)', start: now + 95 * 60e3, end: now + 101 * 60e3, max: 64, maxAz: 140, riseAz: 300, setAz: 100, path: path(300, 100) },
+    { name: 'Tiangong', id: 'sat:48274', satName: 'CSS (TIANHE)', start: now + 3 * 3600e3, end: now + 3 * 3600e3 + 5 * 60e3, max: 31, maxAz: 20, riseAz: 250, setAz: 60, path: path(250, 60) },
+  ];
+  renderPasses(); renderDetail(); renderNearby(); state.dirty = true;
+})()`;
+const cyanPixels = (page) => page.evaluate(() => {
+  const cv = document.querySelector('#sky'), c = cv.getContext('2d'), d = c.getImageData(0, 0, cv.width, cv.height).data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] < 130 && d[i + 1] > 180 && d[i + 2] > 200) n++;
+  return n;
+});
+
+test('passes: the ISS and Tiangong are buttons, and choosing one shows its path on the radar and says when to look', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { __fg.state.filters.radar = false; __fg.state.filters.grid = false; __fg.state.filters.labels = false; });
+    await page.evaluate(PASSES);
+    const buttons = await page.$$eval('#passes button.pass', (bs) => bs.map((b) => b.querySelector('b').textContent));
+    assert.deepEqual(buttons, ['ISS', 'Tiangong'], 'both stations can be tapped');
+    assert.equal(await page.getAttribute('#passes button.pass', 'aria-pressed'), 'false');
+    const before = await cyanPixels(page);
+    await page.click('#passes button.pass[data-pass="0"]');
+    assert.equal(await page.evaluate(() => __fg.state.passSel), 'ISS');
+    assert.equal(await page.getAttribute('#passes button.pass[data-pass="0"]', 'aria-pressed'), 'true');
+    const card = await page.textContent('#detail');
+    assert.match(card, /ISS\s*next pass/);
+    assert.match(card, /Rises\s*in 1 h 3[5-6] min|Rises\s*in 1 h 3\d min/, 'when it rises: ' + card);
+    assert.match(card, /in the WNW|in the NW/, 'where it rises');
+    assert.match(card, /Highest\s*64° up in the SE/);
+    assert.match(card, /Sets\s*in the E/);
+    assert.match(card, /Above 10° for\s*6 min/);
+    assert.equal(await page.getAttribute('#detail a', 'href'), 'https://en.wikipedia.org/wiki/International_Space_Station');
+    await sleep(250);
+    assert.ok((await cyanPixels(page)) > before + 40, 'the dashed path is on the radar (' + before + ' → ' + (await cyanPixels(page)) + ')');
+    // Another pass replaces it; tapping the same one again clears it.
+    await page.click('#passes button.pass[data-pass="1"]');
+    assert.match(await page.textContent('#detail'), /Tiangong\s*next pass/);
+    assert.equal(await page.getAttribute('#detail a', 'href'), 'https://en.wikipedia.org/wiki/Tiangong_space_station');
+    await page.click('#passes button.pass[data-pass="1"]');
+    assert.equal(await page.evaluate(() => __fg.state.passSel), null);
+    await sleep(250); // the radar redraws on the next frame
+    assert.ok((await cyanPixels(page)) <= before + 5, 'the path is gone');
+    assert.doesNotMatch(await page.textContent('#detail'), /next pass/);
+  } finally { await context.close(); }
+});
+
+test('passes: a station that is above the horizon now is selected, and shows its own card', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(PASSES);
+    await page.evaluate(() => {
+      const { state, renderDetail } = window.__fg;
+      const o = { id: 'sat:25544', kind: 'sat', name: 'ISS (ZARYA)', norad: 25544, az: 120, el: 40, range: 500, distKm: 500, altKm: 420, speed: 7.6, sunlit: true, visible: true };
+      state.objs = [o]; state.byId = new Map([[o.id, o]]); renderDetail();
+    });
+    await page.click('#passes button.pass[data-pass="0"]');
+    assert.equal(await page.evaluate(() => __fg.state.sel), 'sat:25544');
+    const card = await page.textContent('#detail');
+    assert.match(card, /ISS \(ZARYA\)/);
+    assert.doesNotMatch(card, /next pass/, 'it is up, so the normal card shows');
+  } finally { await context.close(); }
+});
+
+test('legend: a closed key explains every symbol, including the meteor shower plus', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html');
+    assert.equal(await page.isVisible('#legend .legend-list'), false, 'closed until asked');
+    assert.equal((await page.textContent('#legend summary')).trim(), 'What do the symbols mean?');
+    await page.click('#legend summary');
+    assert.equal(await page.isVisible('#legend .legend-list'), true);
+    const text = await page.innerText('#legend');
+    for (const word of [/straight above you/, /edge is the horizon/, /Aircraft/, /Satellite/, /space station/, /The Sun/, /The Moon/, /planet/, /bright star/, /Leonids/, /radiant/, /object you picked/, /dashed line/]) assert.match(text, word);
+    assert.equal((await page.$$('#legend .legend-list li')).length, 10);
+    assert.equal(await page.$$eval('#legend svg, #legend .sym', (els) => els.every((e) => e.getAttribute('aria-hidden') === 'true' || e.closest('[aria-hidden="true"]'))), true, 'the pictures are hidden from screen readers, the words carry the meaning');
+  } finally { await context.close(); }
+});

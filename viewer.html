@@ -64,6 +64,22 @@
     <div class="side">
       <div id="detail" class="card detail" aria-live="polite"></div>
       <div id="passes" class="card" hidden></div>
+      <details id="legend" class="card legend">
+        <summary>What do the symbols mean?</summary>
+        <p class="small">The middle of the radar is straight above you and the edge is the horizon, so a high object sits near the middle and a low one near the edge. The rings mark 30° and 60° above the horizon. North is the red N.</p>
+        <ul class="legend-list">
+          <li><span class="sym plane" aria-hidden="true">&#x2708;&#xFE0E;</span><span>Aircraft. The nose points the way it is flying.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22"><path d="M0 -5L5 0 0 5 -5 0Z" fill="#5ad1e6"/></svg></span><span>Satellite. Blue means sunlit, grey means in the Earth's shadow, and a bright white one can be seen with the eye.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22"><path d="M0 -9L9 0 0 9 -9 0Z" fill="#5ad1e6"/></svg></span><span>A larger diamond with a name: a space station, the ISS or Tiangong.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22" aria-hidden="true"><circle r="8" fill="#ffd86b"/></svg></span><span>The Sun.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22" aria-hidden="true"><circle r="8" fill="#e9edf5"/></svg></span><span>The Moon.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22" aria-hidden="true"><circle r="5" fill="#c9b8a6"/></svg></span><span>A planet. A bigger dot is a brighter planet.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22" aria-hidden="true"><circle r="2" fill="#aab6cc"/></svg></span><span>A bright star.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22"><circle r="9" fill="none" stroke="#d58cff" stroke-width="1.3" stroke-dasharray="3 3"/><path d="M-5 0H5M0 -5V5" stroke="#d58cff" stroke-width="1.3"/></svg></span><span>A meteor shower, such as the Leonids. The plus is the radiant: the point in the sky that the shooting stars seem to come from. Look at the whole sky, not only at the plus, because the trails appear everywhere.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22"><circle r="9" fill="none" stroke="#fff" stroke-width="1.5"/></svg></span><span>A white ring: the object you picked.</span></li>
+          <li><span class="sym" aria-hidden="true"><svg viewBox="-12 -12 24 24" width="22" height="22"><path d="M-9 0H9" stroke="#5ad1e6" stroke-width="2" stroke-dasharray="4 3"/></svg></span><span>A dashed line: the path of a space station pass you chose in the list.</span></li>
+        </ul>
+      </details>
     </div>
     </div>
     <div class="page" id="pageNearby" role="tabpanel" aria-labelledby="tabNearby">
