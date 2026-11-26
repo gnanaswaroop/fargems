@@ -23,7 +23,7 @@ test('Pages deploy runs only on main (or manually), with read-only defaults', ()
   const pages = read('.github/workflows/pages.yml');
   assert.match(pages, /push:\n    branches: \[main\]/);
   assert.match(pages, /workflow_dispatch:/);
-  assert.match(pages, /contents: read\n  pages: write\n  id-token: write/);
+  assert.match(pages, /^permissions:\n  contents: read\n/m);
 });
 
 test('Pages deploy waits for tests, then build, then deploy', () => {
@@ -31,8 +31,8 @@ test('Pages deploy waits for tests, then build, then deploy', () => {
   assert.match(pages, /build:\n    needs: test/);
   assert.match(pages, /deploy:\n    needs: build/);
   assert.match(pages, /run: npm test/);
-  assert.match(pages, /actions\/upload-pages-artifact@v3/);
-  assert.match(pages, /actions\/deploy-pages@v4/);
+  assert.match(pages, /actions\/upload-pages-artifact@[0-9a-f]{40}/);
+  assert.match(pages, /actions\/deploy-pages@[0-9a-f]{40}/);
   assert.match(pages, /url: \$\{\{ steps\.deployment\.outputs\.page_url \}\}/);
 });
 
