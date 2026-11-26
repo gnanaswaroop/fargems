@@ -691,21 +691,38 @@ function screenAngle() {
   } catch { /* no screen orientation */ }
   return 0;
 }
+// iPhone and iPad give the heading of the top of the device, whichever way the screen is turned, so a screen turned sideways
+// needs the same correction (window.orientation is 0, 90, 180 or -90 there).
+function appleTurn() {
+  try { if (typeof window.orientation === 'number') return (window.orientation + 360) % 360; } catch { /* nothing */ }
+  return screenAngle();
+}
+// When the screen is turned between portrait and landscape the heading should jump to the new reading at once, not drift
+// there over a second: for a short time after a turn it follows the sensor without smoothing.
+function noteTurn() {
+  state.snapUntil = Date.now() + 600;
+  if (arView && arView.resetHeading) arView.resetHeading();
+}
+function watchTurns() {
+  try { if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', noteTurn); } catch { /* optional */ }
+  window.addEventListener('orientationchange', noteTurn);
+  let landscape = window.innerWidth > window.innerHeight;
+  window.addEventListener('resize', () => { const now = window.innerWidth > window.innerHeight; if (now !== landscape) { landscape = now; noteTurn(); } });
+}
 function onOri(e) {
   const ori = state.ori; // raw angles for the AR view
   const abs = e.absolute === true || e.type === 'deviceorientationabsolute';
   // Tilt from the same sensor as the heading when there is one: two sensors reporting at different moments blur the pose.
   if (typeof e.beta === 'number' && (abs || !ori.absolute)) { ori.beta = e.beta; ori.gamma = e.gamma || 0; }
-  if (typeof e.webkitCompassHeading === 'number') ori.compassHeading = e.webkitCompassHeading;
+  if (typeof e.webkitCompassHeading === 'number') ori.compassHeading = window.FarGemsLogic.norm360(e.webkitCompassHeading + appleTurn());
   if (abs && e.alpha != null) { ori.alpha = e.alpha; ori.absolute = true; }
   let h = null;
-  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
+  if (typeof e.webkitCompassHeading === 'number') h = window.FarGemsLogic.norm360(e.webkitCompassHeading + appleTurn());
   else if (abs && e.alpha != null) h = window.FarGemsAR.facingHeading(e.alpha, e.beta, e.gamma, screenAngle()); // where the phone faces at any tilt, and the top of the screen when the screen is turned
   if (h == null) return;
   if (state.compassPending && !state.compass) { state.compass = true; state.compassPending = false; state.dirty = true; } // a real reading: the sensor exists
   h = window.FarGemsDeclination.trueHeading(h, state.declination + state.arOffset.h); // the sky is laid out from true north, the compass reads magnetic; the offset is the visitor's own correction
-  let d = norm360(h - state.heading + 180) - 180;
-  state.heading = norm360(state.heading + d * 0.25); state.dirty = true;
+  state.heading = window.FarGemsAR.followHeading(state.heading, h, Date.now() < (state.snapUntil || 0)); state.dirty = true;
   showFacing();
 }
 // The way the top of the phone faces, in true-north degrees, so the compass can be checked against a known direction.
@@ -941,6 +958,7 @@ function bindUI() {
     else if (dir === 'right') setPage('radar');
   });
   window.addEventListener('resize', () => { state.dirty = true; });
+  watchTurns();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshAircraft(); tick(); } });
 }
 

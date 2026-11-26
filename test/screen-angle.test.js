@@ -56,9 +56,9 @@ test('north does not move as a sideways tablet is raised from flat to upright', 
   }
 });
 
-test('the app reads the screen angle from the browser, and leaves the iPhone compass alone', () => {
+test('the app reads the screen angle from the browser, and turns the iPhone and iPad heading the same way', () => {
   const app = read('app.js');
   assert.match(app, /function screenAngle\(\) \{[\s\S]*screen\.orientation\.angle[\s\S]*window\.orientation[\s\S]*return 0;/);
   assert.match(app, /facingHeading\(e\.alpha, e\.beta, e\.gamma, screenAngle\(\)\)/);
-  assert.match(app, /if \(typeof e\.webkitCompassHeading === 'number'\) h = e\.webkitCompassHeading;/, 'iPhone and iPad give a heading of their own');
+  assert.match(app, /if \(typeof e\.webkitCompassHeading === 'number'\) h = window\.FarGemsLogic\.norm360\(e\.webkitCompassHeading \+ appleTurn\(\)\);/, 'the heading of the top of the device, turned to the top of the screen');
 });
