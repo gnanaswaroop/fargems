@@ -572,3 +572,5 @@ The logo has a thin white ring: `icon.svg` draws it as an outline (nothing is pa
 
 Share FarGems is in the home page "..." menu, the sky view gear menu and on the Settings page. It sends one short text (about 170 characters, so it fits a WhatsApp message or a tweet with the address): the line the app is known by, "Look up. Know what you are looking at.", then what it does in one breath (it names the planes, the ISS, planets and the Moon above you, live, on a radar or in AR through your camera; free, no sign-up). The address is the site root, taken from where the page is served. `shareApp` in `lib/onboarding.js` uses the phone share sheet when there is one, otherwise it copies the text and the address, and closing the sheet is not an error.
 
+The browser tests now run as six parallel jobs: the Safari (WebKit) tests in five shards and the Android tablet tests (Chromium) in one. Each job installs only its own browser (before, every job installed both, which took 40 to 70 seconds of a 70 to 120 second job) and keeps the downloaded browsers between runs with a cache.
+

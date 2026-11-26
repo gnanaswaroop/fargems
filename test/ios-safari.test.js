@@ -9,9 +9,10 @@ const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 test('the iOS test runs in its own workflow on every pull request, with a pinned test browser package', () => {
   const wf = read('.github/workflows/ios-safari.yml');
   assert.match(wf, /pull_request:/);
-  assert.match(wf, /npx playwright install --with-deps webkit/);
+  assert.match(wf, /npx playwright install --with-deps \$\{\{ matrix\.browser \}\}/);
+  assert.match(wf, /browser: webkit, file: e2e\/ios\/safari\.e2e\.js/, 'the Safari tests run in the WebKit jobs');
   assert.match(wf, /npm ci/);
-  assert.match(wf, /node --test --test-reporter=spec e2e\/ios\/safari\.e2e\.js/);
+  assert.match(wf, /node --test --test-reporter=spec \$\{\{ matrix\.file \}\}/);
   assert.match(wf, /permissions:\s*\n\s*contents: read/);
   const pkg = JSON.parse(read('e2e/ios/package.json'));
   assert.match(pkg.devDependencies.playwright, /^\d+\.\d+\.\d+$/, 'an exact version, so the test browser does not change by itself');

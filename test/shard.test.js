@@ -54,8 +54,18 @@ test('the browser test files use the sharding loader, and CI runs four shards wi
     assert.doesNotMatch(src, /require\('node:test'\)/, f + ' must not bypass the sharding');
   }
   const wf = read('.github/workflows/ios-safari.yml');
-  assert.match(wf, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+shard: \['1\/4', '2\/4', '3\/4', '4\/4'\]/, 'four shards that all finish even if one fails');
+  assert.match(wf, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+include:/, 'shards that all finish even if one fails');
+  const jobs = [...wf.matchAll(/- \{ id: '([^']+)', browser: (\w+), file: ([^,]+), shard: '(\d+)\/(\d+)' \}/g)].map((m) => ({ id: m[1], browser: m[2], file: m[3], i: +m[4], n: +m[5] }));
+  const web = jobs.filter((j) => j.browser === 'webkit'), chr = jobs.filter((j) => j.browser === 'chromium');
+  assert.equal(web.length, 5, 'five Safari shards');
+  assert.deepEqual(web.map((j) => j.i), [1, 2, 3, 4, 5]);
+  assert.ok(web.every((j) => j.n === 5 && j.file === 'e2e/ios/safari.e2e.js'), 'each takes a fifth of the Safari tests');
+  assert.equal(chr.length, 1, 'one job for the Android tablet tests');
+  assert.deepEqual([chr[0].file, chr[0].i, chr[0].n], ['e2e/ios/android-tablet.e2e.js', 1, 1]);
   assert.match(wf, /FG_SHARD: \$\{\{ matrix\.shard \}\}/);
+  assert.match(wf, /npx playwright install --with-deps \$\{\{ matrix\.browser \}\}/, 'each job installs only its own browser');
+  assert.match(wf, /uses: actions\/cache@[0-9a-f]{40} # v4\n\s+with:\n\s+path: ~\/\.cache\/ms-playwright\n\s+key: playwright-\$\{\{ matrix\.browser \}\}-\$\{\{ hashFiles\('e2e\/ios\/package-lock\.json'\) \}\}/, 'the browsers are kept between runs');
+  assert.match(wf, /run: node --test --test-reporter=spec \$\{\{ matrix\.file \}\}/);
   assert.match(wf, /\n  safari:\n    name: safari\n    needs: shard\n    if: \$\{\{ always\(\) \}\}/, 'one job called safari that waits for every shard');
   assert.match(wf, /test "\$\{\{ needs\.shard\.result \}\}" = "success"/, 'and fails unless all of them passed');
 });

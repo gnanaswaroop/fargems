@@ -14,16 +14,24 @@ permissions:
   contents: read
 
 jobs:
-  # The browser tests are split into four shards that run at the same time (see e2e/ios/shard.js), so the answer comes back
-  # in the time of the slowest quarter. The job called "safari" at the end is the one result to look at (and to require).
+  # The browser tests run as parallel jobs (see e2e/ios/shard.js), so the answer comes back in the time of the slowest one:
+  # the Safari (WebKit) tests in five shards, and the Android tablet tests (Chromium) in a job of their own. Each job installs
+  # only the browser it uses, and keeps the downloaded browsers between runs. The job called "safari" at the end is the one
+  # result to look at (and to require).
   shard:
-    name: shard ${{ matrix.shard }}
+    name: shard ${{ matrix.id }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: ['1/4', '2/4', '3/4', '4/4']
+        include:
+          - { id: 'webkit 1/5', browser: webkit, file: e2e/ios/safari.e2e.js, shard: '1/5' }
+          - { id: 'webkit 2/5', browser: webkit, file: e2e/ios/safari.e2e.js, shard: '2/5' }
+          - { id: 'webkit 3/5', browser: webkit, file: e2e/ios/safari.e2e.js, shard: '3/5' }
+          - { id: 'webkit 4/5', browser: webkit, file: e2e/ios/safari.e2e.js, shard: '4/5' }
+          - { id: 'webkit 5/5', browser: webkit, file: e2e/ios/safari.e2e.js, shard: '5/5' }
+          - { id: 'chromium tablet', browser: chromium, file: e2e/ios/android-tablet.e2e.js, shard: '1/1' }
     env:
       FG_SHARD: ${{ matrix.shard }}
     steps:
@@ -31,13 +39,18 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - name: Keep the downloaded browser between runs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ matrix.browser }}-${{ hashFiles('e2e/ios/package-lock.json') }}
       - name: Install the test browser
         working-directory: e2e/ios
         run: |
           npm ci
-          npx playwright install --with-deps webkit chromium
-      - name: Run the iPhone and iPad Safari tests
-        run: node --test --test-reporter=spec e2e/ios/safari.e2e.js e2e/ios/android-tablet.e2e.js
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run the browser tests
+        run: node --test --test-reporter=spec ${{ matrix.file }}
 
   safari:
     name: safari
