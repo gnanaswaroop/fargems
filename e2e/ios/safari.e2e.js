@@ -451,6 +451,25 @@ test('AR on an iPhone: the AR button asks for motion inside the tap, opens the c
   } finally { await context.close(); }
 });
 
+test('AR: a swipe back closes the camera view and stays on the sky view; the X leaves no extra step behind', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/index.html');
+    await page.goto(base + '/viewer.html');
+    const open = async () => { await page.tap('#arBtn'); await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 }); };
+    await open();
+    await page.goBack(); // what a swipe back does
+    await page.waitForFunction(() => document.querySelector('#ar').hidden, null, { timeout: 5000 });
+    assert.match(page.url(), /viewer.html/, 'still on the sky view, not the home page');
+    assert.equal(await page.evaluate(() => !!document.querySelector('#pager')), true);
+    await open();
+    await page.tap('#arClose');
+    await page.waitForFunction(() => history.state === null || !history.state.fgAr, null, { timeout: 5000 });
+    await page.goBack();
+    await page.waitForURL(/index.html/, { timeout: 5000 });
+  } finally { await context.close(); }
+});
+
 test('AR on an iPhone: refusing motion access is explained and remembered', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED, answer: 'denied' });
   try {

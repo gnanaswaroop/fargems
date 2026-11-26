@@ -93,7 +93,7 @@ test('AR button held low: the view the visitor opened is not closed again by the
   const app = read('app.js');
   assert.match(app, /async function openAR\(source = 'manual'\)/);
   assert.match(app, /arState\.openedBy = source;/);
-  assert.match(app, /if \(r\.action === 'close'\) \{ arView\.close\(\); arState\.openedBy = null; \}/);
+  assert.match(app, /if \(r\.action === 'close'\) \{ arView\.close\(\); arState\.openedBy = null; dropArEntry\(\); \}/);
 });
 
 test('compass: starts by itself where no permission is needed, and waits for a real reading so a computer keeps drag-to-rotate', () => {
