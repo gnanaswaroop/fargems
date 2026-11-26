@@ -43,11 +43,11 @@ test('shareApp uses the share sheet, else copies text and address, and tells a c
   assert.equal(await O.shareApp(), 'failed');
 });
 
-test('Share FarGems is in the home menu, the sky view gear menu and the Settings page', () => {
-  assert.match(read('index.html'), /<li><button id="menuShare" class="menu-item" type="button">Share FarGems<\/button><\/li>/);
-  assert.match(read('viewer.html'), /<li><button id="gearShare" class="menu-item" type="button">Share FarGems<\/button><\/li>/);
+test('Tell a friend is in the home menu, the sky view gear menu and the Settings page', () => {
+  assert.match(read('index.html'), /<li><button id="menuShare" class="menu-item" type="button">Tell a friend<\/button><\/li>/);
+  assert.match(read('viewer.html'), /<li><button id="gearShare" class="menu-item" type="button">Tell a friend<\/button><\/li>/);
   const s = read('settings.html');
-  assert.match(s, /<section class="card" aria-labelledby="shareTitle">\s*<h2 id="shareTitle">Share FarGems<\/h2>[\s\S]*?<button id="shareApp" class="btn wide" type="button">Share FarGems<\/button>/);
+  assert.match(s, /<section class="card" aria-labelledby="shareTitle">\s*<h2 id="shareTitle">Pass it on<\/h2>[\s\S]*?<button id="shareApp" class="btn wide" type="button">Tell a friend<\/button>/);
   assert.match(read('index.html'), /<div id="toast" class="toast" role="status" hidden><\/div>/, 'the home page can say it copied');
   for (const [f, id] of [['landing.js', 'menuShare'], ['app.js', 'gearShare'], ['settings.js', 'shareApp']]) assert.match(read(f), new RegExp("\\$\\('#" + id + "'\\)\\.addEventListener\\('click', async \\(\\) => \\{[\\s\\S]*?O\\.shareApp\\(\\{ navigator, location \\}\\)"), f);
   assert.match(read('settings.html'), /<script defer src="lib\/onboarding\.js">/, 'Settings loads the sharing code');

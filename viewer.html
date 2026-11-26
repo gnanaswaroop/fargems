@@ -27,15 +27,15 @@
       <li><a href="settings.html">Settings</a></li>
       <li><a href="about.html#faq">Help</a></li>
       <li><button id="gearInstall" class="menu-item" type="button">Install app</button></li>
-      <li><button id="gearShare" class="menu-item" type="button">Share FarGems</button></li>
+      <li><button id="gearShare" class="menu-item" type="button">Tell a friend</button></li>
     </ul>
   </nav>
 </header>
 
 <main>
   <nav class="tabs" role="tablist" aria-label="Views">
-    <button id="tabRadar" class="tab on" type="button" role="tab" aria-selected="true" aria-controls="pageRadar" tabindex="0">Radar</button>
-    <button id="tabNearby" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pageNearby" tabindex="-1">Nearby</button>
+    <button id="tabRadar" class="tab on" type="button" role="tab" aria-selected="true" aria-controls="pageRadar" tabindex="0"><svg class="tab-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 12L19 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Radar</span></button>
+    <button id="tabNearby" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pageNearby" tabindex="-1"><svg class="tab-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4.5" cy="6.5" r="1.4" fill="currentColor"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.5" cy="17.5" r="1.4" fill="currentColor"/></svg><span>Nearby</span><span id="nearbyCount" class="count" hidden></span></button>
   </nav>
   <div class="pager-view">
   <div id="pager" class="pager">

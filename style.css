@@ -135,9 +135,15 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .zoombar .btn { padding: 8px 14px; font-size: 14px; background: var(--card); }
 
 /* ---------- radar and nearby pages ---------- */
-.tabs { display: flex; gap: 8px; margin: 8px 0; }
-.tab { flex: 1; padding: 8px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
-.tab.on { color: var(--text); background: var(--card); border-color: var(--accent); }
+/* The two views, as one segmented control: the chosen one is filled, each has an icon, and Nearby says how many things it lists */
+.tabs { display: flex; gap: 4px; margin: 10px 0; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; transition: background .15s, color .15s; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--accent); background: rgba(90, 209, 230, .16); box-shadow: inset 0 0 0 1px rgba(90, 209, 230, .55); }
+.tab .count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, .1); color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.tab.on .count { background: rgba(90, 209, 230, .28); }
+.tab .count[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .tab { transition: none; } }
 .pager { display: flex; width: 200%; transition: transform .25s ease; touch-action: pan-y; }
 .pager.nearby { transform: translateX(-50%); }
 .page { width: 50%; flex: none; min-width: 0; }

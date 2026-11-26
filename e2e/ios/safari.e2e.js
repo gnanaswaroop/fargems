@@ -1246,7 +1246,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.tap('#gearBtn');
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'Help', 'Install app', 'Share FarGems']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'Help', 'Install app', 'Tell a friend']);
     assert.equal(await page.isVisible('#gearInstall'), true);
     await page.tap('#gearInstall');
     assert.equal(await page.isVisible('#gearList'), false, 'the menu closes');
@@ -1255,7 +1255,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false);
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'Help', 'Share FarGems']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'Help', 'Tell a friend']);
     await page.reload();
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false, 'still gone on the next visit');
@@ -1372,7 +1372,7 @@ test('share the app: from the gear menu in the sky view', { skip }, async () => 
     await page.goto(base + '/viewer.html?fgtest=1');
     await copyOnly(page);
     await page.tap('#gearBtn');
-    assert.equal((await page.textContent('#gearShare')).trim(), 'Share FarGems');
+    assert.equal((await page.textContent('#gearShare')).trim(), 'Tell a friend');
     await page.tap('#gearShare');
     await page.waitForFunction(() => window.__copied.length === 1);
     assert.match(await page.evaluate(() => window.__copied[0]), SHARE_RE);
@@ -1394,7 +1394,8 @@ test('share the app: from the ... menu on the home page, and from the Settings p
     await page.waitForFunction(() => !document.querySelector('#toast').hidden && /Copied/.test(document.querySelector('#toast').textContent));
     await page.goto(base + '/settings.html');
     await copyOnly(page);
-    assert.equal((await page.textContent('#shareTitle')).trim(), 'Share FarGems');
+    assert.equal((await page.textContent('#shareTitle')).trim(), 'Pass it on');
+    assert.equal((await page.textContent('#shareApp')).trim(), 'Tell a friend');
     await page.tap('#shareApp');
     await page.waitForFunction(() => window.__copied.length === 1);
     assert.match(await page.evaluate(() => window.__copied[0]), SHARE_RE, 'the same text from every place');
@@ -1419,5 +1420,37 @@ test('share the app: the phone share sheet gets the title, the text and the addr
     await page.waitForFunction(() => window.__shared.length === 2);
     await page.waitForTimeout(200);
     assert.equal((await page.textContent('#settingsMsg')).trim(), '', 'closing the sheet is not an error');
+  } finally { await context.close(); }
+});
+
+test('tabs: a segmented control with icons, the chosen tab filled, and a count on Nearby that follows the list', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { const { state, renderNearby } = window.__fg; state.objs = []; state.byId = new Map(); renderNearby(); });
+    assert.equal(await page.isVisible('#nearbyCount'), false, 'no count while nothing is listed');
+    await page.evaluate(FAKE_SKY);
+    assert.equal((await page.textContent('#nearbyCount')).trim(), '4', 'one for each thing in the list');
+    const look = () => page.$$eval('.tab', (tabs) => tabs.map((t) => { const cs = getComputedStyle(t); return { on: t.classList.contains('on'), color: cs.color, bg: cs.backgroundColor, h: t.getBoundingClientRect().height, icon: !!t.querySelector('svg[aria-hidden="true"]') }; }));
+    let [radar, nearby] = await look();
+    assert.ok(radar.on && !nearby.on);
+    assert.ok(radar.icon && nearby.icon, 'an icon on each');
+    assert.notEqual(radar.bg, nearby.bg, 'the chosen tab is filled');
+    assert.notEqual(radar.color, nearby.color, 'and has its own colour');
+    assert.ok(radar.h >= 40 && nearby.h >= 40, 'a comfortable target: ' + radar.h);
+    // Switching moves the fill, and the count stays right.
+    await page.click('#tabNearby');
+    [radar, nearby] = await look();
+    assert.ok(nearby.on && !radar.on);
+    assert.notEqual(radar.bg, nearby.bg);
+    assert.equal((await page.textContent('#nearbyCount')).trim(), '4');
+    // The accessible name of the tab still starts with its label, and the icons are not read out.
+    assert.match((await page.textContent('#tabNearby')).replace(/\s+/g, ' ').trim(), /^Nearbys*4$/);
+    assert.equal(await page.getAttribute('#tabNearby', 'aria-selected'), 'true');
+    // Keyboard use still works.
+    await page.focus('#tabNearby');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.getAttribute('#tabRadar', 'aria-selected'), 'true');
   } finally { await context.close(); }
 });
