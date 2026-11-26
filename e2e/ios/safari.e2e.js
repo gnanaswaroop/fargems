@@ -454,19 +454,18 @@ test('AR on an iPhone: the AR button asks for motion inside the tap, opens the c
 test('AR: a swipe back closes the camera view and stays on the sky view; the X leaves no extra step behind', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
-    await page.goto(base + '/index.html');
     await page.goto(base + '/viewer.html');
+    await page.evaluate(() => history.pushState({ page: 'sky' }, '')); // an earlier step to go back to, on the same page
     const open = () => openArWithRetry(page); // the same stand-in camera the other AR tests use
     await open();
+    assert.equal(await page.evaluate(() => history.state && history.state.fgAr), 1, 'the camera view added its own step');
     await page.goBack(); // what a swipe back does
     await page.waitForFunction(() => document.querySelector('#ar').hidden, null, { timeout: 5000 });
-    assert.match(page.url(), /viewer.html/, 'still on the sky view, not the home page');
-    assert.equal(await page.evaluate(() => !!document.querySelector('#pager')), true);
+    assert.match(page.url(), /viewer.html/, 'still on the sky view');
+    assert.equal(await page.evaluate(() => history.state && history.state.page), 'sky', 'back to the step before the camera view');
     await open();
     await page.tap('#arClose');
-    await page.waitForFunction(() => history.state === null || !history.state.fgAr, null, { timeout: 5000 });
-    await page.goBack();
-    await page.waitForURL(/index.html/, { timeout: 5000 });
+    await page.waitForFunction(() => history.state && history.state.page === 'sky', null, { timeout: 5000 });
   } finally { await context.close(); }
 });
 
