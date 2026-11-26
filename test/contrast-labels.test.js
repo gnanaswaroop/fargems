@@ -39,7 +39,7 @@ test('skyLook: by day the lines and numbers are brighter, and the outline of a d
 
 test('the radar draws every name with the outline, and takes its colours from the sky', () => {
   const app = read('app.js');
-  assert.match(app, /const look = window\.FarGemsLogic\.skyLook\(k\);/);
+  assert.match(app, /const look = window\.FarGemsLogic\.skyLook\(0\);/, 'the sky is always dark now');
   assert.match(app, /const haloText = \(text, x, y\) => \{[^}]*strokeText\(text, x, y\); ctx\.fillText\(text, x, y\); \};/);
   assert.match(app, /haloText\(L\.text, pick\.x, pick\.y\)/, 'object names');
   assert.match(app, /haloText\('30°'[\s\S]*haloText\('60°'/, 'ring numbers');

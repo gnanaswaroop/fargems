@@ -285,12 +285,14 @@ function draw() {
   const rot = state.compass ? state.heading : state.rot, sgn = (state.compass || state.flip) ? 1 : -1;
   const P = (az, el) => { const r = (90 - el) / 90 * R, th = (az - rot) * D2R; return { x: cx + sgn * r * Math.sin(th), y: cy - r * Math.cos(th) }; };
 
-  const k = Math.max(0, Math.min(1, ((state.sunAlt ?? -30) + 16) / 22));
-  const look = window.FarGemsLogic.skyLook(k); // text and line colours that read on this sky, dark or light
+  // The sky is always dark, day or night (a light blue sky made the names hard to read), and the horizon circle is an
+  // outline: names and things just below the horizon may sit outside it.
+  const look = window.FarGemsLogic.skyLook(0); // text and line colours for the dark sky
   const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-  g.addColorStop(0, `rgb(${mix([6, 10, 24], [40, 92, 160], k)})`);
-  g.addColorStop(1, `rgb(${mix([14, 22, 44], [120, 170, 215], k)})`);
+  g.addColorStop(0, 'rgb(6,10,24)');
+  g.addColorStop(1, 'rgb(14,22,44)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(130,160,210,.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
   ctx.strokeStyle = look.grid; ctx.lineWidth = 1;
   if (state.filters.grid) for (const el of [0, 30, 60]) { ctx.beginPath(); ctx.arc(cx, cy, (90 - el) / 90 * R, 0, 7); ctx.stroke(); }
   ctx.font = '11px system-ui'; ctx.fillStyle = look.ring; ctx.textAlign = 'left';
@@ -351,15 +353,14 @@ function draw() {
         { x: L.p.x, y: L.p.y - 14, a: 'center' }, { x: L.p.x, y: L.p.y + 22, a: 'center' },
       ];
       const box = (c) => { const x0 = c.a === 'left' ? c.x : (c.a === 'right' ? c.x - w : c.x - w / 2); return { x0, x1: x0 + w, y0: c.y - 10, y1: c.y + 3 }; };
-      // A name stays inside the radar circle and the canvas, and clear of the other names.
-      const inside = (r) => [[r.x0, r.y0], [r.x1, r.y0], [r.x0, r.y1], [r.x1, r.y1]].every(([x, y]) => Math.hypot(x - cx, y - cy) <= R - 1);
+      // A name stays inside the canvas and clear of the other names. It may cross the horizon circle.
       const fits = (r) => r.x0 >= 2 && r.x1 <= W - 2 && r.y0 >= 0 && r.y1 <= W;
-      let pick = spots.find((c) => { const r = box(c); return fits(r) && inside(r) && !overlaps(r); });
+      let pick = spots.find((c) => { const r = box(c); return fits(r) && !overlaps(r); });
       if (!pick) {
         if (L.prio > 2) continue;
         // an important name always gets drawn: take the first spot and move it toward the middle until it is inside
         pick = { x: spots[0].x, y: spots[0].y, a: 'center' };
-        for (let i = 0; i < 24 && !(fits(box(pick)) && inside(box(pick))); i++) { pick.x += (cx - pick.x) * 0.08; pick.y += (cy - pick.y) * 0.08; }
+        for (let i = 0; i < 24 && !fits(box(pick)); i++) { pick.x += (cx - pick.x) * 0.08; pick.y += (cy - pick.y) * 0.08; }
       }
       ctx.fillStyle = L.col; ctx.textAlign = pick.a; haloText(L.text, pick.x, pick.y);
       placed.push(box(pick));
@@ -401,8 +402,8 @@ function draw() {
     if (o.id === sel || state.objs.length < 60) label(o, p, 8, -6, 'rgba(255,180,84,.9)'); hit(o, p, 12);
   }
   for (const o of state.objs) { // Sun, Moon, planets
-    if (o.kind !== 'body' || !F.sky || o.el < -1) continue;
-    const p = P(o.az, Math.max(0, o.el)); const big = o.name === 'Sun' || o.name === 'Moon';
+    if (o.kind !== 'body' || !F.sky || o.el < -6) continue; // a little below the horizon is drawn just outside the circle
+    const p = P(o.az, Math.max(-6, o.el)); const big = o.name === 'Sun' || o.name === 'Moon';
     const r = big ? 8 : Math.max(2.5, 5.5 - (o.mag ?? 0) * 0.8);
     ctx.fillStyle = o.color; ctx.shadowColor = o.color; ctx.shadowBlur = big ? 14 : 6;
     ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
@@ -475,10 +476,16 @@ function renderPasses() {
 function choosePass(i) {
   const p = state.passes[i];
   if (!p) return;
+  state.detailClosed = null;
   if (state.passSel === p.name) { state.passSel = null; if (state.sel === p.id) state.sel = null; }
   else { state.passSel = p.name; state.sel = state.byId.has(p.id) ? p.id : null; }
   state.dirty = true; renderPasses(); renderDetail(); renderNearby();
   if (state.passSel) setPage('radar');
+}
+// Close the details: nothing is selected any more, and the card stays away until something is picked.
+function closeDetail() {
+  state.sel = null; state.passSel = null; state.detailClosed = { sel: null }; state.dirty = true;
+  renderPasses(); renderDetail(); renderNearby();
 }
 function riseSet(name) {
   try {
@@ -523,7 +530,13 @@ function passCard(p) {
 }
 function renderDetail() {
   // The same card shows under the radar and over the camera picture.
-  const put = (h) => { setHtml($('#detail'), h); setHtml($('#arDetail'), h); };
+  // The details can be closed with the cross (or Escape): the card goes away until something is picked again.
+  const closed = !!state.detailClosed && state.detailClosed.sel === state.sel;
+  if (!closed) state.detailClosed = null;
+  $('#detail').hidden = closed; $('#arDetail').hidden = closed;
+  if (closed) return;
+  const X = '<button type="button" class="close-detail" data-close-detail aria-label="Close the details">✕</button>';
+  const put = (h) => { setHtml($('#detail'), X + h); setHtml($('#arDetail'), X + h); };
   const H = window.FarGemsLogic;
   let o = state.sel && state.byId.get(state.sel), nearest = false;
   if (!o) { // nothing picked: show the nearest flight or satellite above the horizon
@@ -561,8 +574,8 @@ function renderDetail() {
   const blurb = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
   const more = link ? `<p class="wikirow">${link}</p>` : '';
   const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
-  setHtml($('#detail'), `<h3>${title}</h3>${lead}<dl>${rows}</dl>${blurb}${more}${acts}`);
-  setHtml($('#arDetail'), `<h3>${title}</h3><dl>${rows}</dl>${more}`);
+  setHtml($('#detail'), `${X}<h3>${title}</h3>${lead}<dl>${rows}</dl>${blurb}${more}${acts}`);
+  setHtml($('#arDetail'), `${X}<h3>${title}</h3><dl>${rows}</dl>${more}`);
 }
 
 // What Wikipedia says about an article, fetched once the first time an object is looked at. An article that does not exist
@@ -910,6 +923,8 @@ function bindUI() {
   gear.addEventListener('click', (e) => { e.stopPropagation(); setGear(gearList.hidden); });
   document.addEventListener('click', (e) => { if (!gearList.hidden && !gearList.contains(e.target)) setGear(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gearList.hidden) { setGear(false); gear.focus(); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gearList.hidden && (state.sel || state.passSel) && !/INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '')) closeDetail(); });
+  document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-close-detail]')) closeDetail(); });
   initAR();
   // On a wide landscape screen the nearby list sits under the object details, in the column beside the radar; otherwise it is
   // the second page next to the radar page.
@@ -1031,6 +1046,6 @@ function start() {
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 }
 // For the browser tests: with ?fgtest=1 in the address the tests can reach the page's state and redraw it.
-if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses };
+if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses, closeDetail };
 start();
 })();
