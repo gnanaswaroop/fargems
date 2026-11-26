@@ -1360,3 +1360,64 @@ test('flights in the list name their airline beside the type, and the share text
     assert.doesNotMatch(text, /FromHyderabad|<|Not known/, 'no markup in the text');
   } finally { await context.close(); }
 });
+
+// Instead of a share sheet (which this test browser has not got) the page copies the text; the test reads what was copied.
+const copyOnly = (page) => page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
+const SHARE_RE = /^Look up\. Know what you.re looking at\. .{1,4} FarGems names the planes, the ISS, planets and the Moon above you, live, on a radar or in AR through your camera\. Free, no sign-up\. http:\/\/localhost:\d+\/$/u;
+
+test('share the app: from the gear menu in the sky view', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await copyOnly(page);
+    await page.tap('#gearBtn');
+    assert.equal((await page.textContent('#gearShare')).trim(), 'Share FarGems');
+    await page.tap('#gearShare');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    assert.match(await page.evaluate(() => window.__copied[0]), SHARE_RE);
+    assert.equal(await page.isVisible('#gearList'), false, 'the menu closes');
+    await page.waitForFunction(() => /Copied/.test(document.querySelector('#toast').textContent));
+  } finally { await context.close(); }
+});
+
+test('share the app: from the ... menu on the home page, and from the Settings page', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/index.html');
+    await copyOnly(page);
+    await page.tap('#menuBtn');
+    await page.tap('#menuShare');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    assert.match(await page.evaluate(() => window.__copied[0]), SHARE_RE);
+    assert.equal(await page.isVisible('#menuList'), false);
+    await page.waitForFunction(() => !document.querySelector('#toast').hidden && /Copied/.test(document.querySelector('#toast').textContent));
+    await page.goto(base + '/settings.html');
+    await copyOnly(page);
+    assert.equal((await page.textContent('#shareTitle')).trim(), 'Share FarGems');
+    await page.tap('#shareApp');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    assert.match(await page.evaluate(() => window.__copied[0]), SHARE_RE, 'the same text from every place');
+    assert.match(await page.textContent('#settingsMsg'), /Copied/);
+  } finally { await context.close(); }
+});
+
+test('share the app: the phone share sheet gets the title, the text and the address, and closing it says nothing', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/settings.html');
+    await page.evaluate(() => { window.__shared = []; window.__mode = 'ok'; navigator.share = async (d) => { window.__shared.push(d); if (window.__mode === 'close') { const e = new Error('closed'); e.name = 'AbortError'; throw e; } }; });
+    await page.tap('#shareApp');
+    await page.waitForFunction(() => window.__shared.length === 1);
+    const d = await page.evaluate(() => window.__shared[0]);
+    assert.match(d.text, /^Look up\. Know what you.re looking at\./);
+    assert.match(d.url, /^http:\/\/localhost:\d+\/$/);
+    assert.ok(d.title.length > 5);
+    assert.match(await page.textContent('#settingsMsg'), /Thanks for sharing/);
+    await page.evaluate(() => { window.__mode = 'close'; });
+    await page.tap('#shareApp');
+    await page.waitForFunction(() => window.__shared.length === 2);
+    await page.waitForTimeout(200);
+    assert.equal((await page.textContent('#settingsMsg')).trim(), '', 'closing the sheet is not an error');
+  } finally { await context.close(); }
+});
