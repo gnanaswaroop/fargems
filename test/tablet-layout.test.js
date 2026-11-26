@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
-const MEDIA = /@media \(min-width: 900px\) and \(min-aspect-ratio: 5\/4\) \{([\s\S]*?)\n\}/;
+const MEDIA = /@media \(min-width: 560px\) and \(min-aspect-ratio: 5\/4\) \{([\s\S]*?)\n\}/;
 
 test('landscape tablets: the home page has two columns, intro and actions, filling the screen height', () => {
   const css = read('style.css').match(MEDIA)[1], html = read('index.html');
@@ -34,8 +34,8 @@ test('landscape tablets: the sky view puts radar, details and the nearby list si
 
 test('the wide layout never applies to phones in portrait', () => {
   const css = read('style.css');
-  assert.match(css, /@media \(min-width: 900px\) and \(min-aspect-ratio: 5\/4\)/);
-  assert.doesNotMatch(css.split('@media (min-width: 900px)')[0], /100dvh/, 'the base layout is not height-locked');
+  assert.match(css, /@media \(min-width: 560px\) and \(min-aspect-ratio: 5\/4\)/);
+  assert.doesNotMatch(css.split('@media (min-width: 560px)')[0], /100dvh/, 'the base layout is not height-locked');
 });
 
 test('after permission is given the visitor goes straight to the sky view', () => {

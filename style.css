@@ -14,7 +14,7 @@ main{max-width:640px;margin:0 auto;padding:0 14px 40px}
 .btn.on{border-color:var(--accent);color:var(--accent)}
 .link{background:none;border:0;color:var(--muted);text-decoration:underline;font:inherit;cursor:pointer;padding:8px 0}
 .skywrap{position:relative}
-#sky{width:100%;aspect-ratio:1;max-width:560px;display:block;margin:0 auto;touch-action:pan-y;border-radius:50%}
+#sky{width:100%;aspect-ratio:1;max-width:560px;display:block;margin:0 auto;touch-action:pan-y}
 /* Sun, Moon and weather on the left, the way you face on the right, in their own row above the radar so they never sit on top of it */
 .hudrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin:2px 0 4px}
 .hud{font-size:12px;color:var(--muted);line-height:1.5}
@@ -269,7 +269,7 @@ a.brand{color:inherit;text-decoration:none}
 .landing a.btn.go{margin:0 0 14px}
 
 /* ---------- wide screens in landscape (tablets, desktops): use the width, so the page does not need to scroll ---------- */
-@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
+@media (min-width: 560px) and (min-aspect-ratio: 5/4) {
   /* home page: the introduction on the left, the permissions and install on the right */
   .landing .welcome { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); column-gap: 56px; grid-template-rows: auto 1fr; min-height: 100dvh; padding-top: 6px; padding-bottom: 14px; }
   .landing .welcome > .top { grid-column: 1 / -1; max-width: none; width: 100%; }
@@ -297,6 +297,41 @@ a.brand{color:inherit;text-decoration:none}
   body.viewer #sky { max-width: var(--rs); }
   body.viewer .side > #pageNearby { flex: 1; min-height: 0; width: auto; overflow-y: auto; max-height: none; visibility: visible; }
   body.viewer #pageNearby .nearby-title { margin-top: 0; }
+}
+
+/* ---------- phones on their side: very little height ----------
+   The wide layout above, made compact: the radar is sized by the height of the screen (it used to be as wide as the page, and
+   so taller than the screen), the zoom buttons stand in a column beside it, and the details scroll inside their own column. */
+@media (min-width: 560px) and (min-aspect-ratio: 5/4) and (max-height: 560px) {
+  body.viewer header { padding: 4px 14px 0; }
+  body.viewer header .logo-sm { width: 26px; height: 26px; }
+  body.viewer header .brand { font-size: 17px; }
+  body.viewer .menu-btn { width: 36px; height: 32px; }
+  body.viewer main { padding-bottom: 4px; }
+  body.viewer #pageRadar { --rs: min(calc(100dvh - 92px), 640px, calc(100vw - 330px)); grid-template-columns: var(--rs) 50px minmax(200px, 1fr); column-gap: 10px; grid-template-rows: auto auto auto auto 1fr; }
+  body.viewer #pageRadar > .hudrow { grid-column: 1 / 3; grid-row: 1; margin: 0 0 2px; }
+  body.viewer .hud { font-size: 11px; line-height: 1.35; }
+  body.viewer #pageRadar > .skywrap { display: contents; }
+  body.viewer #sky { grid-column: 1; grid-row: 2; }
+  body.viewer .zoombar { grid-column: 2; grid-row: 2; flex-direction: column; flex-wrap: nowrap; justify-content: flex-end; align-items: stretch; gap: 6px; margin: 0; }
+  body.viewer .zoombar .btn { padding: 6px 4px; font-size: 12px; min-height: 34px; }
+  body.viewer #pageRadar > .status { grid-column: 1 / 3; grid-row: 3; margin: 2px 0 0; font-size: 11px; }
+  body.viewer #pageRadar > #noLocation, body.viewer #pageRadar > .approx { grid-column: 1 / 3; grid-row: 4; }
+  body.viewer #pageRadar > .side { grid-column: 3; grid-row: 1 / -1; overflow-y: auto; padding-right: 2px; }
+  /* the home page on its side: the picture goes, the logo and the words get smaller, so it fits */
+  .landing .hero-row { display: none; }
+  .landing .welcome { padding-top: 0; padding-bottom: 6px; column-gap: 28px; }
+  .landing .logo-lg { width: 64px; height: 64px; margin-bottom: 2px; }
+  .landing .brand.big { font-size: 26px; margin: 0 0 2px; }
+  .landing .tagline { font-size: 16px; margin: 2px 0 4px; }
+  .landing .lead { font-size: 13px; line-height: 1.35; margin: 0 auto 4px; }
+  .landing .actions .card { padding: 8px 12px; margin: 0 0 8px; }
+  .landing a.btn.go { margin: 0 0 8px; }
+}
+
+/* the narrowest phones on their side keep the home page in one column (two would be too narrow) */
+@media (min-width: 560px) and (max-width: 699px) and (min-aspect-ratio: 5/4) {
+  .landing .welcome:not(.wide) { display: block; min-height: 0; }
 }
 
 /* ---------- pins, share, gear menu, a guessed place ---------- */

@@ -552,3 +552,8 @@ The browser tests (WebKit for iPhone and iPad, Chromium for an Android tablet) r
 
 The logo has a thin white ring: `icon.svg` draws it as an outline (nothing is painted inside, so the logo is still transparent; the viewBox grew to make room), and the round app icons `icon-512.png` and `icon-192.png` have it in place of their old teal edge. `scripts/make-icons.js` redraws the two PNGs (it repaints only the edge band and keeps the artwork). The full-bleed maskable icon and the iPhone icon are left alone, because the system crops them to its own shape and a ring would be cut off.
 
+## 27. A phone on its side, and installing from the sky view
+
+- **Landscape on a phone.** The two-column layout now starts at 560 px wide (it was 900), so a phone on its side gets the radar on the left and the details on the right. On a short screen (560 px high or less) the radar is sized by the height (`100dvh - 92px`, it used to be as wide as the page and so taller than the screen), the zoom buttons stand in a column beside it, the details scroll inside their own column, and the home page drops its picture and shrinks its words so both pages fit without scrolling. The narrowest phones (under 700 px) keep the home page in one column. The radar canvas is no longer clipped to a circle (the circle is drawn on the canvas), so names and things outside the horizon circle show.
+- **Install from the sky view.** The gear menu has Install app. It starts the browser's own install when the browser offers it, otherwise it says how to do it from the menu, and it goes once the app is installed or when this already is the installed app.
+
