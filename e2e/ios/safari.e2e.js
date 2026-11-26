@@ -1160,3 +1160,31 @@ test('flights: at each poll a wrong or missing direction is taken from the way t
     assert.equal(by.z.track, null, 'a flight seen for the first time with no direction stays unknown (drawn as a dot)');
   } finally { await context.close(); }
 });
+
+test('logo: the round app icons have a thin white ring on the edge and the dark tile inside, with nothing outside the circle', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/about.html');
+    for (const [file, size] of [['icon-512.png', 512], ['icon-192.png', 192]]) {
+      const px = await page.evaluate(async ([file, size]) => {
+        const img = new Image(); img.src = file; await img.decode();
+        const c = document.createElement('canvas'); c.width = size; c.height = size;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const at = (fx, fy) => Array.from(x.getImageData(Math.round(fx * (size - 1)), Math.round(fy * (size - 1)), 1, 1).data);
+        // From the left edge of the circle toward the middle, along the middle row.
+        const row = Array.from({ length: Math.round(size * 0.05) }, (_, i) => Array.from(x.getImageData(i, Math.round(size / 2), 1, 1).data));
+        return { w: img.naturalWidth, corner: at(0, 0), inside: at(0.5, 0.08), row };
+      }, [file, size]);
+      assert.equal(px.w, size);
+      assert.equal(px.corner[3], 0, file + ': outside the circle is transparent');
+      assert.ok(px.inside[3] === 255 && px.inside[0] < 40 && px.inside[2] < 90, file + ': the tile is dark navy ' + px.inside);
+      const white = px.row.filter((p) => p[3] > 200 && p[0] > 230 && p[1] > 230 && p[2] > 230).length;
+      const teal = px.row.filter((p) => p[3] > 200 && p[2] > 90 && p[0] < 90 && p[1] > 80).length;
+      assert.ok(white >= 1 && white <= Math.max(3, Math.round(size * 0.012)), file + ': a thin white ring (' + white + ' px wide)');
+      assert.equal(teal, 0, file + ': the old teal edge is gone');
+    }
+    // On the page the logo is the SVG with the ring, drawn next to the name.
+    const ring = await page.evaluate(async () => { const t = await (await fetch('icon.svg')).text(); return /<circle id="ring"[^>]*stroke="#FFFFFF"/.test(t); });
+    assert.equal(ring, true);
+  } finally { await context.close(); }
+});
