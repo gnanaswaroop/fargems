@@ -73,7 +73,7 @@ Choices are stored on the device only (`fg.loc`, `fg.compass`).
 
 | Layer | Source | Notes |
 |---|---|---|
-| Aircraft | adsb.lol → airplanes.live → OpenSky (fallbacks, in order) | Polled every 10 s, 150 nm radius. Positions are dead-reckoned between polls. |
+| Aircraft | adsb.lol → OpenSky (direct fallbacks, in order; the relay also tries adsb.fi) | Polled every 10 s, 150 nm radius. Positions are dead-reckoned between polls. |
 | Satellites | CelesTrak GP (`stations`, `visual` groups) | TLEs cached 6 h in localStorage. SGP4 runs in the browser (satellite.js). |
 | Sun, Moon, planets, stars | astronomy-engine | Computed locally, so it works offline. |
 | Meteor showers | Static table in `app.js` | Windows, peaks and radiants are approximate. |
@@ -81,7 +81,7 @@ Choices are stored on the device only (`fg.loc`, `fg.compass`).
 
 ## Known limits
 
-- **Aircraft feeds are blocked in browsers.** adsb.lol and airplanes.live send no CORS header, and OpenSky allows only its own origin, so a page on another website cannot read them. The app then shows "Aircraft: feed unreachable". Fixing this needs a small proxy that adds the header (for example a Cloudflare Worker).
+- **Aircraft feeds are blocked in browsers.** adsb.lol sends no CORS header, and OpenSky allows only its own origin, so a page on another website cannot read them. The app then shows "Aircraft: feed unreachable". Fixing this needs a small proxy that adds the header (for example a Cloudflare Worker).
 
 - **ADS-B coverage:** community feeds have gaps, and military or blocked aircraft may not appear.
 - **Compass accuracy:** typically 5–20° off. The "North up" button plus drag-to-rotate is the fallback.

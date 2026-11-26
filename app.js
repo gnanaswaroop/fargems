@@ -82,7 +82,6 @@ const obsGd = () => ({ latitude: state.loc.lat * D2R, longitude: state.loc.lon *
 /* ---------- aircraft ---------- */
 const AC_PROVIDERS = [
   { name: 'adsb.lol', url: (la, lo, r) => `https://api.adsb.lol/v2/point/${la}/${lo}/${r}`, parse: parseV2 },
-  { name: 'airplanes.live', url: (la, lo, r) => `https://api.airplanes.live/v2/point/${la}/${lo}/${r}`, parse: parseV2 },
   { name: 'OpenSky', parse: parseOpenSky, url: openSkyUrl }
 ];
 // When the site has an aircraft proxy (config.js), use it: browsers cannot read the providers directly.

@@ -56,7 +56,7 @@ test('settings offer the visible-only choice and store it', () => {
 });
 
 test('routeProxyUrl builds the route URL next to the aircraft URL', () => {
-  assert.equal(L.routeProxyUrl('https://w.example/aircraft', 'ual1', 17.4436, 78.3772), 'https://w.example/route?callsign=UAL1&lat=17.444&lon=78.377');
+  assert.equal(L.routeProxyUrl('https://w.example/aircraft', 'ual1', 17.4436, 78.3772), 'https://w.example/route?callsign=UAL1', 'only the callsign is sent');
   assert.equal(L.routeProxyUrl('', 'UAL1', 1, 2), null, 'no proxy, no route lookup');
   assert.equal(L.routeProxyUrl('https://w.example/aircraft', '', 1, 2), null, 'no callsign');
   assert.equal(L.routeProxyUrl('https://w.example/other', 'UAL1', 1, 2), null, 'unknown URL shape');
