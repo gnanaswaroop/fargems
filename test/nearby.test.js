@@ -33,11 +33,11 @@ test('sortNearest puts the closest first and unknown distances last', () => {
   assert.equal(list[0].name, 'Star', 'the input is not reordered');
 });
 
-test('formatDistance uses km, thousands separators and AU for planets', () => {
+test('formatDistance uses km, thousands separators and a short form for planets', () => {
   assert.equal(L.formatDistance(12.4), '12 km');
   assert.equal(L.formatDistance(384400), '384,400 km');
   assert.equal(L.formatDistance(null), 'distance unknown');
-  assert.equal(L.formatDistance(149597870.7 * 0.7), '0.7 AU', 'large distances above a few AU are shown in AU');
+  assert.equal(L.formatDistance(149597870.7 * 0.7), '104.7 million km', 'space distances are short, not a nine-digit number');
 });
 
 test('swipeDirection reads a clear horizontal swipe and ignores small or vertical moves', () => {

@@ -508,3 +508,7 @@ If a CDN sits in front of the site it can keep old copies of the files for hours
 - **Photo.** The Photo button in the camera view joins the video frame (cropped like the screen, `coverCrop`), the overlay and a small caption (name and time, never a place) into a PNG. It goes to the share sheet where the phone can share files, otherwise it is saved as a file. Nothing is uploaded.
 - **Align.** A phone compass can be several degrees off. In Align mode dragging the picture moves the overlay, and the difference is saved as `fg.arOffset` (`{ h, p }` degrees, kept within 45 and 25). The heading offset is added to the compass reading for both the camera view and the radar, so they stay in agreement. Reset clears it.
 
+## 18. Very long distances
+
+From a million km on (the Sun, planets) a distance is shown short in the visitor's units (`149.6 million km`, `93.0 million mi`, `4.5 billion km`). Settings can switch the Sun and planets to astronomical units (`fg.far` = `au`; one AU is the average Earth to Sun distance, 149,597,870.7 km, explained in a tooltip on the detail card) or to light travel time (`light`, for example `8 min 19 s by light`). The detail card for these objects also has a Light takes row. Nearer things (the Moon, satellites, flights) keep the full number.
+

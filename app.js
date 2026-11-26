@@ -48,6 +48,7 @@ const state = {
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   ori: { alpha: null, beta: null, gamma: null, compassHeading: null, absolute: false },
   visOnly: (() => { try { return window.FarGemsLogic.parseVisOnly(localStorage.getItem('fg.visOnly')); } catch { return true; } })(),
+  far: (() => { try { return window.FarGemsLogic.parseFar(localStorage.getItem('fg.far')); } catch { return 'units'; } })(),
   units: (() => { try { return window.FarGemsLogic.parseUnits(localStorage.getItem('fg.units'), navigator.language); } catch { return 'metric'; } })(),
   flightRangeKm: (() => { try { return window.FarGemsLogic.parseFlightRange(localStorage.getItem('fg.flightRange')); } catch { return window.FarGemsLogic.DEFAULT_FLIGHT_RANGE_KM; } })(),
   routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
@@ -495,7 +496,7 @@ function renderDetail() {
       + kv('Lighting', o.visible ? 'Sunlit, visible to the eye' : o.sunlit ? 'Sunlit, but the sky is too bright' : 'In Earth’s shadow')
       + kv('More', `<a href="https://www.n2yo.com/satellite/?s=${o.norad}" target="_blank" rel="noopener">N2YO ↗</a>`);
   } else if (o.kind === 'body') {
-    rows = here + kv('Magnitude', o.mag != null ? o.mag.toFixed(1) : null) + kv('Illuminated', o.phase != null && o.name !== 'Sun' ? Math.round(o.phase * 100) + '%' : null) + kv('Today', riseSet(o.name));
+    rows = here + kv('Magnitude', o.mag != null ? o.mag.toFixed(1) : null) + kv('Illuminated', o.phase != null && o.name !== 'Sun' ? Math.round(o.phase * 100) + '%' : null) + kv('Distance', o.distKm != null ? farDistanceHtml(o.distKm) : null) + kv('Light takes', o.distKm != null ? H.lightTimeText(o.distKm) : null) + kv('Today', riseSet(o.name));
   } else if (o.kind === 'met') {
     const s = o.shower;
     rows = kv('Radiant', `${Math.round(o.el)}° up · ${dir16(o.az)}`) + kv('Peak rate', `up to ~${s.zhr}/hour under dark skies`)
@@ -527,6 +528,11 @@ function wikiInfo(title) {
     .catch(e => { if (e && e.message === 'missing') entry.info = { miss: true }; else wikiCache.delete(title); }) // offline: ask again later
     .finally(() => { if (entry.info) renderDetail(); });
   return null;
+}
+// A distance to the Sun, Moon or a planet for the detail card. AU gets a tooltip that says what it is.
+function farDistanceHtml(km) {
+  const text = esc(window.FarGemsLogic.formatDistance(km, state.units, state.far));
+  return text.replace(/ AU$/, ' <abbr title="astronomical unit: the average distance from the Earth to the Sun, about 150 million km">AU</abbr>');
 }
 // Nearby list: aircraft, satellites, Sun, Moon, planets and stars, nearest first.
 // Small icons for the nearby list: one per kind of object, drawn to match the radar (amber plane, cyan satellite diamond,
@@ -585,7 +591,7 @@ function renderNearby() {
     return `<li><div class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
       `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
       `<span class="nm">${pinButton(o)}${esc(o.name)}</span>` +
-      `<span class="meta">${esc(H.formatDistance(o.distKm, state.units))}</span>` +
+      `<span class="meta">${esc(H.formatDistance(o.distKm, state.units, state.far))}</span>` +
       `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}${wikiTitle(o) ? ` <a class="wiki" href="${H.wikiUrl(wikiTitle(o))}" target="_blank" rel="noopener" aria-label="${esc(o.name)} on Wikipedia">Wikipedia ↗</a>` : ''}</span></div></li>`;
   }).join(''));
 }
@@ -918,6 +924,7 @@ function start() {
   state.flip = storedValue('fg.flip') !== '0';
   state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
   state.units = L.parseUnits(storedValue('fg.units'), navigator.language);
+  state.far = L.parseFar(storedValue('fg.far'));
   state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   state.pins = L.parsePins(storedValue('fg.pins'));
