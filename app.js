@@ -738,6 +738,7 @@ function renderNearby() {
   const heading = state.compass ? state.heading : null;
   const items = state.objs.filter(o => ['air', 'sat', 'body', 'star'].includes(o.kind) && (o.el >= -1 || o.kind === 'body'));
   const sorted = H.pinFirst(H.sortNearest(items), state.pins).slice(0, 60);
+  const count = $('#nearbyCount'); if (count) { count.textContent = String(items.length); count.hidden = !items.length; } // how many things are listed, on the tab
   if (!sorted.length) { setHtml(el, '<li class="muted">Nothing above the horizon right now.</li>'); return; }
   const wikiTitle = (o) => H.wikiTitle(o);
   setHtml(el, sorted.map(o => {

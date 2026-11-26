@@ -570,5 +570,9 @@ The logo has a thin white ring: `icon.svg` draws it as an outline (nothing is pa
 
 ## 30. Sharing the app
 
-Share FarGems is in the home page "..." menu, the sky view gear menu and on the Settings page. It sends one short text (about 170 characters, so it fits a WhatsApp message or a tweet with the address): the line the app is known by, "Look up. Know what you are looking at.", then what it does in one breath (it names the planes, the ISS, planets and the Moon above you, live, on a radar or in AR through your camera; free, no sign-up). The address is the site root, taken from where the page is served. `shareApp` in `lib/onboarding.js` uses the phone share sheet when there is one, otherwise it copies the text and the address, and closing the sheet is not an error.
+Tell a friend is in the home page "..." menu, the sky view gear menu and, under the heading Pass it on, on the Settings page. It sends one short text (about 170 characters, so it fits a WhatsApp message or a tweet with the address): the line the app is known by, "Look up. Know what you are looking at.", then what it does in one breath (it names the planes, the ISS, planets and the Moon above you, live, on a radar or in AR through your camera; free, no sign-up). The address is the site root, taken from where the page is served. `shareApp` in `lib/onboarding.js` uses the phone share sheet when there is one, otherwise it copies the text and the address, and closing the sheet is not an error.
+
+## 31. The tabs
+
+Radar and Nearby are one rounded control: the chosen tab is filled in the accent colour, each tab has an icon, Nearby shows how many things are in its list, and each is at least 40 px tall. They are still a proper tab list for keyboards and screen readers (the earlier accessibility work, which changes nothing you can see).
 
