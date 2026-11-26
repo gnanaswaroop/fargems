@@ -72,7 +72,7 @@ test('the sky view takes its heading from where the phone faces, with tilt from 
   assert.match(app, /h = window\.FarGemsAR\.facingHeading\(e\.alpha, e\.beta, e\.gamma\)/);
   assert.doesNotMatch(app, /norm360\(360 - e\.alpha\)/, 'the top-of-phone heading is gone');
   assert.match(app, /\(abs \|\| !ori\.absolute\)/, 'tilt comes from the absolute sensor when there is one');
-  assert.match(app, /trueHeading\(h, state\.declination\)/, 'still corrected from magnetic to true north');
+  assert.match(app, /trueHeading\(h, state\.declination \+ state\.arOffset\.h\)/, 'still corrected from magnetic to true north');
   assert.match(read('ar-view.js'), /ori\.declination/, 'the camera view uses the same correction');
   assert.ok(read('viewer.html').indexOf('lib/ar.js') < read('viewer.html').indexOf('src="app.js"'), 'ar.js loads before app.js');
 });

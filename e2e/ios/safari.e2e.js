@@ -558,3 +558,139 @@ test('security: the policy blocks nothing the pages need, and the CDN libraries 
     assert.equal(await page.evaluate(() => typeof satellite.twoline2satrec + typeof Astronomy.Body), 'functionobject');
   } finally { await context.close(); }
 });
+
+// A sky for the camera view: the Moon right ahead (facing 90°, level), with the Sun to one side of it.
+const AR_SKY = (phase, sunAz) => `(() => {
+  const { state } = window.__fg;
+  state.declination = 0; state.ori.declination = 0; state.arOffset = { h: 0, p: 0 };
+  const mk = (id, kind, name, az, el, extra) => Object.assign({ id, kind, name, az, el, distKm: 1, range: 1 }, extra || {});
+  state.objs = [mk('body:Moon', 'body', 'Moon', 90, 0, { phase: ${phase}, color: '#e6ecf5' }), mk('body:Sun', 'body', 'Sun', ${sunAz}, 0, { phase: null, color: '#ffd86b' })];
+  state.byId = new Map(state.objs.map((o) => [o.id, o]));
+  state.sel = null; state.dirty = true;
+})()`;
+
+// Opens the camera view, facing east with the phone upright, and lets the heading settle.
+async function openAr(page, sky) {
+  await page.evaluate(sky);
+  await page.tap('#arBtn');
+  await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
+  for (let i = 0; i < 30; i++) {
+    await page.evaluate(() => { const e = new Event('deviceorientation'); e.webkitCompassHeading = 90; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); });
+    await sleep(30);
+  }
+  await sleep(300);
+}
+
+// How much of the Moon's disc around the middle of the screen is bright, on the left and right halves.
+const litHalves = (page) => page.evaluate(() => {
+  const cv = document.querySelector('#arCanvas'), c = cv.getContext('2d'), s = cv.width / cv.clientWidth;
+  const cx = Math.round(cv.width / 2), cy = Math.round(cv.height / 2), r = Math.round(16 * s);
+  const d = c.getImageData(cx - r, cy - r, 2 * r, 2 * r);
+  let left = 0, right = 0, total = 0;
+  for (let y = 0; y < 2 * r; y++) for (let x = 0; x < 2 * r; x++) {
+    if (Math.hypot(x - r, y - r) > r * 0.92) continue;
+    total++;
+    const i = (y * 2 * r + x) * 4, bright = d.data[i] > 150 && d.data[i + 3] > 200;
+    if (bright) { if (x < r) left++; else right++; }
+  }
+  return { left, right, total };
+});
+
+test('AR: the Moon is drawn lit on the side toward the Sun, with the right amount lit', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, AR_SKY(0.5, 100));
+    let h = await litHalves(page);
+    assert.ok(h.right > h.total * 0.3 && h.left < h.total * 0.05, 'Sun on the right: the right half is lit ' + JSON.stringify(h));
+    await page.evaluate(AR_SKY(0.5, 80)); await sleep(400);
+    h = await litHalves(page);
+    assert.ok(h.left > h.total * 0.3 && h.right < h.total * 0.05, 'Sun on the left: the left half is lit ' + JSON.stringify(h));
+    await page.evaluate(AR_SKY(0.1, 100)); await sleep(400);
+    const crescent = await litHalves(page);
+    await page.evaluate(AR_SKY(0.9, 100)); await sleep(400);
+    const gibbous = await litHalves(page);
+    await page.evaluate(AR_SKY(0.5, 100)); await sleep(400);
+    const half = await litHalves(page);
+    const lit = (x) => x.left + x.right;
+    assert.ok(lit(crescent) > 0 && lit(crescent) < lit(half) * 0.7, 'a crescent is thin: ' + JSON.stringify([crescent, half]));
+    assert.ok(lit(gibbous) > lit(half) * 1.3, 'a gibbous Moon is mostly lit: ' + JSON.stringify([gibbous, half]));
+  } finally { await context.close(); }
+});
+
+test('AR: the Photo button makes a PNG of the picture with the overlay and shares it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__shared = [];
+      navigator.canShare = () => true;
+      navigator.share = async (d) => {
+        const f = d.files[0], buf = new Uint8Array(await f.arrayBuffer());
+        const bmp = await createImageBitmap(f), c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        const x = c.getContext('2d'); x.drawImage(bmp, 0, 0);
+        const cx = Math.round(bmp.width / 2), cy = Math.round(bmp.height / 2);
+        const px = x.getImageData(cx + 6, cy, 1, 1).data;
+        window.__shared.push({ name: f.name, type: f.type, sig: Array.from(buf.slice(0, 4)), w: bmp.width, h: bmp.height, r: px[0] });
+      };
+    });
+    await openAr(page, AR_SKY(0.5, 100));
+    await page.tap('#arShot');
+    await page.waitForFunction(() => window.__shared.length === 1, null, { timeout: 10000 });
+    const s = await page.evaluate(() => window.__shared[0]);
+    assert.equal(s.name, 'fargems-sky.png');
+    assert.equal(s.type, 'image/png');
+    assert.deepEqual(s.sig, [0x89, 0x50, 0x4e, 0x47], 'a real PNG');
+    const size = await page.evaluate(() => { const c = document.querySelector('#arCanvas'); return [c.width, c.height]; });
+    assert.deepEqual([s.w, s.h], size, 'as big as the screen');
+    assert.ok(s.r > 150, 'the lit Moon from the overlay is in the picture (red channel ' + s.r + ')');
+  } finally { await context.close(); }
+});
+
+test('AR: without a share sheet the picture is saved as a file', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => { Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }); window.__clicks = []; HTMLAnchorElement.prototype.click = function () { window.__clicks.push([this.download, this.href.slice(0, 5)]); }; });
+    await openAr(page, AR_SKY(0.5, 100));
+    await page.tap('#arShot');
+    await page.waitForFunction(() => window.__clicks.length === 1, null, { timeout: 10000 });
+    assert.deepEqual(await page.evaluate(() => window.__clicks[0]), ['fargems-sky.png', 'blob:']);
+    assert.ok((await page.evaluate(() => window.__toasts)).includes('Picture saved.'));
+  } finally { await context.close(); }
+});
+
+test('AR: dragging in line-up mode corrects the heading, keeps it, and the radar uses it too', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, AR_SKY(0.5, 100));
+    assert.equal(await page.isVisible('#arAlignBar'), false);
+    await page.tap('#arAlign');
+    assert.equal(await page.isVisible('#arAlignBar'), true);
+    assert.equal(await page.getAttribute('#arAlign', 'aria-pressed'), 'true');
+    const box = await page.locator('#arCanvas').boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y, { steps: 6 }); await page.mouse.up();
+    const off = await page.evaluate(() => __fg.state.arOffset);
+    assert.ok(off.h < -1 && off.h > -15, 'dragging right lowers the heading: ' + JSON.stringify(off));
+    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'a drag chooses nothing');
+    assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('fg.arOffset'))), off, 'kept for next time');
+    // The Moon is now drawn to the right of the middle by about the drag.
+    await sleep(300);
+    const where = await page.evaluate(() => { const cv = document.querySelector('#arCanvas'), c = cv.getContext('2d'), s = cv.width / cv.clientWidth, y = Math.round(cv.height / 2); const row = c.getImageData(0, y, cv.width, 1).data; let sx = 0, n = 0; for (let i = 0; i < cv.width; i++) if (row[i * 4] > 150 && row[i * 4 + 3] > 200) { sx += i; n++; } return n ? sx / n / s - cv.clientWidth / 2 : null; });
+    assert.ok(where != null && where > 5, 'the Moon moved right of the middle (' + where + ' px)');
+    // The radar takes the same correction.
+    await heading(page, 100, 40);
+    assert.ok(Math.abs(await page.evaluate(() => __fg.state.heading) - (100 + off.h + 360) % 360) < 0.6, 'the radar heading includes the correction');
+    await page.tap('#arAlignReset');
+    assert.deepEqual(await page.evaluate(() => __fg.state.arOffset), { h: 0, p: 0 });
+    await page.tap('#arAlignDone');
+    assert.equal(await page.isVisible('#arAlignBar'), false);
+    assert.equal(await page.getAttribute('#arAlign', 'aria-pressed'), 'false');
+  } finally { await context.close(); }
+});

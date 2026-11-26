@@ -42,6 +42,7 @@ const TLE_GROUPS = ['stations', 'visual'];
 const state = {
   loc: null, heading: 0, rot: 0, compass: false, flip: true,
   compassPending: false, // compass listeners are bound but no reading has arrived yet (the device may have no sensor)
+  arOffset: { h: 0, p: 0 }, // degrees the visitor added to line the camera picture up with the real sky
   declination: 0, // degrees from magnetic north to true north at this place (phone compasses read magnetic north)
   // All layers (objects, grid, labels, radar) live here; the chips and the Layers panel both edit it.
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
@@ -636,7 +637,7 @@ function onOri(e) {
   else if (abs && e.alpha != null) h = window.FarGemsAR.facingHeading(e.alpha, e.beta, e.gamma); // where the phone faces at any tilt, not just where its top points
   if (h == null) return;
   if (state.compassPending && !state.compass) { state.compass = true; state.compassPending = false; state.dirty = true; } // a real reading: the sensor exists
-  h = window.FarGemsDeclination.trueHeading(h, state.declination); // the sky is laid out from true north, the compass reads magnetic
+  h = window.FarGemsDeclination.trueHeading(h, state.declination + state.arOffset.h); // the sky is laid out from true north, the compass reads magnetic; the offset is the visitor's own correction
   let d = norm360(h - state.heading + 180) - 180;
   state.heading = norm360(state.heading + d * 0.25); state.dirty = true;
   showFacing();
@@ -673,10 +674,31 @@ function initAR() {
     root: $('#ar'), video: $('#arVideo'), canvas: $('#arCanvas'), closeBtn: $('#arClose'),
     getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
     onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
+    getOffset: () => state.arOffset, getLatitude: () => (state.loc ? state.loc.lat : null),
+    onOffset: (off) => { state.arOffset = off; state.dirty = true; lsSet('fg.arOffset', off); },
     onClose: () => { arState.openedBy = null; arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
   });
   $('#arBtn').onclick = () => openAR('manual');
+  $('#arShot').onclick = takePhoto;
+  const setAlign = (on) => { arView.setAligning(on); $('#arAlign').setAttribute('aria-pressed', String(on)); $('#arAlignBar').hidden = !on; };
+  $('#arAlign').onclick = () => setAlign(!arView.isAligning());
+  $('#arAlignDone').onclick = () => { setAlign(false); toast('Saved. The radar uses the same correction.'); };
+  $('#arAlignReset').onclick = () => { state.arOffset = { h: 0, p: 0 }; state.dirty = true; lsSet('fg.arOffset', state.arOffset); };
+  $('#arClose').addEventListener('click', () => setAlign(false));
   setInterval(autoAR, 300);
+}
+// A picture of what the camera shows with the labels on it: shared through the phone's share sheet when it can share
+// files, otherwise saved as a file. It is made on the device and goes nowhere unless the visitor sends it.
+async function takePhoto() {
+  try {
+    const blob = await arView.capture();
+    const file = new File([blob], 'fargems-sky.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'The sky with FarGems' }); return; }
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'fargems-sky.png'; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast('Picture saved.');
+  } catch (e) { if (!e || e.name !== 'AbortError') toast('Could not make the picture.'); }
 }
 // source: 'manual' (the AR button) or 'auto' (the phone was raised). Only a view that opened by itself closes by itself.
 async function openAR(source = 'manual') {
@@ -899,6 +921,7 @@ function start() {
   state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   state.pins = L.parsePins(storedValue('fg.pins'));
+  state.arOffset = window.FarGemsAR ? window.FarGemsAR.parseOffset(storedValue('fg.arOffset')) : { h: 0, p: 0 };
   if (typeof satellite === 'undefined' || typeof Astronomy === 'undefined') {
     $('#status').innerHTML = '<span class="bad">Sky libraries failed to load. Check your connection and reload.</span>';
   }

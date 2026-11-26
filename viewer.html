@@ -84,6 +84,14 @@
   <video id="arVideo" class="ar-video" playsinline muted autoplay></video>
   <canvas id="arCanvas" class="ar-canvas" aria-label="Camera view with sky objects marked"></canvas>
   <button id="arClose" class="btn ar-close" type="button" aria-label="Close the camera view">✕</button>
+  <div class="ar-tools">
+    <button id="arShot" class="btn ar-tool" type="button" aria-label="Take a picture with the labels on it">Photo</button>
+    <button id="arAlign" class="btn ar-tool" type="button" aria-pressed="false" aria-label="Line up the overlay with the real sky">Align</button>
+  </div>
+  <div id="arAlignBar" class="card ar-alignbar" role="group" aria-label="Line up the overlay" hidden>
+    <p>Drag the picture until the Moon or Sun drawn here sits on the real one. Waving the phone in a figure 8 first also helps the compass.</p>
+    <div class="acts"><button id="arAlignReset" class="btn" type="button">Reset</button> <button id="arAlignDone" class="btn primary" type="button">Done</button></div>
+  </div>
   <div id="arDetail" class="card detail ar-detail" aria-live="polite"></div>
 </div>
 
@@ -97,6 +105,7 @@
 <script src="lib/onboarding.js"></script>
 <script src="lib/declination.js"></script>
 <script src="lib/ar.js"></script>
+<script src="lib/moon.js"></script>
 <script src="ar-view.js"></script>
 <script src="app.js"></script>
 <script src="lib/update.js"></script>
