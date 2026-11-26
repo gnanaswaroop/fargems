@@ -19,7 +19,7 @@
   const els = {
     allow: $('#allowBtn'), sample: $('#sampleBtn'), msg: $('#msg'),
     loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'),
-    form: $('#manualForm'), input: $('#manualLoc'),
+    form: $('#manualForm'), input: $('#manualLoc'), title: $('#permsTitle'), compassRow: $('#compassRow'), who: $('#privacyWho'),
     installCard: $('#installCard'), installText: $('#installText'), installBtn: $('#installBtn'),
     menuBtn: $('#menuBtn'), menuList: $('#menuList'), perms: $('#permsCard'), hero: $('#heroLink'), menuInstall: $('#menuInstall'),
   };
@@ -36,6 +36,9 @@
   let attempted = false;   // the visitor has answered the permission prompts this visit
   let phase = 'ask';       // what the page is showing (see landingState in lib/onboarding.js)
   let deferredInstall = null;
+  let geoError = null;     // why the last position lookup failed, if it did (a GeolocationPositionError code)
+  const needsCompass = O.compassNeedsPermission(window); // only iPhone and iPad ask; everywhere else the compass just works
+  const copy = O.permissionCopy({ needsCompass });
 
   // Resolve with {lat, lon} or null. Never rejects.
   function requestLocation() {
@@ -43,7 +46,7 @@
       if (!navigator.geolocation) return resolve(null);
       navigator.geolocation.getCurrentPosition(
         (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-        () => resolve(null),
+        (err) => { geoError = err && err.code; resolve(null); },
         { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
       );
     });
@@ -61,7 +64,11 @@
     els.allow.disabled = false;
     els.sample.hidden = !s.showSample;
     els.sample.parentElement.hidden = !s.showSample;
-    els.hero.title = s.phase === 'ready' ? 'Open the sky view' : 'Allow location and compass';
+    els.hero.title = s.phase === 'ready' ? 'Open the sky view' : copy.hero;
+    els.title.textContent = copy.title;
+    els.compassRow.hidden = !copy.showCompass;
+    els.who.textContent = copy.privacy;
+    els.allow.textContent = copy.button;
     els.open.hidden = !s.showOpen;
     els.form.hidden = !s.showForm;
     els.loc.textContent = hasLocation ? 'Allowed' : (attempted ? 'Not shared' : 'Not asked yet');
@@ -92,6 +99,12 @@
       if (loc) O.storeLocation(storage, loc.lat, loc.lon);
       render();
       if (loc) openSkyView();
+      else if (O.geoFailure(geoError) === 'unavailable') {
+        // Allowed, but the device could not work out where it is (no GPS, location switched off): carry on with an area
+        // guessed from the network, which the sky view says is a guess and lets the visitor correct in Settings.
+        els.msg.textContent = 'Could not read your position, so opening the sky view with an area from your network…';
+        setTimeout(() => location.assign('viewer.html'), 900);
+      }
     });
   }
 
@@ -126,8 +139,8 @@
   const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   // iPadOS Safari reports itself as a Mac, so a Mac with a touch screen is an iPad.
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; renderInstall(); });
-  window.addEventListener('appinstalled', () => { deferredInstall = null; renderInstall(); });
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; O.storeInstalled(storage, false); renderInstall(); }); // offered only while not installed
+  window.addEventListener('appinstalled', () => { deferredInstall = null; O.storeInstalled(storage, true); renderInstall(); });
 
   // The install button is always on the page (until the app is installed). It starts the browser's own install when the
   // browser offers it; otherwise it shows how to install from the browser's menu.
@@ -137,7 +150,7 @@
     manual: 'Open your browser menu and choose Install app, or Add to Home screen.',
   };
   function renderInstall() {
-    const mode = O.installMode({ standalone, ios, hasPrompt: !!deferredInstall });
+    const mode = O.installMode({ standalone, installed: O.readInstalled(storage), ios, hasPrompt: !!deferredInstall });
     const gone = mode === 'hidden';
     els.installCard.hidden = gone;
     els.menuInstall.parentElement.hidden = gone;
@@ -170,7 +183,7 @@
       const p = await navigator.permissions.query({ name: 'geolocation' });
       if (p.state !== 'granted') return;
       const loc = await requestLocation();
-      if (loc && O.storeLocation(storage, loc.lat, loc.lon)) render();
+      if (loc && O.storeLocation(storage, loc.lat, loc.lon)) { render(); openSkyView(); } // already allowed: no need for another tap
     } catch { /* the Permissions API is optional */ }
   })();
 })();

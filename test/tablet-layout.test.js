@@ -43,7 +43,7 @@ test('after permission is given the visitor goes straight to the sky view', () =
   assert.match(js, /function openSkyView\(\) \{[\s\S]*location\.assign\('viewer\.html'\)/);
   assert.match(js, /render\(\);\s*if \(loc\) openSkyView\(\);/, 'after the permission prompts, when location was shared');
   assert.match(js, /render\(\);\s*openSkyView\(\);\s*\}\);/, 'after typing coordinates');
-  assert.doesNotMatch(js.match(/\(async \(\) => \{[\s\S]*$/)[0], /openSkyView/, 'a quiet check on arrival does not move the visitor away');
+  assert.match(js.match(/\(async \(\) => \{[\s\S]*$/)[0], /O\.storeLocation\(storage, loc\.lat, loc\.lon\)\) \{ render\(\); openSkyView\(\); \}/, 'permission already given in the browser: the first visit goes straight in, and later visits find a stored place and stay');
 });
 
 test('the home page title and description are worth clicking, and the permission text is kept out of snippets', () => {
