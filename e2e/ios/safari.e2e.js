@@ -523,6 +523,30 @@ test('the pages ask for the full screen and the notch area, as an installed iPho
   assert.match(index, /apple-touch-icon/);
 });
 
+test('accessibility: arrow keys switch tabs and walk the radar, and the hidden page cannot be reached', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(FAKE_SKY);
+    assert.equal(await page.evaluate(() => document.querySelector('#pageNearby').inert), true, 'the Nearby page is out of reach while Radar shows');
+    await page.focus('#sky');
+    await page.keyboard.press('ArrowRight');
+    const first = await page.evaluate(() => __fg.state.sel);
+    await page.keyboard.press('ArrowRight');
+    const second = await page.evaluate(() => __fg.state.sel);
+    assert.ok(first && second && first !== second, 'the arrow keys move from one object to the next');
+    await page.focus('#tabRadar');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.getAttribute('#tabNearby', 'aria-selected'), 'true');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'tabNearby');
+    assert.equal(await page.evaluate(() => document.querySelector('#pageRadar').inert), true);
+    assert.equal(await page.evaluate(() => document.querySelector('#pageNearby').inert), false);
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.getAttribute('#tabRadar', 'aria-selected'), 'true');
+  } finally { await context.close(); }
+});
+
 test('security: the policy blocks nothing the pages need, and the CDN libraries pass their integrity check', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
