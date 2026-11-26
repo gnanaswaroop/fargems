@@ -2,19 +2,23 @@
  * It owns the camera stream, the overlay canvas and tap handling. Everything it needs from the app is
  * passed to create(), so it does not depend on app.js internals. The maths lives in lib/ar.js.
  *
- * create({ root, video, canvas, closeBtn, getObjects, getFilters, getSelected, getOrientation, onSelect, onClose })
+ * create({ root, video, canvas, closeBtn, getObjects, getFilters, getSelected, getOrientation, onSelect, onClose,
+ *         getOffset?, onOffset?, getLatitude? })
  *   getObjects()     -> [{ id, kind, name, az, el, az2?, el2?, color?, visible?, sunlit?, name }]
  *   getFilters()     -> layer switches { air, sat, sky, labels }
  *   getSelected()    -> id of the selected object, or null
  *   getOrientation() -> { alpha, beta, gamma, compassHeading, absolute }
- * Returns { open(), close(), isOpen() }. open() rejects with an Error whose .code is 'unsupported', 'denied' or 'failed'. */
+ *   getOffset()      -> { h, p } degrees the visitor added to the heading and pitch to line the picture up (optional)
+ *   onOffset(off)    -> called while the visitor drags the picture in line-up mode (optional)
+ *   getLatitude()    -> the visitor's latitude, to turn the Moon's face the way it is turned in the sky (optional)
+ * Returns { open(), close(), isOpen(), capture(), setAligning(on), isAligning() }. open() rejects with an Error whose .code is 'unsupported', 'denied' or 'failed'. */
 (function (root) {
   'use strict';
   const AR = root.FarGemsAR, L = root.FarGemsLogic;
   const VFOV = 63; // typical phone camera, vertical field of view in portrait
 
   function create(o) {
-    let isOpen = false, stream = null, raf = 0, heading = null, items = [];
+    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000;
     const ctx = o.canvas.getContext('2d');
     const FONT_SYMBOLS = '"Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
 
@@ -62,9 +66,12 @@
       if (ori.beta == null) { label('Move the phone to start the sensors', 16, H / 2, '#fff'); return; }
       const pose = AR.cameraPose(ori.alpha, ori.beta, ori.gamma);
       // The compass reads magnetic north and the sky is laid out from true north, so add the declination.
-      const trueHead = ((AR.chooseHeading(ori.compassHeading, pose.heading) + (ori.declination || 0)) % 360 + 360) % 360;
+      const off = AR.clampOffset(o.getOffset ? o.getOffset() : null); // the visitor's hand adjustment, for a compass that is a few degrees off
+      const trueHead = ((AR.chooseHeading(ori.compassHeading, pose.heading) + (ori.declination || 0) + off.h) % 360 + 360) % 360;
       heading = AR.smoothHeading(heading, trueHead, 0.25);
-      const cam = { heading, pitch: pose.pitch }, view = { W, H, vfov: VFOV };
+      const cam = { heading, pitch: pose.pitch + off.p }, view = { W, H, vfov: VFOV };
+      lastFocal = AR.focalFor(H, VFOV);
+      const objects = o.getObjects(), sun = objects.find((b) => b.kind === 'body' && b.name === 'Sun');
       const F = o.getFilters(), sel = o.getSelected();
       items = [];
 
@@ -82,7 +89,7 @@
       }
 
       let selOff = null;
-      for (const ob of o.getObjects()) {
+      for (const ob of objects) {
         const air = ob.kind === 'air', sat = ob.kind === 'sat', body = ob.kind === 'body';
         if (!(air && F.air) && !(sat && F.sat && (ob.visible || ob.sunlit)) && !(body && F.sky)) continue;
         if (ob.el < -1) continue;
@@ -99,6 +106,13 @@
         } else if (sat) {
           ctx.fillStyle = ob.visible ? '#fff' : '#5ad1e6'; const r = isSel ? 8 : 6;
           ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill();
+        } else if (ob.name === 'Moon' && root.FarGemsMoon && ob.phase != null) {
+          // The Moon as it looks tonight: lit on the side toward the Sun, with the right amount lit, turned as it is in the sky.
+          const limb = sun ? AR.directionOnScreen(ob, sun, cam) : -Math.PI / 2;
+          const lat = o.getLatitude ? o.getLatitude() : null;
+          const tilt = lat == null ? 0 : -AR.parallacticAngle(ob.az, ob.el, lat) * Math.PI / 180;
+          ctx.shadowBlur = 0;
+          root.FarGemsMoon.draw(ctx, 0, 0, 16, ob.phase, limb, tilt);
         } else {
           const big = ob.name === 'Sun' || ob.name === 'Moon';
           ctx.fillStyle = ob.color || '#ffd86b'; ctx.shadowColor = ob.color || '#ffd86b'; ctx.shadowBlur = 10;
@@ -106,7 +120,7 @@
         }
         ctx.restore();
         if (isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 24, 0, 7); ctx.stroke(); }
-        if (F.labels || isSel) label(ob.name, p.x + 18, p.y - 14, air ? '#ffd9a0' : '#fff');
+        if (F.labels || isSel) label(ob.name, p.x + (ob.name === 'Moon' ? 24 : 18), p.y - 14, air ? '#ffd9a0' : '#fff');
         items.push({ id: ob.id, x: p.x, y: p.y, r: 30 });
       }
 
@@ -123,7 +137,37 @@
       if (!knowsHeading) label('No compass reading: directions may be off', 12, 42, '#ffb4a8');
     }
 
+    // Line-up mode: dragging moves the picture's overlay, so the Moon or Sun drawn here can be put on the real one. The
+    // difference is kept as a few degrees added to the compass reading (and to the radar), because a phone compass can be off.
+    let drag = null;
+    o.canvas.addEventListener('pointerdown', (e) => { if (aligning) drag = { x: e.clientX, y: e.clientY }; });
+    o.canvas.addEventListener('pointermove', (e) => {
+      if (!aligning || !drag || !o.onOffset) return;
+      const next = AR.dragOffset(o.getOffset ? o.getOffset() : null, e.clientX - drag.x, e.clientY - drag.y, lastFocal);
+      drag = { x: e.clientX, y: e.clientY };
+      o.onOffset(next);
+    });
+    o.canvas.addEventListener('pointercancel', () => { drag = null; });
+
+    // The picture and the overlay as one image (PNG), the way they look on screen.
+    function capture() {
+      const cw = o.canvas.width, ch = o.canvas.height;
+      const out = document.createElement('canvas'); out.width = cw; out.height = ch;
+      const c = out.getContext('2d');
+      const vw = o.video.videoWidth, vh = o.video.videoHeight;
+      if (vw && vh) { const k = AR.coverCrop(vw, vh, cw, ch); c.drawImage(o.video, k.sx, k.sy, k.sw, k.sh, 0, 0, cw, ch); }
+      else { c.fillStyle = '#000'; c.fillRect(0, 0, cw, ch); }
+      c.drawImage(o.canvas, 0, 0);
+      const px = Math.max(12, Math.round(cw / 32)); // a small caption in the corner: the name and the time
+      c.font = '600 ' + px + 'px system-ui, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'bottom';
+      const caption = 'FarGems · ' + new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      c.lineWidth = Math.max(2, px / 5); c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText(caption, px, ch - px);
+      c.fillStyle = '#fff'; c.fillText(caption, px, ch - px);
+      return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('could not make the picture'))), 'image/png'));
+    }
+
     function onTap(e) {
+      if (aligning) { drag = null; return; } // dragging, not choosing
       const r = o.canvas.getBoundingClientRect();
       const hit = AR.pickNearest(items, e.clientX - r.left, e.clientY - r.top);
       o.onSelect(hit ? hit.id : null);
@@ -144,9 +188,9 @@
     }
     function close() {
       if (!isOpen) return;
-      isOpen = false; cancelAnimationFrame(raf); stopCamera(); o.root.hidden = true; document.body.classList.remove('ar-on');
+      isOpen = false; aligning = false; cancelAnimationFrame(raf); stopCamera(); o.root.hidden = true; document.body.classList.remove('ar-on');
     }
-    return { open, close, isOpen: () => isOpen };
+    return { open, close, isOpen: () => isOpen, capture, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
   }
 
   root.FarGemsARView = { create };

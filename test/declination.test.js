@@ -59,7 +59,7 @@ test('the app turns every compass reading into a true heading, in the radar and 
   const app = read('app.js'), ar = read('ar-view.js');
   assert.match(app, /FarGemsDeclination\.declination\(lat, lon, new Date\(\)\)/, 'worked out when the location is set');
   assert.match(app, /state\.declination = state\.ori\.declination/);
-  assert.match(app, /h = window\.FarGemsDeclination\.trueHeading\(h, state\.declination\)/);
+  assert.match(app, /h = window\.FarGemsDeclination\.trueHeading\(h, state\.declination \+ state\.arOffset\.h\)/);
   assert.match(ar, /ori\.declination/);
   const html = read('viewer.html');
   assert.ok(html.indexOf('lib/declination.js') > -1 && html.indexOf('lib/declination.js') < html.indexOf('src="app.js"'), 'loaded before app.js');
