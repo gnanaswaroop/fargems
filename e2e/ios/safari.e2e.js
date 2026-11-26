@@ -456,7 +456,7 @@ test('AR: a swipe back closes the camera view and stays on the sky view; the X l
   try {
     await page.goto(base + '/viewer.html');
     await page.evaluate(() => history.pushState({ page: 'sky' }, '')); // an earlier step to go back to, on the same page
-    const open = () => openArWithRetry(page); // the same stand-in camera the other AR tests use
+    const open = () => openAr(page, () => {}); // opens it the way the crosshair test does
     await open();
     assert.equal(await page.evaluate(() => history.state && history.state.fgAr), 1, 'the camera view added its own step');
     await page.goBack(); // what a swipe back does
