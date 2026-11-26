@@ -32,7 +32,7 @@ test('the sky view can install the app from the gear menu', () => {
   assert.match(app, /p\.prompt\(\); try \{ await p\.userChoice; \}/, 'starts the browser\'s own prompt');
   assert.match(app, /toast\(O\.installHelp\(\{ ios \}\), 7000\)/, 'or says how');
   assert.match(app, /\$\('#gearInstall'\)\.parentElement\.hidden = O\.installMode\(/);
-  assert.match(v, /<script src="lib\/onboarding\.js"><\/script>/, 'the viewer loads the install rules');
+  assert.match(v, /<script defer src="lib\/onboarding\.js"><\/script>/, 'the viewer loads the install rules');
 });
 
 test('installHelp says how to install where the browser has no prompt', () => {

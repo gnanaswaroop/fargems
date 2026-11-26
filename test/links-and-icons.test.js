@@ -50,11 +50,11 @@ test('About and Settings share one Back button that returns to where the visitor
   assert.match(html, /<p class="back"><a class="back-link" href="index\.html" data-back>&larr; Back<\/a><\/p>/);
   assert.match(settings, /<main class="settings-main">\s*<p class="back"><a class="back-link" href="viewer\.html" data-back>&larr; Back<\/a><\/p>/, 'the same button, first in the page');
   assert.doesNotMatch(settings, /Back to sky view/, 'no second wording');
-  assert.ok(settings.includes('<script src="nav.js"></script>'));
+  assert.ok(settings.includes('<script defer src="nav.js"></script>'));
   assert.match(css, /\.back-link\{display:inline-flex[^}]*border-radius:999px/, 'a pill button, not a bare underlined link');
   assert.match(js, /history\.back\(\)/);
   assert.match(js, /origin === location\.origin/, 'only goes back to a page of this site');
-  assert.ok(html.indexOf('lib/update.js') > -1 && html.includes('<script src="nav.js"></script>'));
+  assert.ok(html.indexOf('lib/update.js') > -1 && html.includes('<script defer src="nav.js"></script>'));
   assert.match(read('sw.js'), /'nav\.js'/);
   assert.match(read('.github/workflows/pages.yml'), /nav\.js/);
 });
@@ -71,13 +71,14 @@ function png(file) {
   assert.equal(d.subarray(1, 4).toString(), 'PNG', file + ' is a PNG');
   return { w: d.readUInt32BE(16), h: d.readUInt32BE(20), colorType: d[25], data: d };
 }
-// Pixel access for the few sizes used here, by decoding the PNG with Node's zlib (8-bit RGB or RGBA, no interlace).
+// Pixel access for the few sizes used here, by decoding the PNG with Node's zlib (8-bit RGB, RGBA or palette with transparency, no interlace).
 function pixel(file, x, y) {
   const zlib = require('node:zlib');
   const { w, h, data, colorType } = png(file);
-  let o = 8, idat = [];
-  while (o < data.length) { const len = data.readUInt32BE(o), type = data.subarray(o + 4, o + 8).toString(); if (type === 'IDAT') idat.push(data.subarray(o + 8, o + 8 + len)); o += 12 + len; }
-  const raw = zlib.inflateSync(Buffer.concat(idat)), bpp = colorType === 6 ? 4 : 3, stride = w * bpp, out = Buffer.alloc(h * stride);
+  let o = 8, idat = [], plte = null, trns = null;
+  while (o < data.length) { const len = data.readUInt32BE(o), type = data.subarray(o + 4, o + 8).toString(); if (type === 'IDAT') idat.push(data.subarray(o + 8, o + 8 + len)); if (type === 'PLTE') plte = data.subarray(o + 8, o + 8 + len); if (type === 'tRNS') trns = data.subarray(o + 8, o + 8 + len); o += 12 + len; }
+  assert.equal(data[24], 8, file + ' is 8 bits a pixel');
+  const raw = zlib.inflateSync(Buffer.concat(idat)), bpp = colorType === 6 ? 4 : colorType === 3 ? 1 : 3, stride = w * bpp, out = Buffer.alloc(h * stride);
   for (let row = 0; row < h; row++) {
     const f = raw[row * (stride + 1)], src = raw.subarray(row * (stride + 1) + 1, (row + 1) * (stride + 1));
     for (let i = 0; i < stride; i++) {
@@ -87,13 +88,14 @@ function pixel(file, x, y) {
     }
   }
   const i = y * stride + x * bpp;
+  if (colorType === 3) { const k = out[i]; return [plte[k * 3], plte[k * 3 + 1], plte[k * 3 + 2], trns && k < trns.length ? trns[k] : 255]; }
   return [out[i], out[i + 1], out[i + 2], bpp === 4 ? out[i + 3] : 255];
 }
 
 test('app icons: round with transparent corners for the "any" icons, full-bleed for maskable and iOS', () => {
   for (const [file, size] of [['icon-192.png', 192], ['icon-512.png', 512]]) {
     const p = png(file);
-    assert.equal(p.w, size); assert.equal(p.h, size); assert.equal(p.colorType, 6, 'RGBA');
+    assert.equal(p.w, size); assert.equal(p.h, size); assert.ok(p.colorType === 6 || p.colorType === 3, 'RGBA, or a palette with transparency (the icons are shrunk to a 256-colour palette)');
     assert.equal(pixel(file, 1, 1)[3], 0, `${file}: the corner is transparent, so no square background shows`);
     assert.equal(pixel(file, size - 2, size - 2)[3], 0);
     assert.equal(pixel(file, size >> 1, 6)[3], 255, `${file}: the circle reaches the middle of its edge`);

@@ -242,3 +242,19 @@ test('tablet: the gear menu in the sky view starts the browser install, and the 
     assert.equal(await b.page.isVisible('#gearInstall'), false, 'not shown inside the installed app');
   } finally { await b.context.close(); }
 });
+
+test('speed: the sky view loads its scripts side by side, not one after another', { skip }, async () => {
+  // A page with a Content-Security-Policy tag makes Chrome find its scripts one at a time unless they are marked defer, which
+  // tripled the load time on a slow connection. Every script answers after 350 ms here: side by side the page loads in about
+  // that long plus a little, one after another it would take 12 times as long.
+  const { page, context } = await tablet({ permission: true, storage: { 'fg.loc': JSON.stringify({ lat: 17.4435, lon: 78.3772 }) } });
+  try {
+    await context.route(/\.js(\?|$)/, async (route) => { await new Promise((r) => setTimeout(r, 350)); await route.continue(); });
+    const t0 = Date.now();
+    await page.goto(base + '/viewer.html', { waitUntil: 'load', timeout: 60000 });
+    const took = Date.now() - t0;
+    const scripts = await page.evaluate(() => [...document.querySelectorAll('script[src]')].length);
+    assert.ok(scripts >= 10, 'the page has its ' + scripts + ' scripts');
+    assert.ok(took < 2600, `the page took ${took} ms to load with every script delayed 350 ms; one after another it would take ${scripts * 350} ms`);
+  } finally { await context.close(); }
+});
