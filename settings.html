@@ -52,6 +52,13 @@
       <input id="flightRange" type="number" inputmode="numeric" min="1" max="100" step="1" aria-describedby="flightRangeHelp"> km
     </label>
     <p id="flightRangeHelp" class="muted small">Measured along the ground from you, so a jet overhead counts as 0 km. Starts at 25 km. Raise it to see flights farther away (up to 100 km).</p>
+    <label class="layer-row">Distance and speed
+      <select id="unitsSelect" aria-label="Distance and speed units">
+        <option value="metric">Metric (km, km/h, m)</option>
+        <option value="imperial">Imperial (miles, mph, feet)</option>
+        <option value="aviation">Aviation (nautical miles, knots, feet)</option>
+      </select>
+    </label>
     <label class="layer-row">Temperature unit
       <select id="unitSelect" aria-label="Temperature unit">
         <option value="C">°C</option>

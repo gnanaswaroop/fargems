@@ -496,3 +496,9 @@ If a CDN sits in front of the site it can keep old copies of the files for hours
 - **Names on the radar.** A name is placed only where all four corners of its box are inside the circle and the canvas and clear
   of other names. Long names are cut with an ellipsis (a selected object's name is cut to what fits across the radar). An
   important name with no free spot is moved toward the middle until it fits.
+
+## 16. Units and language
+
+- **Units.** Settings has a Distance and speed choice: metric (km, km/h, m), imperial (miles, mph, feet) or aviation (nautical miles, knots, feet). It is saved as `fg.units`; with nothing saved the browser language decides (miles and mph for en-US and a few others). The conversions live in `lib/logic.js` (`lengthText`, `altitudeText`, `speedText`), so every place that shows a length, height or speed uses the same ones. The farthest-flight setting stays in km.
+- **Language.** The text is English only, and `<html lang>` is `en`. Times and dates follow the browser locale. Translating means moving the fixed phrases (the pages, the detail card, compass names, moon phases) into one catalogue keyed by language and setting `lang` from it; that has not been done yet, and a half-translated page would be worse than a consistent English one.
+

@@ -47,6 +47,7 @@ const state = {
   filters: window.FarGemsLogic.defaultLayers(!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)),
   ori: { alpha: null, beta: null, gamma: null, compassHeading: null, absolute: false },
   visOnly: (() => { try { return window.FarGemsLogic.parseVisOnly(localStorage.getItem('fg.visOnly')); } catch { return true; } })(),
+  units: (() => { try { return window.FarGemsLogic.parseUnits(localStorage.getItem('fg.units'), navigator.language); } catch { return 'metric'; } })(),
   flightRangeKm: (() => { try { return window.FarGemsLogic.parseFlightRange(localStorage.getItem('fg.flightRange')); } catch { return window.FarGemsLogic.DEFAULT_FLIGHT_RANGE_KM; } })(),
   routes: new Map(), airTotal: 0, airVisible: 0, // routes: callsign -> { state, data }
   aircraft: [], aircraftAt: 0, sats: [], satsAt: 0, cloud: null,
@@ -466,7 +467,7 @@ function routeText(a) {
   if (r.state === 'failed') return `Lookup failed. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
   const d = r.data && r.data.destination, o = r.data && r.data.origin;
   if (!d) return `Not known. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
-  const far = d.lat != null ? ` · ${Math.round(H.distanceKm(a.lat, a.lon, d.lat, d.lon)).toLocaleString()} km to go` : '';
+  const far = d.lat != null ? ` · ${H.lengthText(H.distanceKm(a.lat, a.lon, d.lat, d.lon), state.units)} to go` : '';
   return esc(H.describeAirport(d)) + far + (o ? `<br><small class="muted">from ${esc(H.describeAirport(o))}</small>` : '');
 }
 function renderDetail() {
@@ -485,11 +486,11 @@ function renderDetail() {
   if (o.kind === 'air') {
     const a = o.ac;
     title += a.type ? ` <small class="muted">${esc(a.type)}</small>` : '';
-    rows = kv('Flying to', routeText(a)) + here + kv('Altitude', `${Math.round(o.altFt).toLocaleString()} ft`)
-      + kv('Speed', `${Math.round(a.gs * 1.852)} km/h`) + kv('Distance', `${Math.round(o.range)} km`)
+    rows = kv('Flying to', routeText(a)) + here + kv('Altitude', H.altitudeText(o.altFt, state.units))
+      + kv('Speed', H.speedText(a.gs, state.units)) + kv('Distance', H.lengthText(o.range, state.units))
       + (a.call ? kv('Track', `<a href="https://www.flightaware.com/live/flight/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">FlightAware ↗</a>`) : '');
   } else if (o.kind === 'sat') {
-    rows = here + kv('Altitude', `${Math.round(o.altKm)} km`) + kv('Distance', `${Math.round(o.range)} km`)
+    rows = here + kv('Altitude', H.lengthText(o.altKm, state.units)) + kv('Distance', H.lengthText(o.range, state.units))
       + kv('Lighting', o.visible ? 'Sunlit, visible to the eye' : o.sunlit ? 'Sunlit, but the sky is too bright' : 'In Earth’s shadow')
       + kv('More', `<a href="https://www.n2yo.com/satellite/?s=${o.norad}" target="_blank" rel="noopener">N2YO ↗</a>`);
   } else if (o.kind === 'body') {
@@ -583,7 +584,7 @@ function renderNearby() {
     return `<li><div class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
       `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
       `<span class="nm">${pinButton(o)}${esc(o.name)}</span>` +
-      `<span class="meta">${esc(H.formatDistance(o.distKm))}</span>` +
+      `<span class="meta">${esc(H.formatDistance(o.distKm, state.units))}</span>` +
       `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}${wikiTitle(o) ? ` <a class="wiki" href="${H.wikiUrl(wikiTitle(o))}" target="_blank" rel="noopener" aria-label="${esc(o.name)} on Wikipedia">Wikipedia ↗</a>` : ''}</span></div></li>`;
   }).join(''));
 }
@@ -866,6 +867,7 @@ function start() {
   // Choices made in settings.html.
   state.flip = storedValue('fg.flip') !== '0';
   state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
+  state.units = L.parseUnits(storedValue('fg.units'), navigator.language);
   state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   state.pins = L.parsePins(storedValue('fg.pins'));
