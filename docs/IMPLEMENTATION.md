@@ -578,3 +578,7 @@ Radar and Nearby are one rounded control: the chosen tab is filled in the accent
 
 The browser tests now run as six parallel jobs: the Safari (WebKit) tests in five shards and the Android tablet tests (Chromium) in one. Each job installs only its own browser (before, every job installed both, which took 40 to 70 seconds of a 70 to 120 second job) and keeps the downloaded browsers between runs with a cache.
 
+
+## 32. Back from the camera view
+
+The camera view adds one step to the browser history when it opens. A swipe back or the phone Back button closes the view and stays on the sky view. Closing it with the X, or by laying the phone flat, removes that step again so Back still goes to the page before.

@@ -853,7 +853,7 @@ function startCompass(wait = false) {
 // The camera picture with objects over it. It opens from the AR button, and by itself when the phone is
 // raised to look at the sky (once the camera has been allowed). Laying the phone flat closes it.
 let arView = null;
-const arState = { auto: null, opening: false, openedBy: null }; // openedBy: 'auto' or 'manual' while the view is open
+const arState = { auto: null, opening: false, openedBy: null, pushed: false }; // openedBy: 'auto' or 'manual' while the view is open
 function initAR() {
   if (!window.FarGemsARView || !window.FarGemsAR) return;
   arState.auto = window.FarGemsAR.newAutoState();
@@ -864,7 +864,13 @@ function initAR() {
     getPath: () => { const so = state.sel && state.byId.get(state.sel), pts = so && pathFor(so); return pts ? { pts, kind: so.kind } : null; },
     getOffset: () => state.arOffset, getLatitude: () => (state.loc ? state.loc.lat : null),
     onOffset: (off) => { state.arOffset = off; state.dirty = true; lsSet('fg.arOffset', off); },
-    onClose: () => { arState.openedBy = null; arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
+    onClose: () => { arState.openedBy = null; dropArEntry(); arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
+  });
+  // The camera view has its own step in the history, so a swipe or the phone's Back button closes it and stays on the sky view.
+  window.addEventListener('popstate', () => {
+    if (!arView.isOpen()) return;
+    arState.pushed = false; arState.openedBy = null; arView.close();
+    arState.auto = window.FarGemsAR.suppress(arState.auto);
   });
   $('#arBtn').onclick = () => openAR('manual');
   $('#arShot').onclick = takePhoto;
@@ -889,6 +895,8 @@ async function takePhoto() {
   } catch (e) { if (!e || e.name !== 'AbortError') toast('Could not make the picture.'); }
 }
 // source: 'manual' (the AR button) or 'auto' (the phone was raised). Only a view that opened by itself closes by itself.
+// The step added when the camera view opens is removed when the view closes some other way (its X, or the phone laid flat).
+function dropArEntry() { if (arState.pushed) { arState.pushed = false; try { history.back(); } catch { /* nothing to undo */ } } }
 async function openAR(source = 'manual') {
   if (!arView || arView.isOpen() || arState.opening) return; // one attempt at a time
   arState.opening = true;
@@ -904,6 +912,7 @@ async function openAR(source = 'manual') {
     }
     await arView.open();
     arState.openedBy = source;
+    try { history.pushState({ fgAr: 1 }, ''); arState.pushed = true; } catch { /* history blocked */ }
     try { localStorage.setItem('fg.camera', 'granted'); } catch { /* storage blocked */ }
     renderDetail();
   } catch (e) {
@@ -930,7 +939,7 @@ function autoAR() {
     closeAllowed: arState.openedBy === 'auto',
   });
   arState.auto = r.state;
-  if (r.action === 'close') { arView.close(); arState.openedBy = null; }
+  if (r.action === 'close') { arView.close(); arState.openedBy = null; dropArEntry(); }
   else if (r.action === 'open') openAR('auto');
 }
 function bindUI() {
