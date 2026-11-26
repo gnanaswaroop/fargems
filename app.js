@@ -591,8 +591,10 @@ function routeText(a) {
   if (r.state === 'failed') return `Lookup failed. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
   const d = r.data && r.data.destination, o = r.data && r.data.origin;
   if (!d) return `Not known. Heading ${dir16(a.track)} (${Math.round(a.track)}°)`;
-  const far = d.lat != null ? ` · ${H.lengthText(H.distanceKm(a.lat, a.lon, d.lat, d.lon), state.units)} to go` : '';
-  return esc(H.describeAirport(d)) + far + (o ? `<br><small class="muted">from ${esc(H.describeAirport(o))}</small>` : '');
+  // Both ends have the same weight: where it came from and where it is going, side by side, each with its city and its code.
+  const st = H.routeStops(r.data), end = (label, x) => `<span class="stop"><small>${label}</small>${x ? `<b>${esc(x.place || x.code)}</b>${x.place && x.code ? `<span class="code">${esc(x.code)}</span>` : ''}` : '<b class="unknown">Not known</b>'}</span>`;
+  const far = d.lat != null ? `<small class="route-far">${H.lengthText(H.distanceKm(a.lat, a.lon, d.lat, d.lon), state.units)} to go</small>` : '';
+  return `<div class="route">${end('From', st.from)}<span class="arrow" aria-hidden="true">→</span>${end('To', st.to)}</div>${far}`;
 }
 // The card for a station pass that has not started yet (or is below the horizon right now).
 function passCard(p) {
@@ -625,12 +627,15 @@ function renderDetail() {
   if (ps && !state.byId.has(ps.id) && (!state.sel || state.sel === ps.id)) { put(passCard(ps)); return; } // the station is not up yet: say when
   if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
-  let title = esc(o.name), rows = '';
+  let title = esc(o.name), rows = '', routeBlock = '';
+  const airline = o.kind === 'air' && o.ac ? H.airlineOf(o.ac.call) : null, airlineLine = airline ? `<p class="airline">${esc(airline)}</p>` : '';
   const here = kv('Sky position', `${Math.round(o.el)}° up · ${dir16(o.az)} (${Math.round(o.az)}°)`);
   if (o.kind === 'air') {
     const a = o.ac;
     title += a.type ? ` <small class="muted">${esc(a.type)}</small>` : '';
-    rows = kv('Flying to', routeText(a)) + here + kv('Altitude', H.altitudeText(o.altFt, state.units))
+    const rt = routeText(a), hasBlock = rt.startsWith('<div class="route">');
+    routeBlock = hasBlock ? rt : '';
+    rows = (hasBlock ? '' : kv('Route', rt)) + here + kv('Altitude', H.altitudeText(o.altFt, state.units))
       + kv('Speed', H.speedText(a.gs, state.units)) + kv('Distance', H.lengthText(o.range, state.units))
       + (a.call ? kv('Track', `<a href="https://www.flightaware.com/live/flight/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">FlightAware ↗</a>`) : '');
   } else if (o.kind === 'sat') {
@@ -652,8 +657,8 @@ function renderDetail() {
   const blurb = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
   const more = link ? `<p class="wikirow">${link}</p>` : '';
   const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
-  setHtml($('#detail'), `${X}<h3>${title}</h3>${lead}<dl>${rows}</dl>${blurb}${more}${acts}`);
-  setHtml($('#arDetail'), `${X}<h3>${title}</h3><dl>${rows}</dl>${more}`);
+  setHtml($('#detail'), `${X}<h3>${title}</h3>${airlineLine}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
+  setHtml($('#arDetail'), `${X}<h3>${title}</h3>${airlineLine}${routeBlock}<dl>${rows}</dl>${more}`);
 }
 
 // What Wikipedia says about an article, fetched once the first time an object is looked at. An article that does not exist
@@ -707,10 +712,17 @@ function togglePinned(id) {
   try { localStorage.setItem('fg.pins', JSON.stringify(state.pins)); } catch { /* storage blocked: kept for this visit */ }
   state.dirty = true; renderNearby(); renderDetail();
 }
+// The airline and the route for a shared flight, in words, when they are known ("Air India. Flying from Hyderabad (HYD) to Delhi (DEL).").
+function shareRoute(a) {
+  const H = window.FarGemsLogic, r = state.routes.get(a.call), airline = H.airlineOf(a.call);
+  const st = r && r.state === 'done' ? H.routeStops(r.data) : null, say = (x) => (x ? (x.place && x.code ? x.place + ' (' + x.code + ')' : x.place || x.code) : '');
+  const route = st && st.to ? 'Flying ' + (st.from ? 'from ' + say(st.from) + ' ' : '') + 'to ' + say(st.to) + '.' : '';
+  return [airline && airline + '.', route].filter(Boolean).join(' ');
+}
 // Share an object: the phone's share sheet when there is one, otherwise the text is copied.
 async function shareObject(o) {
   const H = window.FarGemsLogic;
-  const extra = o.kind === 'air' && o.ac ? ((routeText(o.ac) || '') && 'Flying to ' + routeText(o.ac).replace(/<[^>]*>/g, '') + '.') : '';
+  const extra = o.kind === 'air' && o.ac ? shareRoute(o.ac) : '';
   const text = H.shareText(o, extra), url = location.origin + location.pathname.replace(/[^/]*$/, '');
   try {
     if (navigator.share) { await navigator.share({ title: o.name + ' in the sky', text, url }); return; }
@@ -734,7 +746,7 @@ function renderNearby() {
       `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
       `<span class="nm">${pinButton(o)}${esc(o.name)}</span>` +
       `<span class="meta">${esc(H.formatDistance(o.distKm, state.units, state.far))}</span>` +
-      `<span class="where"><span class="tag">${esc(t.label)}</span> ${esc(H.describeDirection(o.az, o.el, heading))}${wikiTitle(o) ? ` <a class="wiki" href="${H.wikiUrl(wikiTitle(o))}" target="_blank" rel="noopener" aria-label="${esc(o.name)} on Wikipedia">Wikipedia ↗</a>` : ''}</span></div></li>`;
+      `<span class="where"><span class="tag">${esc(t.label)}</span>${o.kind === 'air' && o.ac && H.airlineOf(o.ac.call) ? ` <span class="airline-name">${esc(H.airlineOf(o.ac.call))}</span>` : ''} ${esc(H.describeDirection(o.az, o.el, heading))}${wikiTitle(o) ? ` <a class="wiki" href="${H.wikiUrl(wikiTitle(o))}" target="_blank" rel="noopener" aria-label="${esc(o.name)} on Wikipedia">Wikipedia ↗</a>` : ''}</span></div></li>`;
   }).join(''));
 }
 function renderAll() { renderHud(); renderStatus(); renderDetail(); renderPasses(); renderNearby(); }
