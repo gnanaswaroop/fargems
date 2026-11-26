@@ -400,6 +400,9 @@ test('sky view: north stays put while the phone goes from flat to upright and ba
   const { page, context, errors } = await iphone({ storage: { ...SAVED, 'fg.compass': 'granted' } });
   try {
     await page.goto(base + '/viewer.html');
+    // An Android phone held upright in portrait reports a screen angle of 0. This WebKit test browser reports 90 for its
+    // portrait window, which a real phone never does, so say what Chrome on Android would.
+    await page.evaluate(() => { Object.defineProperty(screen.orientation, 'angle', { get: () => 0, configurable: true }); });
     const facing = () => page.evaluate(() => window.__test_state ? 0 : document.querySelector('#facing').textContent);
     // The phone faces magnetic 90 (east). Raise it from flat to upright and lower it again, sending absolute readings.
     const send = async (tilt, times = 25) => {
