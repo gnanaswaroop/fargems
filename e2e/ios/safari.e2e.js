@@ -451,22 +451,29 @@ test('AR on an iPhone: the AR button asks for motion inside the tap, opens the c
   } finally { await context.close(); }
 });
 
-test('AR: a swipe back closes the camera view and stays on the sky view; the X leaves no extra step behind', { skip }, async () => {
+test('AR: a swipe back closes the camera view and stays on the sky view', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
     await page.goto(base + '/viewer.html');
     await page.evaluate(() => history.pushState({ page: 'sky' }, '')); // an earlier step to go back to, on the same page
-    const open = () => openAr(page, () => {}); // opens it the way the crosshair test does
-    await open();
+    await openAr(page, () => {});
     assert.equal(await page.evaluate(() => history.state && history.state.fgAr), 1, 'the camera view added its own step');
     await page.goBack(); // what a swipe back does
     await page.waitForFunction(() => document.querySelector('#ar').hidden, null, { timeout: 5000 });
     assert.match(page.url(), /viewer.html/, 'still on the sky view');
     assert.equal(await page.evaluate(() => history.state && history.state.page), 'sky', 'back to the step before the camera view');
-    await page.waitForLoadState('load'); await sleep(1200); // let the page settle after the step back
-    await open();
+  } finally { await context.close(); }
+});
+
+test('AR: closing the camera view with the X leaves no extra step behind', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/viewer.html');
+    await page.evaluate(() => history.pushState({ page: 'sky' }, ''));
+    await openAr(page, () => {});
     await page.tap('#arClose');
     await page.waitForFunction(() => history.state && history.state.page === 'sky', null, { timeout: 5000 });
+    assert.equal(await page.evaluate(() => document.querySelector('#ar').hidden), true);
   } finally { await context.close(); }
 });
 
