@@ -568,3 +568,7 @@ The logo has a thin white ring: `icon.svg` draws it as an outline (nothing is pa
 - **Airline.** The first three letters of a flight number are the airline's ICAO code (AIC144 is Air India), looked up in a list of about 140 airlines (`airlineOf` in `lib/logic.js`). The card shows the name right under the flight number, and the nearby list shows it beside the word Aircraft. Registrations (N123AB) and airlines not in the list show none.
 - **Route.** Where the flight came from and where it is going are drawn by the same code, side by side, with the same size, weight and colour: the city on top of its code, with From and To above and an arrow between, and the distance to go below. An unknown start says Not known at the same size, only lighter. Sharing a flight says it in words (for example Air India. Flying from Hyderabad (HYD) to Delhi (DEL).).
 
+## 30. Sharing the app
+
+Share FarGems is in the home page "..." menu, the sky view gear menu and on the Settings page. It sends one short text (about 170 characters, so it fits a WhatsApp message or a tweet with the address): the line the app is known by, "Look up. Know what you are looking at.", then what it does in one breath (it names the planes, the ISS, planets and the Moon above you, live, on a radar or in AR through your camera; free, no sign-up). The address is the site root, taken from where the page is served. `shareApp` in `lib/onboarding.js` uses the phone share sheet when there is one, otherwise it copies the text and the address, and closing the sheet is not an error.
+

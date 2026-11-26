@@ -1027,6 +1027,12 @@ function bindUI() {
     toast(O.installHelp({ ios }), 7000);
   });
   syncInstall();
+  // Share the app from here too.
+  $('#gearShare').addEventListener('click', async () => {
+    setGear(false);
+    const r = await O.shareApp({ navigator, location });
+    if (r === 'copied') toast('Copied. Paste it anywhere to share.'); else if (r === 'failed') toast('Could not share from here.');
+  });
   document.addEventListener('click', (e) => { if (!gearList.hidden && !gearList.contains(e.target)) setGear(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gearList.hidden) { setGear(false); gear.focus(); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && gearList.hidden && (state.sel || state.passSel) && !/INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '')) closeDetail(); });

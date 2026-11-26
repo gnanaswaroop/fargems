@@ -77,6 +77,11 @@
   $('#unitSelect').value = L.parseUnit(storage.getItem('fg.unit'));
   $('#unitSelect').addEventListener('change', (e) => storage.setItem('fg.unit', L.parseUnit(e.target.value)));
 
+  // Share the app: the share sheet, or copy the text and the address.
+  $('#shareApp').addEventListener('click', async () => {
+    const r = await O.shareApp({ navigator, location });
+    msg(r === 'shared' ? 'Thanks for sharing FarGems.' : r === 'copied' ? 'Copied. Paste it anywhere to share.' : r === 'cancelled' ? '' : 'Could not share from here.');
+  });
   // Layers: one checkbox per layer. The saved choices are read back, so a reload shows the truth.
   function currentLayers() {
     let raw = null;

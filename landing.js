@@ -170,6 +170,13 @@
     els.installCard.scrollIntoView({ block: 'nearest' });
     els.installText.classList.remove('flash'); void els.installText.offsetWidth; els.installText.classList.add('flash');
   }
+  // Share the app: the share sheet, or copy the text and the address.
+  const toast = (t) => { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 3500); };
+  $('#menuShare').addEventListener('click', async () => {
+    setMenu(false);
+    const r = await O.shareApp({ navigator, location });
+    if (r === 'copied') toast('Copied. Paste it anywhere to share.'); else if (r === 'failed') toast('Could not share from here.');
+  });
   els.installBtn.addEventListener('click', installApp);
   els.menuInstall.addEventListener('click', installApp);
 
