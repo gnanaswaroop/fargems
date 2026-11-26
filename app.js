@@ -598,7 +598,18 @@ function setPage(name) {
   $('#tabNearby').classList.toggle('on', nearby);
   $('#tabRadar').setAttribute('aria-selected', String(!nearby));
   $('#tabNearby').setAttribute('aria-selected', String(nearby));
+  $('#tabRadar').tabIndex = nearby ? -1 : 0;
+  $('#tabNearby').tabIndex = nearby ? 0 : -1;
+  syncPages();
   if (!nearby) state.dirty = true;
+}
+// The page that is slid out of sight must not be reachable by keyboard or screen reader. Where both pages are shown
+// side by side (a wide landscape tablet) neither is hidden.
+function syncPages() {
+  const wide = window.matchMedia('(min-width: 900px) and (min-aspect-ratio: 5/4)').matches;
+  const nearby = $('#pager').classList.contains('nearby');
+  $('#pageRadar').inert = !wide && nearby;
+  $('#pageNearby').inert = !wide && !nearby;
 }
 
 /* ---------- location ---------- */
@@ -699,6 +710,7 @@ async function openAR(source = 'manual') {
 // Called every 300 ms: open or close the camera view from how the phone is held.
 function autoAR() {
   if (!arView || state.ori.beta == null) return;
+  if (!window.FarGemsLogic.parseAutoAr(storedValue('fg.autoAr')) && !arView.isOpen()) return; // the visitor turned it off
   const AR = window.FarGemsAR;
   const pose = AR.cameraPose(state.ori.alpha, state.ori.beta, state.ori.gamma);
   let granted = false; try { granted = localStorage.getItem('fg.camera') === 'granted'; } catch { /* blocked */ }
@@ -797,12 +809,28 @@ function bindUI() {
   // On a wide landscape screen the nearby list sits under the object details, in the column beside the radar; otherwise it is
   // the second page next to the radar page.
   const wide = window.matchMedia('(min-width: 900px) and (min-aspect-ratio: 5/4)');
-  const placeNearby = () => { const to = wide.matches ? document.querySelector('.side') : $('#pager'), pn = $('#pageNearby'); if (to && pn.parentElement !== to) to.append(pn); };
+  const placeNearby = () => { syncPages(); const to = wide.matches ? document.querySelector('.side') : $('#pager'), pn = $('#pageNearby'); if (to && pn.parentElement !== to) to.append(pn); };
   if (wide.addEventListener) wide.addEventListener('change', placeNearby);
   placeNearby();
   // Tabs and swipes. Swipes that start on the radar are left alone, because dragging there rotates the sky.
   $('#tabRadar').onclick = () => setPage('radar');
   $('#tabNearby').onclick = () => setPage('nearby');
+  // Arrow keys move between the two tabs, as in any tab list.
+  document.querySelector('.tabs').addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const to = e.key === 'ArrowLeft' || e.key === 'Home' ? 'radar' : 'nearby';
+    setPage(to); $(to === 'radar' ? '#tabRadar' : '#tabNearby').focus();
+  });
+  // The radar is a picture, so the keyboard walks from object to object around the sky; the detail card reads it out.
+  cv.addEventListener('keydown', (e) => {
+    const delta = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!delta) return;
+    const id = window.FarGemsLogic.stepObject(state.objs, state.sel, delta);
+    if (!id) return;
+    e.preventDefault();
+    state.sel = id; state.dirty = true; renderNearby(); renderDetail();
+  });
   const pickRow = (e) => {
     const b = e.target.closest('[data-id]');
     if (!b || e.target.closest('a, button') || hasSelection()) return; // a link opens its page; dragging across a row to select its text is not a tap

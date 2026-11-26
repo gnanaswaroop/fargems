@@ -309,3 +309,8 @@ header .menu { margin: 0; }
 .detail .acts .btn { padding: 6px 14px; }
 .approx { margin: 4px 0 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); font-size: 12.5px; }
 .approx a { color: var(--accent); }
+
+/* Text for screen readers only. */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+#sky:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.layer-row select { min-width: 0; max-width: 100%; }
