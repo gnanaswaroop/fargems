@@ -30,14 +30,14 @@ test('lengths, heights and speeds in each system', () => {
   assert.equal(L.speedText(450, 'aviation'), '450 kt');
   assert.equal(L.formatDistance(384400, 'imperial'), '238,855 mi');
   assert.equal(L.formatDistance(384400), '384,400 km', 'the old call still works');
-  assert.match(L.formatDistance(1.5e8, 'imperial'), /AU$/, 'far objects stay in astronomical units');
+  assert.equal(L.formatDistance(1.5e8, 'imperial'), '93.2 million mi', 'space distances are short');
 });
 
 test('the detail card, the list and Settings use the chosen units', () => {
   const app = read('app.js'), s = read('settings.html'), js = read('settings.js');
   assert.match(app, /H\.altitudeText\(o\.altFt, state\.units\)/);
   assert.match(app, /H\.speedText\(a\.gs, state\.units\)/);
-  assert.match(app, /H\.formatDistance\(o\.distKm, state\.units\)/);
+  assert.match(app, /H\.formatDistance\(o\.distKm, state\.units, state\.far\)/);
   assert.match(app, /H\.lengthText\(H\.distanceKm\(a\.lat, a\.lon, d\.lat, d\.lon\), state\.units\)/);
   assert.doesNotMatch(app, /km\/h`/, 'no hard-coded km/h left');
   assert.match(s, /<select id="unitsSelect"[^>]*>[\s\S]*?value="metric"[\s\S]*?value="imperial"[\s\S]*?value="aviation"/);

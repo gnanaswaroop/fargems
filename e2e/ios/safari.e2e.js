@@ -694,3 +694,50 @@ test('AR: dragging in line-up mode corrects the heading, keeps it, and the radar
     assert.equal(await page.getAttribute('#arAlign', 'aria-pressed'), 'false');
   } finally { await context.close(); }
 });
+
+test('distances: the Sun and planets are short, can be shown in AU or light time, and the choice is made in Settings', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    const sky = `(() => {
+      const { state, renderNearby, renderDetail } = window.__fg;
+      const mk = (id, kind, name, az, el, distKm, extra) => Object.assign({ id, kind, name, az, el, distKm, range: distKm }, extra || {});
+      state.objs = [mk('body:Sun', 'body', 'Sun', 100, 30, 149597870.7, { phase: null, color: '#ffd86b' }), mk('body:Moon', 'body', 'Moon', 68, 49, 384400, { phase: 0.5, color: '#e6ecf5' })];
+      state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = 'body:Sun'; state.dirty = true;
+      renderNearby(); renderDetail();
+    })()`;
+    await page.goto(base + '/settings.html'); // this browser speaks en-US, which would default to miles
+    await page.selectOption('#unitsSelect', 'metric');
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(sky);
+    const meta = (id) => page.textContent(`.nearby-row[data-id="${id}"] .meta`);
+    assert.equal(await meta('body:Sun'), '149.6 million km', 'short, not 149,597,871 km');
+    assert.equal(await meta('body:Moon'), '384,400 km', 'the Moon keeps its number');
+    const card = await page.textContent('#detail');
+    assert.match(card, /Distance\s*149\.6 million km/);
+    assert.match(card, /Light takes\s*8 min 19 s/);
+    // Settings: choose AU. The page takes it from storage.
+    await page.goto(base + '/settings.html');
+    await page.selectOption('#farSelect', 'au');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.far')), 'au');
+    assert.match(await page.textContent('#farHelp'), /One AU is the average distance from the Earth to the Sun/);
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(sky);
+    assert.equal(await meta('body:Sun'), '1.00 AU');
+    assert.equal(await page.getAttribute('#detail abbr', 'title'), 'astronomical unit: the average distance from the Earth to the Sun, about 150 million km', 'the card explains the unit');
+    // Light travel time.
+    await page.goto(base + '/settings.html');
+    await page.selectOption('#farSelect', 'light');
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(sky);
+    assert.equal(await meta('body:Sun'), '8 min 19 s by light');
+    // Miles for the same Sun.
+    await page.goto(base + '/settings.html');
+    await page.selectOption('#farSelect', 'units');
+    await page.selectOption('#unitsSelect', 'imperial');
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(sky);
+    assert.equal(await meta('body:Sun'), '93.0 million mi');
+    assert.equal(await meta('body:Moon'), '238,855 mi');
+  } finally { await context.close(); }
+});
