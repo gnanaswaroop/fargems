@@ -1035,6 +1035,14 @@ async function liveSky(page, context, { when } = {}) {
   await page.goto(base + '/viewer.html?fgtest=1');
   await page.waitForFunction(() => window.__fg && __fg.state.objs.some((o) => o.kind === 'body'), null, { timeout: 20000 });
 }
+// Tap AR; if the camera view has not opened a few seconds later (a slow machine), tap once more, and say what the page said.
+async function openArWithRetry(page) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.tap('#arBtn');
+    try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 6000 }); return; } catch { /* tap again */ }
+  }
+  throw new Error('the camera view did not open; the page said: ' + JSON.stringify(await page.evaluate(() => ({ toasts: window.__toasts, ar: document.querySelector('#ar').hidden, status: document.querySelector('#status').textContent }))));
+}
 const amberPixels = (page, sel) => page.evaluate((sel) => {
   const cv = document.querySelector(sel), c = cv.getContext('2d'), d = c.getImageData(0, 0, cv.width, cv.height).data;
   let n = 0;
@@ -1116,8 +1124,7 @@ test('paths: the camera view draws the path of the selected flight too', { skip 
     await page.waitForFunction(() => __fg.state.objs.some((o) => o.name === 'KNOWN1'), null, { timeout: 20000 });
     await page.evaluate(() => { __fg.state.declination = 0; __fg.state.ori.declination = 0; __fg.state.arOffset = { h: 0, p: 0 }; });
     const az = await page.evaluate(() => __fg.state.objs.find((o) => o.name === 'KNOWN1').az);
-    await page.tap('#arBtn');
-    await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
+    await openArWithRetry(page);
     // Upright (the camera looks level) and facing the flight.
     for (let i = 0; i < 40; i++) { await page.evaluate((h) => { const e = new Event('deviceorientation'); e.webkitCompassHeading = h; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); }, az); await sleep(20); }
     await page.evaluate(() => { __fg.state.sel = null; __fg.state.filters.labels = false; });
