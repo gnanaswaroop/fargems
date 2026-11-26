@@ -530,3 +530,7 @@ From a million km on (the Sun, planets) a distance is shown short in the visitor
 
 The radar's background goes from dark blue at night to light blue by day (`skyLook` in `lib/logic.js` gives the colours for a brightness). Names were light grey and white, which vanished on the light sky. Now every name (and the 30 and 60 degree numbers) is drawn with a dark outline, the star names are near white, the rings and lines get brighter by day, and the dots have an edge so a pale Moon still shows. In the camera view a name that would run off the right edge goes to the left of its object.
 
+## 23. Tests in CI
+
+The browser tests (WebKit for iPhone and iPad, Chromium for an Android tablet) run as four shards at the same time. `e2e/ios/shard.js` replaces `node:test` in those files: with `FG_SHARD=2/4` a run only registers the tests whose number is 2 modulo 4 (plus one), so the slow ones spread evenly and the answer comes back in the time of the slowest quarter. The unit tests (a few seconds) run in their own job. The job called `safari` waits for all four shards and fails unless they all passed, so it is the one result to look at or to require.
+

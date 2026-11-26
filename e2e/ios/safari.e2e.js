@@ -9,7 +9,7 @@
 // It does not replace trying the app on a real iPhone.
 //
 // Run: npm run test:ios     (needs: cd e2e/ios && npm ci && npx playwright install webkit)
-const test = require('node:test');
+const { test } = require('./shard.js'); // like node:test, but runs only this run's share when FG_SHARD=2/4 is set
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const fs = require('node:fs');
