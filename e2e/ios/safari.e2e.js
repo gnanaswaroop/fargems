@@ -76,8 +76,9 @@ async function iphone({ storage = {}, answer = 'granted', quiet = false, device 
     // A camera without a camera. This test browser has no media stack at all (no mediaDevices, no streams), so the page gets
     // a stand-in stream and a video element that remembers what it was given. The AR view only needs those two things.
     const fake = { getTracks: () => [{ stop() {} }] };
-    if (!navigator.mediaDevices) Object.defineProperty(navigator, 'mediaDevices', { value: {}, configurable: true });
-    navigator.mediaDevices.getUserMedia = async () => fake;
+    // The browser's own object is not touched (on some builds a plain assignment to it does not stick, and the page then asks for a real
+    // camera and is refused, which failed the AR tests at random): the page gets one of ours.
+    Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: async () => fake }, configurable: true, writable: true });
     Object.defineProperty(HTMLVideoElement.prototype, 'srcObject', { configurable: true, get() { return this.__src || null; }, set(v) { this.__src = v; } });
     HTMLVideoElement.prototype.play = () => Promise.resolve();
     // Every message the app shows in its toast, in order, so a message that is soon replaced can still be checked.
@@ -524,6 +525,7 @@ test('AR on an iPhone: the AR button asks for motion inside the tap, opens the c
   const { page, context } = await iphone({ storage: SAVED });
   try {
     await page.goto(base + '/viewer.html');
+    await fakeCamera(page);
     await page.tap('#arBtn');
     await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
     assert.equal(await page.evaluate(() => window.__ios.asked.length), 1, 'asked once, by the tap');
@@ -568,6 +570,7 @@ test('AR on an iPhone: refusing motion access is explained and remembered', { sk
   const { page, context } = await iphone({ storage: SAVED, answer: 'denied' });
   try {
     await page.goto(base + '/viewer.html');
+    await fakeCamera(page);
     await page.tap('#arBtn');
     await page.waitForFunction(() => window.__toasts.some((t) => /Compass permission is needed for AR/.test(t)), null, { timeout: 10000 });
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.compass')), 'denied', 'the refusal is remembered');
@@ -686,11 +689,14 @@ const AR_SKY = (phase, sunAz) => `(() => {
   state.sel = null; state.dirty = true;
 })()`;
 
+// The same camera, put on the page itself again just before the AR button is tapped, in case the page's own start-up replaced it.
+const fakeCamera = (page) => page.evaluate(() => { const fake = { getTracks: () => [{ stop() {} }] }; Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: async () => fake }, configurable: true, writable: true }); });
+
 // Waits for the camera view to show; when it does not, the failure says what the page was doing.
 async function arShown(page, timeout = 15000) {
   try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout }); }
   catch (e) {
-    const d = await page.evaluate(() => ({ hidden: document.querySelector('#ar').hidden, asked: window.__ios && window.__ios.asked.length, toasts: window.__toasts, clicks: window.__diagClicks, errs: window.__diagErrs, now: Math.round(performance.now()), arBtn: (() => { const b = document.querySelector('#arBtn'), r = b && b.getBoundingClientRect(); return r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), b.disabled, !!b.onclick]; })(), compass: localStorage.getItem('fg.compass'), ready: document.readyState, libs: [typeof Astronomy, typeof satellite], body: document.body.className })).catch((err) => ({ evaluateFailed: String(err) }));
+    const d = await page.evaluate(() => ({ hidden: document.querySelector('#ar').hidden, asked: window.__ios && window.__ios.asked.length, gum: String(navigator.mediaDevices && navigator.mediaDevices.getUserMedia).slice(0, 60), toasts: window.__toasts, clicks: window.__diagClicks, errs: window.__diagErrs, now: Math.round(performance.now()), arBtn: (() => { const b = document.querySelector('#arBtn'), r = b && b.getBoundingClientRect(); return r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), b.disabled, !!b.onclick]; })(), compass: localStorage.getItem('fg.compass'), ready: document.readyState, libs: [typeof Astronomy, typeof satellite], body: document.body.className })).catch((err) => ({ evaluateFailed: String(err) }));
     throw new Error('the camera view did not show | page state: ' + JSON.stringify(d), { cause: e });
   }
 }
@@ -699,6 +705,7 @@ async function arShown(page, timeout = 15000) {
 // still: keep the crosshair from picking what it is held on (that would fade the picked icon while a test measures the picture).
 async function openAr(page, sky, { still = false } = {}) {
   await page.evaluate(sky);
+  await fakeCamera(page);
   await page.tap('#arBtn');
   await arShown(page);
   if (still) await page.evaluate(() => window.__fg.arView().setAligning(true));
@@ -1241,6 +1248,7 @@ async function openArWithRetry(page) {
   // A camera without a camera, put on the page itself (on some builds a plain assignment from the start-up script does not stick).
   await page.evaluate(() => { const fake = { getTracks: () => [{ stop() {} }] }; Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: async () => fake, configurable: true, writable: true }); });
   for (let attempt = 0; attempt < 3; attempt++) {
+    await fakeCamera(page);
     await page.tap('#arBtn');
     try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 6000 }); return; } catch { /* tap again */ }
   }
