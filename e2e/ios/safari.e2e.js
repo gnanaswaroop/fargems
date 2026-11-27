@@ -1447,6 +1447,9 @@ test('flights in the list name their airline beside the type, and the share text
     const text = await page.evaluate(() => window.__copied[0]);
     assert.match(text, /Air India\. Flying from Hyderabad \(HYD\) to Delhi \(DEL\)\./);
     assert.doesNotMatch(text, /FromHyderabad|<|Not known/, 'no markup in the text');
+    assert.match(text, /at .* travelling at .*from me\./i, 'what the flight is doing: height, speed, distance');
+    assert.match(text, /Did you know\? The A320neo/, 'the interesting line about its type');
+    assert.match(text, /Track it live: https:\/\/www\.flightaware\.com\/live\/flight\/AIC144 /, 'a FlightAware link');
   } finally { await context.close(); }
 });
 
@@ -2154,4 +2157,20 @@ test('sky view: tapping the logo does nothing; there is no way back to the landi
     assert.match(r.page.url(), /\/viewer\.html/, 'still on the sky view');
     assert.deepEqual(r.errors, []);
   } finally { await r.context.close(); }
+});
+
+test('share: a celestial object says what it is doing today, with the interesting line', { skip }, async () => {
+  const { page, context } = await linked('', FAKE_SKY);
+  try {
+    await page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
+    await page.evaluate(() => { const o = window.__fg.state; Object.assign(o.byId.get('sat:25544'), { altKm: 420, range: 800, sunlit: true, visible: true }); o.sel = 'sat:25544'; o.detailClosed = null; window.__fg.renderDetail(); });
+    await page.click('#detail [data-share]');
+    await page.waitForFunction(() => window.__copied.length === 1);
+    const t = await page.evaluate(() => window.__copied[0]);
+    assert.match(t, /orbiting .* up/i, 'height of the orbit: ' + t);
+    assert.match(t, /Sunlit|shadow/, 'its lighting');
+    assert.match(t, /Did you know\? The International Space Station/, 'the interesting line');
+    assert.doesNotMatch(t, /flightaware/i, 'no flight link for a satellite');
+    assert.doesNotMatch(t, /17\.4|78\.3/, 'no coordinates');
+  } finally { await context.close(); }
 });
