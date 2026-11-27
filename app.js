@@ -1030,8 +1030,8 @@ function searchWhere(r) {
   return Number.isFinite(r.el) ? `${Math.round(r.el)}° up · ${dir16(r.az)}` : 'up now';
 }
 function bindSearch() {
-  const box = $('#searchBox'), list = $('#searchResults'), S = window.FarGemsSearch, H = window.FarGemsLogic;
-  if (!box || !list || !S) return;
+  const box = $('#searchBox'), list = $('#searchResults'), bar = $('#searchbar'), btn = $('#searchBtn'), S = window.FarGemsSearch, H = window.FarGemsLogic;
+  if (!box || !list || !S || !bar) return;
   let results = [], active = -1;
   const close = () => { list.hidden = true; box.setAttribute('aria-expanded', 'false'); box.removeAttribute('aria-activedescendant'); active = -1; };
   const mark = () => {
@@ -1050,7 +1050,11 @@ function bindSearch() {
     }).join('') : `<li class="search-none" role="option" aria-disabled="true">Nothing in the sky called “${esc(q)}”.</li>`;
     mark();
   };
-  const choose = (id) => { if (!id) return; box.value = ''; close(); pickFromSearch(id); box.blur(); };
+  // The bar takes room, so it is hidden until the magnifier in the header is tapped (or / is pressed), and goes away again when done.
+  const openBar = () => { bar.hidden = false; if (btn) btn.setAttribute('aria-expanded', 'true'); box.focus(); render(); };
+  const closeBar = () => { box.value = ''; close(); bar.hidden = true; if (btn) btn.setAttribute('aria-expanded', 'false'); };
+  if (btn) btn.addEventListener('click', () => { if (bar.hidden) openBar(); else closeBar(); });
+  const choose = (id) => { if (!id) return; closeBar(); pickFromSearch(id); box.blur(); };
   box.addEventListener('input', render);
   box.addEventListener('focus', render);
   box.addEventListener('keydown', (e) => {
@@ -1059,16 +1063,21 @@ function bindSearch() {
       e.preventDefault(); active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length; mark();
     } else if (e.key === 'Enter') {
       e.preventDefault(); const r = results[active >= 0 ? active : 0]; if (r && !list.hidden) choose(r.id);
-    } else if (e.key === 'Escape') { box.value = ''; close(); }
+    } else if (e.key === 'Escape') { closeBar(); if (btn) btn.focus(); }
   });
   list.addEventListener('mousedown', (e) => e.preventDefault()); // keep the focus in the box until a result is chosen
   list.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('button[data-id]'); if (b) choose(b.getAttribute('data-id')); });
-  document.addEventListener('click', (e) => { if (!list.hidden && !(e.target.closest && e.target.closest('#searchbar'))) close(); });
+  document.addEventListener('click', (e) => { // a click elsewhere closes the list, and the bar too when nothing has been typed
+    const t = e.target, inside = t && t.closest && (t.closest('#searchbar') || t.closest('#searchBtn'));
+    if (inside) return;
+    if (!list.hidden) close();
+    if (!bar.hidden && !box.value.trim()) closeBar();
+  });
   document.addEventListener('keydown', (e) => { // "/" jumps to the search box, as in many sites
     if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
-    e.preventDefault(); box.focus();
+    e.preventDefault(); openBar();
   });
 }
 function bindUI() {
