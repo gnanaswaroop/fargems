@@ -648,3 +648,7 @@ The detail card is short by default: picture, name, a one-line route, two rows (
 ## 46. Settings look
 
 Every on/off choice in settings (and each map layer) is a switch: the real checkbox with `role="switch"`, drawn as a track and a knob by `body.settings input[type="checkbox"]`. Each row has a bold title and a small hint (`.setting`, `.s-text`); lists sit full width under their title and a number keeps a small box.
+
+## 47. Sun, Moon and planets on the radar
+
+`lib/bodyart.js` (`FarGemsBodyArt`) draws each body as a small mark. Every body is a plain disc; three small cues tell them apart. The Moon shows only its phase (the lit part from `FarGemsMoon.litPath`, turned toward the Sun on the dial; no seas or craters). Saturn has a tilted ring, one half behind the disc and one in front. Jupiter has two faint bands. Venus has a slightly stronger glow. Planet size still follows brightness (`planetRadius`), with a floor for Saturn so its ring shows, and the name is placed clear of the ring (`extent`). The camera view keeps its own, more detailed Moon (`lib/moon.js`). Tests: `test/body-art.test.js` and the radar e2e in `e2e/ios/safari.e2e.js`.

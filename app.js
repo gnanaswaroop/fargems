@@ -485,11 +485,16 @@ function draw() {
   for (const o of state.objs) { // Sun, Moon, planets
     if (o.kind !== 'body' || !F.sky || o.el < -6) continue; // a little below the horizon is drawn just outside the circle
     const p = P(o.az, Math.max(-6, o.el)); const big = o.name === 'Sun' || o.name === 'Moon';
-    const r = big ? 8 : Math.max(2.5, 5.5 - (o.mag ?? 0) * 0.8);
-    ctx.fillStyle = o.color; ctx.shadowColor = o.color; ctx.shadowBlur = big ? 14 : 6;
-    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.strokeStyle = look.dotOutline; ctx.lineWidth = 1; ctx.stroke(); // an edge, so a pale Moon still shows on a pale sky
-    label(o, p, r + 4, 4, '#fff'); hit(o, p, r + 8);
+    const BA = window.FarGemsBodyArt, r = big ? 8 : BA.planetRadius(o.name, o.mag);
+    let sunAngle = 0; // the lit side of the Moon faces the Sun
+    if (o.name === 'Moon') {
+      const sun = state.objs.find(x => x.id === 'body:Sun');
+      if (sun) { const sp = P(sun.az, Math.max(-6, sun.el)); sunAngle = Math.atan2(sp.y - p.y, sp.x - p.x); }
+      else sunAngle = (o.waxing === (sgn > 0)) ? Math.PI : 0;
+    }
+    BA.draw(ctx, o, p.x, p.y, r, sunAngle, look.dotOutline); // an edge, so a pale Moon still shows on a pale sky
+    const reach = BA.extent(o.name, r);
+    label(o, p, reach + 4, 4, '#fff'); hit(o, p, reach + 8);
   }
   placeLabels();
   const so = sel && state.byId.get(sel);
