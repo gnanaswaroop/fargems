@@ -116,13 +116,13 @@ test('capture makes a PNG of the camera picture with the overlay and a caption o
   e.canvas.width = 800; e.canvas.height = 1600;
   const blob = await e.view.capture();
   assert.equal(blob.type, 'image/png');
-  const out = e.made[0];
+  const out = e.made[e.made.length - 1]; // the picture is the last thing made (opening the view measures the notch with a throwaway element first)
   assert.deepEqual([out.width, out.height], [800, 1600], 'the picture is as big as the screen');
   const names = out.calls.map((c) => c[0]);
   assert.ok(names.indexOf('drawImage') < names.lastIndexOf('drawImage'), 'the camera picture first, then the overlay');
   const video = out.calls.find((c) => c[0] === 'drawImage');
   assert.equal(video.length, 10, 'the video is cropped to fill the picture like on screen');
-  assert.ok(out.calls.some((c) => c[0] === 'fillText' && /^FarGems · /.test(c[1])), 'a small caption');
+  assert.ok(out.calls.some((c) => c[0] === 'fillText' && /\d/.test(c[1])), 'a small caption with the time');
   assert.ok(!out.calls.some((c) => c[0] === 'fillText' && /\d+\.\d{3}/.test(c[1])), 'no coordinates in the caption');
 });
 
@@ -177,9 +177,9 @@ test('the adjustment is kept within a sensible range, and rubbish means none', (
 });
 
 /* ---- the page ---- */
-test('the page has the Photo and Align buttons, loads the Moon drawing, and keeps it offline', () => {
+test('the page has the shutter and Align buttons, loads the Moon drawing, and keeps it offline', () => {
   const v = read('viewer.html'), app = read('app.js'), sw = read('sw.js');
-  assert.match(v, /<button id="arShot" class="btn ar-tool" type="button" aria-label="[^"]+">Photo<\/button>/);
+  assert.match(v, /<button id="arShot" class="ar-shutter" type="button" aria-label="[^"]+" title="[^"]+"><span aria-hidden="true"><\/span><\/button>/);
   assert.match(v, /<button id="arAlign" class="btn ar-tool" type="button" aria-pressed="false" aria-label="[^"]+">Align<\/button>/);
   assert.match(v, /id="arAlignBar"[^>]*hidden/);
   assert.ok(v.indexOf('lib/ar.js') < v.indexOf('lib/moon.js') && v.indexOf('lib/moon.js') < v.indexOf('src="app.js"'), 'moon.js loads before the app');

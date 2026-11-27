@@ -1755,3 +1755,70 @@ test('card preview: with a photo on the card, the From and To row still has the 
     assert.ok(Math.abs(m.rows[0] - m.rows[1]) < 4 && m.right <= 390, 'From and To are in one row inside the phone width: ' + JSON.stringify(m));
   } finally { await context.close(); }
 });
+
+// The bright (near white) pixels in the top left corner of a picture: how many, and how far across and down they reach, in screen px.
+const BRAND_PROBE = `(src, scale) => {
+  const w = src.width, h = Math.round(48 * scale), x1 = Math.round(w / 2);
+  const d = src.getContext('2d').getImageData(0, 0, x1, h).data;
+  let n = 0, maxX = 0, maxY = 0, minX = 1e9;
+  for (let y = 0; y < h; y++) for (let x = 0; x < x1; x++) { const i = (y * x1 + x) * 4; if (d[i] > 190 && d[i + 1] > 190 && d[i + 2] > 190 && d[i + 3] > 200) { n++; maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); minX = Math.min(minX, x); } }
+  return { n, minX: minX / scale, maxX: maxX / scale, maxY: maxY / scale };
+}`;
+
+test('AR: the app name and logo are small at the top left of the camera picture, and a saved picture has them too', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__shared = []; navigator.canShare = () => true;
+      navigator.share = async (d) => {
+        const bmp = await createImageBitmap(d.files[0]), c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0);
+        const cv = document.querySelector('#arCanvas'); window.__shared.push({ c, scale: bmp.width / cv.clientWidth });
+      };
+    });
+    await openAr(page, AR_SKY(0.5, 100));
+    await page.waitForFunction(() => { const i = [...document.images].length; return true; }); // the logo is a picture the view loads itself
+    await sleep(500);
+    const live = await page.evaluate(`(() => { const cv = document.querySelector('#arCanvas'); const f = ${BRAND_PROBE}; return f(cv, cv.width / cv.clientWidth); })()`);
+    assert.ok(live.n > 40, 'the name is drawn at the top left: ' + JSON.stringify(live));
+    assert.ok(live.maxX < 140 && live.maxY < 60, 'and it is small, in the corner: ' + JSON.stringify(live));
+    assert.ok(live.minX >= 8, 'with a margin');
+    await page.tap('#arShot');
+    await page.waitForFunction(() => window.__shared.length === 1, null, { timeout: 10000 });
+    const saved = await page.evaluate(`(() => { const s = window.__shared[0]; const f = ${BRAND_PROBE}; return f(s.c, s.scale); })()`);
+    assert.ok(saved.n > 40 && saved.maxX < 140 && saved.maxY < 60, 'the saved picture has the same name in the same place: ' + JSON.stringify(saved));
+  } finally { await context.close(); }
+});
+
+test('AR: the camera button is a round shutter at the bottom right, above the card when it is open, and Align is at the bottom left', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, AR_SKY(0.5, 100));
+    const vp = page.viewportSize();
+    const box = async (s) => page.evaluate((q) => { const r = document.querySelector(q).getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; }, s);
+    await page.evaluate(() => window.__fg.closeDetail()); // no card
+    let shot = await box('#arShot'), align = await box('#arAlign');
+    assert.ok(shot.w >= 56 && Math.abs(shot.w - shot.h) < 1, 'a round button, big enough to tap: ' + JSON.stringify(shot));
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#arShot')).borderRadius), '50%');
+    assert.ok(shot.r > vp.width - 16 && shot.b > vp.height - 40, 'bottom right with no card: ' + JSON.stringify([shot, vp]));
+    assert.ok(align.l < 16 && align.b > vp.height - 40, 'Align at the bottom left: ' + JSON.stringify(align));
+    assert.equal(await page.evaluate(() => document.querySelector('#arShot').textContent.trim()), '', 'no word on it, like a camera');
+    assert.equal(await page.getAttribute('#arShot', 'aria-label'), 'Take a picture with the labels on it');
+    // not where it used to be: under the close button at the top right
+    const close = await box('#arClose'); assert.ok(shot.t > close.b + 200, 'far from the close button');
+    // with the card open the shutter is above it, still at the right edge, and nothing overlaps
+    await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.state.detailClosed = null; window.__fg.renderDetail(); });
+    await page.waitForSelector('#arDetail:not([hidden]) h3');
+    const card = await box('#arDetail'); shot = await box('#arShot'); align = await box('#arAlign');
+    assert.ok(shot.b <= card.t + 1, 'the shutter is above the card, not on it: ' + JSON.stringify([shot, card]));
+    assert.ok(shot.r > vp.width - 16, 'and at the right edge');
+    assert.ok(card.b >= vp.height - 30, 'the card is still at the bottom: ' + JSON.stringify([card, vp]));
+    assert.ok(align.b <= card.t + 1 && align.l < 16, 'Align above the card on the left');
+    // it still works with the card open
+    await page.evaluate(() => { window.__taken = 0; });
+    assert.equal(await page.evaluate(() => { const r = document.querySelector('#arShot').getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).closest('#arShot') !== null; }), true, 'nothing covers it');
+  } finally { await context.close(); }
+});

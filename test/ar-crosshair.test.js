@@ -7,7 +7,7 @@ const path = require('node:path');
 const src = fs.readFileSync(path.join(__dirname, '..', 'ar-view.js'), 'utf8');
 
 test('the crosshair is drawn each frame right after the canvas is cleared, with a dark edge under a light line', () => {
-  assert.match(src, /ctx\.clearRect\(0, 0, W, H\);\s*crosshair\(W, H\);/);
+  assert.match(src, /ctx\.clearRect\(0, 0, W, H\);\s*brand\(\);\s*crosshair\(W, H\);/, 'the app name is drawn first, then the crosshair');
   assert.match(src, /function crosshair\(W, H\) \{\s*const cx = W \/ 2, cy = H \/ 2, gap = 4, arm = 10;/);
   assert.match(src, /\[\[3, 'rgba\(0,0,0,\.55\)'\], \[1\.25, 'rgba\(255,255,255,\.95\)'\]\]/);
 });
