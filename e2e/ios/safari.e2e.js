@@ -691,7 +691,7 @@ async function arShown(page, timeout = 15000) {
   try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout }); }
   catch (e) {
     const d = await page.evaluate(() => ({ hidden: document.querySelector('#ar').hidden, asked: window.__ios && window.__ios.asked.length, toasts: window.__toasts, clicks: window.__diagClicks, errs: window.__diagErrs, now: Math.round(performance.now()), arBtn: (() => { const b = document.querySelector('#arBtn'), r = b && b.getBoundingClientRect(); return r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), b.disabled, !!b.onclick]; })(), compass: localStorage.getItem('fg.compass'), ready: document.readyState, libs: [typeof Astronomy, typeof satellite], body: document.body.className })).catch((err) => ({ evaluateFailed: String(err) }));
-    e.message += ' | page state: ' + JSON.stringify(d); throw e;
+    throw new Error('the camera view did not show | page state: ' + JSON.stringify(d), { cause: e });
   }
 }
 
