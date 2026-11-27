@@ -1590,15 +1590,19 @@ test('card preview: a flight shows the photo of its type from Wikipedia, named a
     // moving to another object takes it away
     await page.evaluate(() => { window.__fg.state.sel = 'star:Vega'; window.__fg.renderDetail(); });
     assert.equal(await page.locator('#detail .pv').count(), 0, 'a star has no preview');
+    await page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); });
+    await page.locator('#detail .pv-photo img').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('#detail .pv-generic').count(), 0, 'the generic picture gives way to the photo once it is there');
   } finally { await context.close(); }
 });
 
-test('card preview: no photo when Wikipedia has none, and a photo that cannot be loaded goes away', { skip }, async () => {
+test('card preview: no photo when Wikipedia has none, and a photo that cannot be loaded is replaced by the generic picture', { skip }, async () => {
   const none = await linked('', FAKE_SKY, (c) => wikiAnswers(c, { thumb: false }));
   try {
     await none.page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); });
     await none.page.waitForFunction(() => document.querySelector('#detail .blurb')); // the article arrived
-    assert.equal(await none.page.locator('#detail .pv').count(), 0, 'nothing to show, nothing shown');
+    assert.equal(await none.page.locator('#detail .pv-photo').count(), 0, 'no photo to show');
+    assert.equal(await none.page.locator('#detail .pv-generic svg').count(), 1, 'a generic picture instead, so the card is never without one');
   } finally { await none.context.close(); }
   const broken = await linked('', FAKE_SKY, (c) => wikiAnswers(c, { picture: 'fail' }));
   try {
@@ -1607,8 +1611,8 @@ test('card preview: no photo when Wikipedia has none, and a photo that cannot be
       window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail();
     });
     await broken.page.waitForFunction(() => document.querySelector('#detail .blurb'));
-    await broken.page.waitForFunction(() => !document.querySelector('#detail .pv'), null, { timeout: 8000 });
-    assert.equal(await broken.page.evaluate(() => window.__sawPv), true, 'it was shown, then taken away when it failed');
+    await broken.page.waitForFunction(() => !document.querySelector('#detail .pv-photo') && document.querySelector('#detail .pv-generic'), null, { timeout: 8000 });
+    assert.equal(await broken.page.evaluate(() => window.__sawPv), true, 'it was shown, then replaced by the generic picture when it failed');
     assert.equal(await broken.page.locator('#detail img').count(), 0, 'no broken-image icon');
     assert.match(await broken.page.textContent('#detail'), /AIC144/, 'the rest of the card is still there');
   } finally { await broken.context.close(); }
@@ -1950,5 +1954,30 @@ test('a tap is not lost when the card is redrawn between the press and the relea
     await page.waitForFunction(() => window.__copied.length === 1, null, { timeout: 5000 });
     // the card was not left stale: once the finger is up the next refresh shows the new numbers
     await page.waitForFunction(() => /43° up/.test(document.querySelector('#detail').textContent), null, { timeout: 8000 });
+  } finally { await context.close(); }
+});
+
+test('card preview: a flight or a satellite with no photo gets a generic picture of its kind, small, and the card is no taller for it', { skip }, async () => {
+  const { page, context } = await linked('', FAKE_SKY); // the outside world is off, so there is no photo
+  try {
+    await page.evaluate(() => {
+      const { state } = window.__fg; const mk = (id, kind, name, az, el, x) => Object.assign({ id, kind, name, az, el, distKm: 500, range: 500 }, x || {});
+      state.objs.push(mk('sat:1', 'sat', 'NOAA 19', 50, 30, { norad: 33591, altKm: 850, visible: true }), mk('sat:2', 'sat', 'CZ-4C R/B', 60, 20, { norad: 39000, altKm: 700, visible: true }), mk('sat:3', 'sat', 'STARLINK-1007', 70, 25, { norad: 44713, altKm: 550, visible: true }));
+      state.byId = new Map(state.objs.map((o) => [o.id, o]));
+      state.byId.get('air:a1').ac.call = 'AIC144';
+    });
+    for (const [id, label] of [['air:a1', /^An aircraft/], ['sat:25544', /^A space station/], ['sat:1', /^A satellite /], ['sat:2', /^A spent rocket/], ['sat:3', /^A communications satellite/]]) {
+      await page.evaluate((i) => { window.__fg.state.sel = i; window.__fg.state.detailClosed = null; window.__fg.renderDetail(); }, id);
+      const svg = page.locator('#detail .pv-generic svg');
+      assert.equal(await svg.count(), 1, id + ' has a generic picture');
+      assert.match(await svg.getAttribute('aria-label'), label, id);
+      assert.match(await svg.getAttribute('aria-label'), /generic picture/, 'and says that it is generic');
+      assert.equal(await page.textContent('#detail .pv-generic .pv-tag'), 'generic', 'and the picture itself says so');
+      const box = await svg.boundingBox(); assert.ok(box.width >= 40 && box.width <= 60, 'small: ' + box.width);
+      await tallerBy(page, 10);
+    }
+    assert.equal(await page.evaluate(() => document.querySelectorAll('#arDetail .pv-generic svg').length), 1, 'the card over the camera picture has it too');
+    const ids = await page.evaluate(() => [...document.querySelectorAll('svg [id]')].map((n) => n.id));
+    assert.deepEqual(ids, [], 'no names inside the drawing, so showing it twice in the page cannot clash');
   } finally { await context.close(); }
 });

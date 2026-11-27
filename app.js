@@ -723,18 +723,21 @@ function wikiInfo(title) {
 // The small picture at the top of the card: the Sun, Moon and planets are drawn here (the Moon as it is lit tonight); a flight or
 // a satellite gets the photo of its type or station from its Wikipedia article once that has arrived, named as the type's photo
 // because it is not a picture of this very aircraft. Nothing is shown while there is nothing to show.
+const badPics = new Set(); // photo addresses that would not load, so the generic picture is shown instead and they are not tried again
 function previewHtml(o, wt, wk, uid) {
   const P = window.FarGemsPreview, kind = P && P.photoKind(o);
   if (kind === 'art') return `<figure class="pv pv-art">${P.bodyArt(o, { waxing: o.waxing, south: !!(state.loc && state.loc.lat < 0), uid })}</figure>`;
-  if (kind === 'photo' && wk && wk.thumb && wt) {
+  if (kind === 'photo' && wk && wk.thumb && wt && !badPics.has(wk.thumb)) {
     const name = wt.replace(/ \(.*\)$/, '');
     const what = o.kind === 'air' ? name + ' (example photo of this type of aircraft)' : name;
     return `<figure class="pv pv-photo" title="${esc(what)}"><img src="${esc(wk.thumb)}" alt="${esc(what)}" width="72" height="48" loading="lazy" decoding="async" referrerpolicy="no-referrer">${o.kind === 'air' ? '<span class="pv-tag">example</span>' : ''}</figure>`;
   }
-  return '';
+  // No photo (none exists, it has not come yet, or it would not load): a generic picture of the kind of thing it is, so there is always one.
+  const g = kind === 'photo' && P.genericArt ? P.genericArt(o) : null;
+  return g ? `<figure class="pv pv-art pv-generic" title="${esc(g.label)}">${g.svg}<span class="pv-tag">generic</span></figure>` : '';
 }
 // A picture that does not load (offline, blocked, removed) takes its place away, so the card never shows a broken image.
-document.addEventListener('error', (ev) => { const t = ev.target; if (t && t.tagName === 'IMG' && t.closest && t.closest('.pv')) t.closest('.pv').remove(); }, true);
+document.addEventListener('error', (ev) => { const t = ev.target; if (t && t.tagName === 'IMG' && t.closest && t.closest('.pv')) { badPics.add(t.getAttribute('src')); t.closest('.pv').remove(); renderDetail(); } }, true);
 // A distance to the Sun, Moon or a planet for the detail card. AU gets a tooltip that says what it is.
 function farDistanceHtml(km) {
   const text = esc(window.FarGemsLogic.formatDistance(km, state.units, state.far));
