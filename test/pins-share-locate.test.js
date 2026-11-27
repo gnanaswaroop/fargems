@@ -63,11 +63,11 @@ test('the app shares through the phone share sheet, or copies the text', () => {
 test('the viewer header has a gear that opens Settings and Help; Help is also in the home menu', () => {
   const v = read('viewer.html'), idx = read('index.html'), about = read('about.html');
   assert.doesNotMatch(v, /<a class="pill" href="settings\.html">Settings<\/a>/, 'the text link is gone');
-  assert.match(v, /<button id="gearBtn" class="menu-btn gear"[^>]*aria-label="Settings and help"[^>]*aria-expanded="false"[^>]*aria-controls="gearList"><svg/);
+  assert.match(v, /<button id="gearBtn" class="menu-btn gear"[^>]*aria-label="Settings and about"[^>]*aria-expanded="false"[^>]*aria-controls="gearList"><svg/);
   const list = v.match(/<ul id="gearList" class="menu-list" hidden>([\s\S]*?)<\/ul>/)[1];
   assert.match(list, /<a href="settings\.html">Settings<\/a>/);
-  assert.match(list, /<a href="about\.html">About &amp; help<\/a>/);
-  assert.match(idx.match(/<ul id="menuList"[\s\S]*?<\/ul>/)[0], /<a href="about\.html">About &amp; help<\/a>/);
+  assert.match(list, /<a href="about\.html">About<\/a>/);
+  assert.match(idx.match(/<ul id="menuList"[\s\S]*?<\/ul>/)[0], /<a href="about\.html">About<\/a>/);
   assert.match(about, /<h3 id="faq">/, 'the questions are on the About page, so one entry covers both');
   const app = read('app.js');
   assert.match(app, /gear\.addEventListener\('click'/);
