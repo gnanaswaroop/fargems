@@ -822,7 +822,10 @@ function syncLink() {
 async function shareObject(o) {
   const H = window.FarGemsLogic;
   const extra = o.kind === 'air' && o.ac ? shareRoute(o.ac) : '';
-  const text = H.shareText(o, extra), url = objectUrl(o.id);
+  const F = window.FarGemsFacts;
+  const more = { units: state.units, far: state.far, fact: F ? F.factFor(o) : null, moon: o.name === 'Moon' ? moonLabel(o) : '',
+    flightUrl: o.kind === 'air' && o.ac && o.ac.call ? 'https://www.flightaware.com/live/flight/' + encodeURIComponent(o.ac.call) : '' };
+  const text = H.shareText(o, extra, more), url = objectUrl(o.id);
   try {
     if (navigator.share) { await navigator.share({ title: o.name + ' in the sky', text, url }); return; }
     await navigator.clipboard.writeText(text + ' ' + url);

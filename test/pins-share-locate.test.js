@@ -146,3 +146,17 @@ test('even the selected object\'s full name is cut to fit across the radar', () 
 test('the browser tests can reach the page state only when asked with ?fgtest=1', () => {
   assert.match(read('app.js'), /if \(\/\[\?&\]fgtest=1\\b\/\.test\(location\.search\)\) window\.__fg = \{ state, draw, renderNearby, renderDetail, renderPasses, closeDetail, pathFor, settleCourses, arView: \(\) => arView \};/);
 });
+
+test('shareText adds what the object is doing today: a flight with a live link, a satellite, a planet, the Moon', () => {
+  const flight = { id: 'air:a1', kind: 'air', name: 'AIC144', az: 200, el: 31, altFt: 34000, range: 120, ac: { type: 'A20N', gs: 430, call: 'AIC144' } };
+  const f = L.shareText(flight, 'Air India.', { units: 'metric', fact: 'The A320neo is quick.', flightUrl: 'https://www.flightaware.com/live/flight/AIC144' });
+  assert.match(f, /Air India\. At 10,363 m, travelling at 796 km\/h, 120 km from me\. Did you know\? The A320neo is quick\. Track it live: https:\/\/www\.flightaware\.com\/live\/flight\/AIC144 Read more: /);
+  const sat = { id: 'sat:1', kind: 'sat', name: 'ISS (ZARYA)', az: 90, el: 30, altKm: 420, range: 800, visible: true, sunlit: true };
+  assert.match(L.shareText(sat, '', { units: 'imperial' }), /Orbiting 261 mi up, 497 mi from me\. Sunlit, so visible to the eye\./);
+  assert.doesNotMatch(L.shareText(sat, '', { units: 'imperial', fact: null }), /Did you know|Track it/);
+  const mars = { id: 'body:Mars', kind: 'body', name: 'Mars', az: 100, el: 40, mag: 0.5, distKm: 225e6 };
+  assert.match(L.shareText(mars, '', { units: 'metric', far: 'units', fact: 'Mars is rusty.' }), /Brightness 0\.5, 225\.0 million km away, its light takes 12 min 31 s to reach us\. Did you know\? Mars is rusty\./);
+  const moon = { id: 'body:Moon', kind: 'body', name: 'Moon', az: 68, el: 49, distKm: 384400 };
+  assert.match(L.shareText(moon, '', { units: 'metric', moon: 'Waxing crescent' }), /Waxing crescent, 384,400 km away, its light takes 1\.3 s/);
+  assert.equal(L.shareText({ id: 'sat:9', kind: 'sat', name: 'X', az: 10, el: 5 }), 'X (satellite) is 5° above the horizon in the N (10°) right now.', 'nothing known, nothing added');
+});
