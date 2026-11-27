@@ -706,8 +706,9 @@ function renderDetailCard() {
   const link = wt && !(wk && wk.miss) ? `<a class="wiki" href="${H.wikiUrl(wt)}" target="_blank" rel="noopener">Read about ${esc(wt.replace(/ \(.*\)$/, ''))} on Wikipedia ↗</a>` : '';
   const lead = nearest ? `<p class="muted small">Nearest ${o.kind === 'air' ? 'flight' : 'satellite'}. Tap anything else on the radar to switch.</p>` : '';
   const blurbAll = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
-  const blurb = cardMore ? blurbAll : '', more = cardMore && link ? `<p class="wikirow">${link}</p>` : '';
-  const hasMore = o.kind === 'air' || !!blurbAll || !!link;
+  const fact = window.FarGemsFacts ? window.FarGemsFacts.factFor(o) : null, factHtml = cardMore && fact ? `<p class="fact"><b>Did you know?</b> ${esc(fact)}</p>` : '';
+  const blurb = cardMore ? factHtml + blurbAll : '', more = cardMore && link ? `<p class="wikirow">${link}</p>` : '';
+  const hasMore = o.kind === 'air' || !!blurbAll || !!link || !!fact;
   const fa = !cardMore && o.kind === 'air' && o.ac && o.ac.call ? `<a class="btn tracklink" href="https://www.flightaware.com/live/flight/${encodeURIComponent(o.ac.call)}" target="_blank" rel="noopener">FlightAware ↗</a>` : '';
   const moreBtn = hasMore ? `<button class="btn more" type="button" data-more aria-expanded="${cardMore}">${cardMore ? 'Less' : 'More'}</button>` : '';
   const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button>${fa}${moreBtn}</p>`;
@@ -743,12 +744,12 @@ function previewHtml(o, wt, wk, uid) {
   if (kind === 'art') return `<figure class="pv pv-art">${P.bodyArt(o, { waxing: o.waxing, south: !!(state.loc && state.loc.lat < 0), uid })}</figure>`;
   if (kind === 'photo' && wk && wk.thumb && wt && !badPics.has(wk.thumb)) {
     const name = wt.replace(/ \(.*\)$/, '');
-    const what = o.kind === 'air' ? name + ' (example photo of this type of aircraft)' : name;
-    return `<figure class="pv pv-photo" title="${esc(what)}"><img src="${esc(wk.thumb)}" alt="${esc(what)}" width="72" height="48" loading="lazy" decoding="async" referrerpolicy="no-referrer">${o.kind === 'air' ? '<span class="pv-tag">example</span>' : ''}</figure>`;
+    const what = name;
+    return `<figure class="pv pv-photo" title="${esc(what)}"><img src="${esc(wk.thumb)}" alt="${esc(what)}" width="48" height="48" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>`;
   }
   // No photo (none exists, it has not come yet, or it would not load): a generic picture of the kind of thing it is, so there is always one.
   const g = kind === 'photo' && P.genericArt ? P.genericArt(o) : null;
-  return g ? `<figure class="pv pv-art pv-generic" title="${esc(g.label)}">${g.svg}<span class="pv-tag">generic</span></figure>` : '';
+  return g ? `<figure class="pv pv-art">${g.svg}</figure>` : '';
 }
 // A picture that does not load (offline, blocked, removed) takes its place away, so the card never shows a broken image.
 document.addEventListener('error', (ev) => { const t = ev.target; if (t && t.tagName === 'IMG' && t.closest && t.closest('.pv')) { badPics.add(t.getAttribute('src')); t.closest('.pv').remove(); renderDetail(); } }, true);

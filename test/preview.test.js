@@ -89,14 +89,15 @@ test('the page loads the preview code, the app keeps it offline, and a photo tha
   assert.doesNotMatch(read('lib/preview.js'), /fetch\(|XMLHttpRequest|localStorage/, 'the preview code asks for nothing itself');
 });
 
-/* ---- a generic picture for a flight or a satellite with no photo ---- */
+/* ---- a picture for a flight or a satellite with no photo ---- */
 test('a flight and every kind of satellite has a generic drawing, and nothing else does', () => {
   const kinds = { 'AIC144': ['air', 'plane'], 'ISS (ZARYA)': ['sat', 'station'], 'CSS (TIANHE)': ['sat', 'station'], 'CZ-4C R/B': ['sat', 'rocket'], 'COSMOS 2251 DEB': ['sat', 'rocket'], 'SL-8 R/B': ['sat', 'rocket'], 'STARLINK-1007': ['sat', 'starlink'], 'ONEWEB-0012': ['sat', 'starlink'], 'IRIDIUM 33': ['sat', 'starlink'], 'NOAA 19': ['sat', 'satellite'], 'HST': ['sat', 'satellite'] };
   for (const [name, [kind, want]] of Object.entries(kinds)) {
     const g = P.genericArt({ kind, name });
     assert.equal(g.kind, want, name);
     assert.match(g.svg, /^<svg viewBox="0 0 100 100" role="img" aria-label="[^"]+"/, name);
-    assert.match(g.label, /generic picture/, name + ': says that it is generic');
+    assert.doesNotMatch(g.label, /generic|example/i, name + ': no label saying it is generic');
+    assert.doesNotMatch(g.svg, /<circle cx="50" cy="50" r="46"/, name + ': no background disc, the drawing sits on the card');
     assert.ok(g.svg.length < 2500, name + ' is small: ' + g.svg.length);
   }
   for (const o of [{ kind: 'star', name: 'Vega' }, { kind: 'body', name: 'Mars' }, { kind: 'met', name: 'Perseids' }, null, undefined]) assert.equal(P.genericArt(o), null);
@@ -121,8 +122,13 @@ test('the kind of a satellite comes from its name', () => {
 test('the card falls back to the generic picture when there is no photo, and when a photo will not load', () => {
   const app = read('app.js');
   assert.match(app, /const g = kind === 'photo' && P\.genericArt \? P\.genericArt\(o\) : null;/);
-  assert.match(app, /class="pv pv-art pv-generic"[^>]*>\$\{g\.svg\}<span class="pv-tag">generic<\/span>/, 'tagged as generic on the picture itself');
+  assert.match(app, /class="pv pv-art">\$\{g\.svg\}<\/figure>/, 'drawn plainly, with no tag on it');
+  assert.doesNotMatch(app, /pv-tag|>generic<|example photo/, 'nothing on the picture says generic or example');
   assert.match(app, /wk\.thumb && wt && !badPics\.has\(wk\.thumb\)/, 'a photo that would not load is not tried again');
   assert.match(app, /badPics\.add\(t\.getAttribute\('src'\)\); t\.closest\('\.pv'\)\.remove\(\); renderDetail\(\);/, 'and the card is drawn again with the generic picture');
-  assert.match(read('style.css'), /\.detail \.pv-generic \.pv-tag \{[^}]*border-radius: 999px;/, 'the tag is a small pill that does not cut into the drawing');
+  const css = read('style.css');
+  assert.match(css, /\.detail \.pv \{[^}]*width: 48px; height: 48px; pointer-events: none;/, 'every picture is the same size and is not a tap target');
+  assert.match(css, /\.detail \.pv img \{[^}]*width: 48px; height: 48px; object-fit: cover;/, 'photos fill the same square');
+  assert.match(css, /\.ar-detail \.pv \{ width: 40px; height: 40px; \}/, 'and one size in the camera card');
+  assert.match(css, /\.detail:not\(\.ar-detail\) \{ max-height: 46vh; overflow-y: auto; \}/, 'the card has a top height, and scrolls inside it');
 });

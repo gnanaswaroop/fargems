@@ -92,7 +92,7 @@ test('the card is short by default and "More" opens the rest, remembered', () =>
   const app = read('app.js'), css = read('style.css');
   assert.match(app, /let cardMore = lsGet\('fg\.cardMore'\) === true;/, 'short unless the visitor opened it');
   assert.match(app, /function toggleMore\(\) \{ cardMore = !cardMore; lsSet\('fg\.cardMore', cardMore\); renderDetail\(\); \}/);
-  assert.match(app, /const blurb = cardMore \? blurbAll : '', more = cardMore && link/, 'the description and the Wikipedia link wait behind More');
+  assert.match(app, /const blurb = cardMore \? factHtml \+ blurbAll : '', more = cardMore && link/, 'the description and the Wikipedia link wait behind More');
   assert.match(app, /data-more aria-expanded=/);
   assert.match(app, /kv\('Altitude · speed'/);
   assert.match(css, /\.detail\.compact \.route-far \{ display: none; \}/);

@@ -188,14 +188,12 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .detail .hdt { flex: 1; min-width: 0; }
 .detail .hdt h3 { margin: 0; }
 .detail .hdt .airline { margin: 2px 0 0; }
-.detail .pv { position: relative; flex: none; margin: 0; padding: 0; width: 52px; }
-.detail .pv svg { display: block; width: 52px; height: 52px; }
-.detail .pv-photo { width: 72px; }
-.detail .pv img { display: block; width: 72px; height: 48px; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.05); }
+.detail .pv { position: relative; flex: none; margin: 0; padding: 0; width: 48px; height: 48px; pointer-events: none; }
+.detail .pv svg { display: block; width: 48px; height: 48px; }
+.detail .pv img { display: block; width: 48px; height: 48px; object-fit: cover; border-radius: 10px; }
+.detail .fact { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text); }
 .detail .pv-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 0 2px; border-radius: 0 0 8px 8px; background: rgba(5, 8, 14, .62); color: #cfd6e4; font-size: 9px; line-height: 1.1; text-align: center; letter-spacing: .04em; text-transform: uppercase; }
-.detail .pv-generic .pv-tag { left: 6px; right: 6px; bottom: 0; border-radius: 999px; font-size: 8px; }
-.ar-detail .pv { width: 40px; } .ar-detail .pv svg { width: 40px; height: 40px; }
-.ar-detail .pv-photo { width: 60px; } .ar-detail .pv img { width: 60px; height: 40px; }
+.ar-detail .pv { width: 40px; height: 40px; } .ar-detail .pv svg, .ar-detail .pv img { width: 40px; height: 40px; }
 /* the sky view's text can be selected and copied */
 #detail, #status, #hud, .nearby-list, #passes { user-select: text; -webkit-user-select: text; }
 
@@ -209,7 +207,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .ar[hidden] { display: none; }
 .ar-video, .ar-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ar-video { object-fit: cover; }
-.ar-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+.ar-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 40px; height: 40px; padding: 0; border-radius: 50%; }
 /* The bottom of the camera view, like a camera: Align on the left and the round shutter on the right. The card for the picked object
    sits under them, so with the card open the shutter is just above it, and with no card it is at the bottom. */
 .ar-bottom { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
@@ -318,7 +316,7 @@ a.brand{color:inherit;text-decoration:none}
 /* ---------- wide screens in landscape (tablets, desktops): use the width, so the page does not need to scroll ---------- */
 @media (min-width: 560px) and (min-aspect-ratio: 5/4) {
   /* home page: the introduction on the left, the permissions and install on the right */
-  .landing .welcome { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); column-gap: 56px; grid-template-rows: auto 1fr; min-height: 100dvh; padding-top: 6px; padding-bottom: 14px; }
+  .landing .welcome { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); column-gap: 48px; grid-template-rows: auto 1fr; min-height: 100dvh; padding-top: 6px; padding-bottom: 14px; }
   .landing .welcome > .top { grid-column: 1 / -1; max-width: none; width: 100%; }
   .landing .welcome > .intro, .landing .welcome > .actions { align-self: center; min-width: 0; }
   .landing .welcome.wide { display: block; max-width: 760px; min-height: 0; padding-top: 10px; }
@@ -472,7 +470,7 @@ body.viewer .side > #legend { flex: none; margin: 0; }
 .detail.compact .route .code { margin-left: 6px; }
 .detail.compact .route .arrow { font-size: 18px; }
 .detail.compact .route-far { display: none; }
-.detail .pv-tag { font-size: 8px; }
+.detail:not(.ar-detail) { max-height: 46vh; overflow-y: auto; }
 
 /* The loading screen of the sky view: the logo, the name and what the app is, until the first drawing. It also goes by itself
    after a few seconds, so a script that cannot start never leaves it covering the page. */
