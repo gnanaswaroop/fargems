@@ -1452,7 +1452,7 @@ test('flights in the list name their airline beside the type, and the share text
 
 // Instead of a share sheet (which this test browser has not got) the page copies the text; the test reads what was copied.
 const copyOnly = (page) => page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
-const SHARE_RE = /^FarGems: What.s flying above you\. For anyone who looks up and wonders what that is: spot planes, the ISS, planets and the Moon live, on a radar or through your camera\. Free, no sign-up\. .{1,4} http:\/\/localhost:\d+\/$/u;
+const SHARE_RE = /^FarGems: What.s flying above you!\n\nSpot planes, shining stars, satellites, planets live above you with an augmented reality view\. http:\/\/localhost:\d+\/$/u;
 
 test('share the app: from the gear menu in the sky view', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
@@ -1500,7 +1500,7 @@ test('share the app: the phone share sheet gets the title, the text and the addr
     await page.tap('#shareApp');
     await page.waitForFunction(() => window.__shared.length === 1);
     const d = await page.evaluate(() => window.__shared[0]);
-    assert.match(d.text, /^FarGems: What.s flying above you\. For anyone who looks up/);
+    assert.match(d.text, /^FarGems: What.s flying above you!\n\nSpot planes/);
     assert.match(d.url, /^http:\/\/localhost:\d+\/$/);
     assert.ok(d.title.length > 5);
     assert.match(await page.textContent('#settingsMsg'), /Thanks for sharing/);
