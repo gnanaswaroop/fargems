@@ -1451,7 +1451,7 @@ test('flights in the list name their airline beside the type, and the share text
 
 // Instead of a share sheet (which this test browser has not got) the page copies the text; the test reads what was copied.
 const copyOnly = (page) => page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
-const SHARE_RE = /^FarGems: What.s flying above you\. It names the planes, the ISS, planets and the Moon overhead right now, on a live radar or through your phone.s camera\. Free, no sign-up\. .{1,4} http:\/\/localhost:\d+\/$/u;
+const SHARE_RE = /^FarGems: What.s flying above you\. It identifies the planes, the ISS, planets and the Moon overhead right now, on a live radar or through your phone.s camera\. Free, no sign-up\. .{1,4} http:\/\/localhost:\d+\/$/u;
 
 test('share the app: from the gear menu in the sky view', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
