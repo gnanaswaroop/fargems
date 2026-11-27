@@ -11,12 +11,14 @@ test('the share text is short enough for a tweet with the address, and says what
   const d = O.appShare({ origin: 'https://fargems.example', pathname: '/viewer.html' });
   assert.ok(d.text.length <= 200, 'the text is ' + d.text.length + ' characters');
   assert.ok((d.text + ' ' + d.url).length <= 240, 'with the address it still fits 280 with room for a hashtag');
-  assert.match(d.text, /^Look up\. Know what you.re looking at\./, 'it starts with the line the app is known by');
-  for (const word of [/planes/, /ISS/, /planets/, /Moon/, /radar/, /AR/, /camera/, /Free, no sign-up/]) assert.match(d.text, word);
+  assert.match(d.text, /^Try this: look up, then open FarGems\./, 'it opens by inviting the friend to try it, not with a slogan');
+  for (const word of [/planes/, /ISS/, /planets/, /Moon/, /radar/, /camera/, /right now/, /Free, no sign-up/]) assert.match(d.text, word);
   assert.doesNotMatch(d.text, /\d+\.\d{2,}/, 'no coordinates');
   assert.doesNotMatch(d.text, /https?:/, 'the address is separate, so the share sheet can place it');
   assert.equal(O.SHARE_TEXT, d.text);
   assert.ok(d.title.length > 0 && d.title.length <= 60);
+  assert.match(d.title, /what.s flying above you/, 'the same line as the loading screen');
+  assert.doesNotMatch(d.text, /\bAR\b/, 'no jargon a friend would not know');
 });
 
 test('the shared address is the site itself, whichever page the button is on', () => {
