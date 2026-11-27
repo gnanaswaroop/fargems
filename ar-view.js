@@ -19,7 +19,7 @@
   const VFOV = 63; // typical phone camera, vertical field of view in portrait
 
   function create(o) {
-    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
+    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000, topInset = 0, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
     const ctx = o.canvas.getContext('2d');
     const FONT_SYMBOLS = '"Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
 
@@ -119,10 +119,31 @@
       }
       ctx.restore();
     }
+    // The name and logo of the app, small, in the top left corner, level with the close button. They are drawn on the same canvas as
+    // everything else, so a saved picture has exactly what the screen shows. (A same-site PNG, so the picture can still be saved.)
+    const logo = typeof Image === 'function' ? Object.assign(new Image(), { src: o.logoSrc || 'icon-192.png' }) : null;
+    function brand() {
+      const y = topInset + 32, size = 20, x0 = 14, ready = !!(logo && logo.complete && logo.naturalWidth);
+      ctx.save(); ctx.globalAlpha = 0.85;
+      if (ready) ctx.drawImage(logo, x0, y - size / 2, size, size);
+      ctx.font = '600 14px system-ui, -apple-system, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      const x = x0 + (ready ? size + 6 : 0);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0, 0, 0, .6)'; ctx.strokeText('FarGems', x, y);
+      ctx.fillStyle = '#fff'; ctx.fillText('FarGems', x, y);
+      ctx.restore();
+    }
+    // The room the phone keeps at the top of the screen (the notch), read from the page once the view is showing.
+    function measureInset() {
+      try {
+        const p = document.createElement('div'); p.style.cssText = 'position:absolute;visibility:hidden;padding-top:env(safe-area-inset-top)';
+        o.root.appendChild(p); topInset = parseFloat(getComputedStyle(p).paddingTop) || 0; p.remove();
+      } catch { topInset = 0; }
+    }
     function drawFrame() {
       raf = requestAnimationFrame(drawFrame);
       const { W, H } = fitCanvas();
       ctx.clearRect(0, 0, W, H);
+      brand();
       crosshair(W, H); // the point the camera is aimed at, so the phone can be lined up on the real Moon or a star
       const ori = o.getOrientation() || {};
       const knowsHeading = typeof ori.compassHeading === 'number' || (ori.absolute && ori.alpha != null);
@@ -216,8 +237,8 @@
       }
 
       // Where the phone is pointing, and a warning when there is no compass to line the picture up.
-      label(`${L.dir16(heading)} ${Math.round(heading)}° · ${Math.round(pose.pitch)}° up`, 12, 22, '#cfe');
-      if (!knowsHeading) label('No compass reading: directions may be off', 12, 42, '#ffb4a8');
+      label(`${L.dir16(heading)} ${Math.round(heading)}° · ${Math.round(pose.pitch)}° up`, 14, topInset + 62, '#cfe'); // under the app name, below the notch
+      if (!knowsHeading) label('No compass reading: directions may be off', 14, topInset + 82, '#ffb4a8');
     }
 
     // Line-up mode: dragging moves the picture's overlay, so the Moon or Sun drawn here can be put on the real one. The
@@ -241,9 +262,9 @@
       if (vw && vh) { const k = AR.coverCrop(vw, vh, cw, ch); c.drawImage(o.video, k.sx, k.sy, k.sw, k.sh, 0, 0, cw, ch); }
       else { c.fillStyle = '#000'; c.fillRect(0, 0, cw, ch); }
       c.drawImage(o.canvas, 0, 0);
-      const px = Math.max(12, Math.round(cw / 32)); // a small caption in the corner: the name and the time
+      const px = Math.max(12, Math.round(cw / 32)); // a small caption in the corner: the time (the name is at the top, from the overlay)
       c.font = '600 ' + px + 'px system-ui, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'bottom';
-      const caption = 'FarGems · ' + new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      const caption = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
       c.lineWidth = Math.max(2, px / 5); c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText(caption, px, ch - px);
       c.fillStyle = '#fff'; c.fillText(caption, px, ch - px);
       return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('could not make the picture'))), 'image/png'));
@@ -263,7 +284,7 @@
       if (isOpen) return Promise.resolve();
       if (!pending) {
         pending = openCamera().then(() => {
-          isOpen = true; heading = null; aimSt = { id: null, since: 0, done: false }; aimProgress = 0; o.root.hidden = false; document.body.classList.add('ar-on');
+          isOpen = true; heading = null; aimSt = { id: null, since: 0, done: false }; aimProgress = 0; o.root.hidden = false; document.body.classList.add('ar-on'); measureInset();
           raf = requestAnimationFrame(drawFrame);
         }).finally(() => { pending = null; });
       }

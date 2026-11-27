@@ -191,7 +191,16 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .ar-video, .ar-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ar-video { object-fit: cover; }
 .ar-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
-.ar-detail { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); max-height: 38vh; overflow: auto; background: rgba(7, 11, 20, .85); }
+/* The bottom of the camera view, like a camera: Align on the left and the round shutter on the right. The card for the picked object
+   sits under them, so with the card open the shutter is just above it, and with no card it is at the bottom. */
+.ar-bottom { position: absolute; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.ar-bottom > * { pointer-events: auto; }
+.ar-controls { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ar-shutter { position: relative; flex: none; width: 64px; height: 64px; padding: 0; border-radius: 50%; border: 4px solid #fff; background: rgba(7, 11, 20, .35); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ar-shutter span { position: absolute; inset: 5px; border-radius: 50%; background: #fff; transition: transform .08s; }
+.ar-shutter:active span { transform: scale(.88); }
+.ar-shutter:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ar-detail { position: relative; max-height: 38vh; overflow: auto; background: rgba(7, 11, 20, .85); }
 body.ar-on { overflow: hidden; }
 
 /* ---------- compact home page: the main actions fit on one phone screen ---------- */
@@ -369,10 +378,9 @@ header .menu { margin: 0; }
 .layer-row select { min-width: 0; max-width: 100%; }
 
 /* AR tools: take a picture, and line the overlay up with the real sky */
-.ar-tools { position: absolute; top: calc(66px + env(safe-area-inset-top)); right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .ar-tool { min-width: 64px; min-height: 40px; background: rgba(7, 11, 20, .75); }
 .ar-tool[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.ar-alignbar { position: absolute; left: 10px; right: 88px; top: calc(44px + env(safe-area-inset-top)); margin: 0; background: rgba(7, 11, 20, .85); font-size: 13px; }
+.ar-alignbar { position: absolute; left: 10px; right: 68px; top: calc(44px + env(safe-area-inset-top)); margin: 0; background: rgba(7, 11, 20, .85); font-size: 13px; }
 .ar-alignbar[hidden] { display: none; }
 .ar-alignbar p { margin: 0 0 8px; }
 .ar-canvas { touch-action: none; }
