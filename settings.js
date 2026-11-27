@@ -1,5 +1,5 @@
 /* FarGems settings: writes the choices the sky view reads on load.
- * Keys: fg.loc (location), fg.compass (permission), fg.flip ('1'/'0'), fg.unit ('C'/'F'), fg.visOnly ('1'/'0'), fg.units ('metric'/'imperial'/'aviation'), fg.far ('units'/'au'/'light'), fg.autoAr ('1'/'0'), fg.flightRange (km), fg.layers (JSON). */
+ * Keys: fg.loc (location), fg.compass (permission), fg.flip ('1'/'0'), fg.unit ('C'/'F'), fg.visOnly ('1'/'0'), fg.units ('metric'/'imperial'/'aviation'), fg.far ('units'/'au'/'light'), fg.autoAr ('1'/'0'), fg.arSymbols ('1'/'0'), fg.flightRange (km), fg.layers (JSON). */
 (() => {
   'use strict';
   const L = window.FarGemsLogic;
@@ -64,6 +64,8 @@
   $('#visOnlyToggle').addEventListener('change', (e) => storage.setItem('fg.visOnly', e.target.checked ? '1' : '0'));
   $('#autoArToggle').checked = L.parseAutoAr(storage.getItem('fg.autoAr'));
   $('#autoArToggle').addEventListener('change', (e) => storage.setItem('fg.autoAr', e.target.checked ? '1' : '0'));
+  $('#arSymbolsToggle').checked = L.parseArSymbols(storage.getItem('fg.arSymbols'));
+  $('#arSymbolsToggle').addEventListener('change', (e) => storage.setItem('fg.arSymbols', e.target.checked ? '1' : '0'));
   // Farthest flight to show (km). The saved value is the cleaned-up number, so the box always shows what is used.
   $('#flightRange').value = L.parseFlightRange(storage.getItem('fg.flightRange'));
   $('#flightRange').addEventListener('change', (e) => {

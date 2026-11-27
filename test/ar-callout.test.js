@@ -95,7 +95,7 @@ test('the bubble says what the object is and a few facts, in four lines at most'
 });
 
 /* ---- the camera view with a clock the test controls ---- */
-function viewEnv(objects, { selected = () => null, lines = (ob) => [ob.name, 'one', 'two'], withLines = true } = {}) {
+function viewEnv(objects, { selected = () => null, lines = (ob) => [ob.name, 'one', 'two'], withLines = true, symbols } = {}) {
   let now = 5000, cb = null, alpha = 1;
   const calls = [], classes = new Set();
   const ctx = new Proxy({}, {
@@ -119,6 +119,7 @@ function viewEnv(objects, { selected = () => null, lines = (ob) => [ob.name, 'on
     getOrientation: () => ori, onSelect: (id) => { picked.push(id); }, onClose() {},
   };
   if (withLines) opts.getCalloutLines = lines;
+  if (symbols) opts.getSymbols = symbols;
   const view = g.FarGemsARView.create(opts);
   const run = (ms) => { for (let t = 0; t < ms; t += 16) { now += 16; if (cb) cb(); } };
   const tap = (x, y) => { canvas.l.pointerup({ clientX: x, clientY: y }); };
@@ -218,4 +219,31 @@ test('the passes list uses it, and is hidden when nothing is left', () => {
   const app = read('app.js');
   assert.match(app, /const soon = window\.FarGemsLogic\.passesSoon\(state\.passes, Date\.now\(\)\);\r?\n\s*if \(!soon\.length\) \{ el\.hidden = true; return; \}/);
   assert.match(app, /if \(!soon\.includes\(p\)\) return '';/, 'a far pass is not listed, and the buttons keep their numbers');
+});
+
+/* ---- the switch for the drawn symbols (settings: "Draw symbols over the objects in the camera view") ---- */
+test('the setting is on unless the visitor turned it off, and it is in settings and read by the app', () => {
+  assert.equal(L.parseArSymbols(null), true); assert.equal(L.parseArSymbols('1'), true); assert.equal(L.parseArSymbols('0'), false);
+  assert.match(read('settings.html'), /<input id="arSymbolsToggle" type="checkbox"> Draw symbols over the objects/);
+  assert.match(read('settings.js'), /storage\.setItem\('fg\.arSymbols', e\.target\.checked \? '1' : '0'\)/);
+  assert.match(read('app.js'), /getSymbols: \(\) => window\.FarGemsLogic\.parseArSymbols\(storedValue\('fg\.arSymbols'\)\)/);
+});
+
+test('symbols off: no icon and no name is drawn over the objects, but the ring and the bubble stay and the crosshair still picks', async () => {
+  const plane = { id: 'air:a1', kind: 'air', name: 'AIC144', az: 10, el: 12, course: false, ac: { type: 'B77W' } };
+  const star = { id: 'star:Vega', kind: 'body', name: 'Vega', az: -8, el: 15, color: '#fff' };
+  let on = true;
+  const e = viewEnv([plane, star], { symbols: () => on });
+  await e.view.open(); e.run(200);
+  const dots = () => e.calls.filter((c) => c.k === 'arc' && c.a[2] > 4 && c.a[2] < 14).length;
+  const before = dots(); assert.ok(before > 0, 'the symbols are drawn by default');
+  assert.ok(e.texts().includes('Vega'), 'and so are the names');
+  e.calls.length = 0; on = false; e.run(200);
+  assert.equal(dots(), 0, 'off: no symbol');
+  assert.ok(!e.texts().includes('Vega'), 'off: no name');
+  assert.ok(e.view.item('air:a1') && e.view.item('star:Vega'), 'still there to be picked by the crosshair and by a tap');
+  e.select('air:a1'); e.calls.length = 0; e.run(3000);
+  assert.ok(e.calls.some((c) => c.k === 'setLineDash' && c.a[0] && c.a[0][0] === 0.1), 'the dotted ring goes round the real object');
+  assert.ok(e.view.callout(), 'and the details are beside it');
+  assert.equal(dots(), 0, 'with no symbol drawn');
 });
