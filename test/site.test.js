@@ -95,7 +95,7 @@ test('service worker precaches every local file both pages load', () => {
   assert.ok(m, 'SHELL list found');
   const precached = new Set([...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]));
   for (const page of PAGES) {
-    for (const r of localRefs(page)) {
+    for (const r of localRefs(page).filter((x) => !x.startsWith('splash/'))) { // launch pictures: iOS fetches one itself when the app starts, no need to keep all in the cache
       assert.ok(precached.has(r), `${r} (from ${page}) is not precached`);
     }
   }

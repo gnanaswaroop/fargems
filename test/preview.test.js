@@ -84,7 +84,7 @@ test('the page loads the preview code, the app keeps it offline, and a photo tha
   assert.match(app, /referrerpolicy="no-referrer"/, 'the photo request says nothing about where it was opened from');
   assert.match(app, /document\.addEventListener\('error'[^\n]*closest\('\.pv'\)\.remove\(\)[^\n]*true\);/, 'a broken image takes its frame with it');
   assert.match(read('style.css'), /\.detail \.hd \{ display: flex; align-items: center;/, 'the picture sits in a row with the name, so it adds no height of its own');
-  assert.match(read('.github/workflows/pages.yml'), /\.nojekyll lib assets _site\//, 'the photo of the Moon is published');
+  assert.match(read('.github/workflows/pages.yml'), /\.nojekyll lib assets splash _site\//, 'the photo of the Moon is published');
   assert.match(app, /waxing = Astronomy\.MoonPhase\(now\) < 180/);
   assert.doesNotMatch(read('lib/preview.js'), /fetch\(|XMLHttpRequest|localStorage/, 'the preview code asks for nothing itself');
 });

@@ -39,7 +39,7 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html about.html 404.html viewer.html settings.html settings.js config.js landing.js app.js ar-view.js update.js nav.js sw.js style.css manifest.webmanifest \
-            icon.svg icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png og-image.png .nojekyll lib assets _site/
+            icon.svg icon-192.png icon-512.png icon-maskable-512.png apple-touch-icon.png og-image.png .nojekyll lib assets splash _site/
           # The commit this site is built from: pages compare it with version.json to notice that a newer version is live.
           printf '%s\n' "window.FARGEMS_CONFIG = { aircraftProxy: \"$AIRCRAFT_PROXY_URL\", build: \"$GITHUB_SHA\" };" > _site/config.js
           printf '{"build":"%s"}\n' "$GITHUB_SHA" > _site/version.json
