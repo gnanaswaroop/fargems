@@ -273,3 +273,12 @@ test('viewer: the logo is not a link, so the sky view never sends you back to th
   assert.doesNotMatch(v, /<a[^>]*class="brand"/);
   assert.doesNotMatch(v, /href="index\.html"/);
 });
+
+test('favicon.ico: browsers that ask for it get the icon, and it is published', () => {
+  const ico = fs.readFileSync(path.join(ROOT, 'favicon.ico'));
+  assert.equal(ico.readUInt16LE(0), 0); assert.equal(ico.readUInt16LE(2), 1, 'an icon file'); assert.equal(ico.readUInt16LE(4), 1, 'one picture');
+  const off = ico.readUInt32LE(18), len = ico.readUInt32LE(14);
+  assert.equal(ico.subarray(off, off + 8).toString('hex'), '89504e470d0a1a0a', 'a PNG inside');
+  assert.equal(off + len, ico.length);
+  assert.match(read('.github/workflows/pages.yml'), /apple-touch-icon\.png favicon\.ico og-image\.png/, 'published with the site');
+});
