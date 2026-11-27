@@ -40,8 +40,8 @@ test('every link on every page has a real destination, a readable name, and exte
 test('the pages link to each other so nobody is stranded', () => {
   const to = (page) => links(read(page)).map((l) => l.href);
   assert.ok(to('index.html').includes('viewer.html') && to('index.html').includes('about.html') && to('index.html').includes('settings.html'), 'home: sky view, About and Settings');
-  assert.ok(to('viewer.html').includes('settings.html') && to('viewer.html').includes('index.html'), 'sky view: Settings and home (the logo)');
-  assert.ok(to('settings.html').includes('viewer.html') && to('settings.html').includes('index.html'), 'settings: back to the sky view and home');
+  assert.ok(to('viewer.html').includes('settings.html') && !to('viewer.html').includes('index.html'), 'sky view: Settings, and no way back to the landing page (the logo is not a link)');
+  assert.ok(to('settings.html').includes('viewer.html') && !to('settings.html').includes('index.html'), 'settings: back to the sky view');
   assert.ok(to('about.html').includes('index.html'), 'About: back');
 });
 

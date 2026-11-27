@@ -178,7 +178,7 @@ test('logo: cut-outs are real holes (a mask), so no background colour is painted
 
 test('logo: landing and viewer headers show the logo beside the wordmark', () => {
   assert.match(read('index.html'), /<img class="logo logo-lg" src="icon\.svg" alt="FarGems logo" width="88" height="88"/);
-  assert.match(read('viewer.html'), /<a class="brand" href="index\.html" aria-label="FarGems home"><img class="logo logo-sm" src="icon\.svg" alt="" width="34" height="34"/);
+  assert.match(read('viewer.html'), /<span class="brand"><img class="logo logo-sm" src="icon\.svg" alt="" width="34" height="34"/);
 });
 
 test('logo: PNG icons carry no provenance metadata chunks', () => {
@@ -266,4 +266,10 @@ test('nearby list: two pages with tabs, a swipe between them, and distances on t
   assert.match(app, /distKm: la\.rangeSat/, 'satellites have a distance');
   assert.match(app, /distKm: L\.range/, 'aircraft have a distance');
   assert.match(app, /if \(e\.target\.closest\('#sky, \.zoombar'\)\) return;/, 'swipes that start on the radar are left alone');
+});
+
+test('viewer: the logo is not a link, so the sky view never sends you back to the landing page', () => {
+  const v = read('viewer.html');
+  assert.doesNotMatch(v, /<a[^>]*class="brand"/);
+  assert.doesNotMatch(v, /href="index\.html"/);
 });
