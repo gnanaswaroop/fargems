@@ -2069,3 +2069,28 @@ test('settings: the farthest-flight box shows its whole value, inside its row, a
     }
   } finally { await context.close(); }
 });
+
+test('radar bodies: Saturn has rings, the Moon shows its phase toward the Sun, and the planets stay plain', { skip }, async () => {
+  const { page, context } = await linked('', `(() => {
+    const { state } = window.__fg; const mk = (id, name, az, el, x) => Object.assign({ id: 'body:' + id, kind: 'body', name, az, el, distKm: 1e6, range: 1e6, mag: 0.5 }, x);
+    state.objs = [mk('Sun', 'Sun', 250, 10, { color: '#ffd86b', mag: null }), mk('Moon', 'Moon', 120, 45, { color: '#e9edf5', phase: 0.3, waxing: true, mag: null }),
+      mk('Saturn', 'Saturn', 40, 50, { color: '#e8d08a' }), mk('Mars', 'Mars', 200, 50, { color: '#ff7b5c' }), mk('Jupiter', 'Jupiter', 300, 55, { color: '#f1d3a6' })];
+    state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = null; state.dirty = true;
+    window.__bodies = [];
+    const d = window.FarGemsBodyArt.draw; window.FarGemsBodyArt.draw = (ctx, o, x, y, r, a, out) => { window.__bodies.push({ n: o.name, x, y, r, a }); return d(ctx, o, x, y, r, a, out); };
+  })()`);
+  try {
+    await page.waitForFunction(() => window.__bodies.some((b) => b.n === 'Saturn'));
+    const m = await page.evaluate(() => {
+      const last = (n) => window.__bodies.filter((b) => b.n === n).pop(), cv = document.querySelector('#sky');
+      const k = cv.width / cv.getBoundingClientRect().width, ctx = cv.getContext('2d');
+      const px = (x, y) => Array.from(ctx.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data);
+      const s = last('Saturn'), t = -0.35, reach = s.r * 1.8;
+      const tip = px(s.x + reach * Math.cos(t), s.y + reach * Math.sin(t)), off = px(s.x + reach * Math.cos(t + Math.PI / 2), s.y + reach * Math.sin(t + Math.PI / 2));
+      return { tip, off, moonAngle: last('Moon').a, marsR: last('Mars').r, ring: Math.hypot(tip[0] - off[0], tip[1] - off[1]) };
+    });
+    assert.ok(m.ring > 60, 'the ring is drawn beside the planet where the dial is empty: ' + JSON.stringify(m));
+    assert.ok(Number.isFinite(m.moonAngle) && Math.abs(Math.cos(m.moonAngle)) > 0.2, 'the Moon is turned to face the Sun');
+    assert.ok(await page.evaluate(() => window.__bodies.filter((b) => b.n === 'Moon').length > 0));
+  } finally { await context.close(); }
+});
