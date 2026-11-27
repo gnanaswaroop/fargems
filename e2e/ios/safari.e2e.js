@@ -89,7 +89,8 @@ test('iPad in landscape: the home page and the sky view fit the screen with no v
     const cols = await page.evaluate(() => { const a = document.querySelector('.intro').getBoundingClientRect(), b = document.querySelector('.actions').getBoundingClientRect(); return { introRight: a.right, actionsLeft: b.left }; });
     assert.ok(cols.actionsLeft >= cols.introRight, 'two columns side by side');
     await page.evaluate(() => localStorage.setItem('fg.loc', JSON.stringify({ lat: 17.4435, lon: 78.3772 })));
-    await page.goto(base + '/viewer.html');
+    await page.goto(base + '/viewer.html').catch(() => {}); // the home page may be sending the saved location to the sky view at this very moment: either way we end up there
+    await page.waitForURL(/viewer.html/); await page.waitForLoadState('load');
     await page.waitForTimeout(1200);
     m = await fit();
     assert.ok(m.h <= m.vh && m.w <= m.vw, `sky view fits ${JSON.stringify(m)}`);
