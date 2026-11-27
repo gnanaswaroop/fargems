@@ -158,12 +158,13 @@ test('viewer: the gear opens Settings and Help, and Escape closes it', { skip },
     assert.equal(await page.isVisible('#gearList'), false);
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearList'), true);
-    assert.deepEqual(await page.$$eval('#gearList a', (as) => as.map((a) => [a.textContent, a.getAttribute('href')])), [['Settings', 'settings.html'], ['Help', 'about.html#faq']]);
+    assert.deepEqual(await page.$$eval('#gearList a', (as) => as.map((a) => [a.textContent, a.getAttribute('href')])), [['Settings', 'settings.html'], ['About & help', 'about.html']]);
     await page.keyboard.press('Escape');
     assert.equal(await page.isVisible('#gearList'), false);
     await page.tap('#gearBtn');
-    await page.tap('#gearList a[href="about.html#faq"]');
-    await page.waitForURL('**/about.html#faq');
+    await page.tap('#gearList a[href="about.html"]');
+    await page.waitForURL('**/about.html');
+    assert.equal(await page.isVisible('#faq'), true, 'the questions are on that page');
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
@@ -1334,7 +1335,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.tap('#gearBtn');
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'Help', 'Install app', 'Tell a friend']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'About & help', 'Install app', 'Tell a friend']);
     assert.equal(await page.isVisible('#gearInstall'), true);
     await page.tap('#gearInstall');
     assert.equal(await page.isVisible('#gearList'), false, 'the menu closes');
@@ -1343,7 +1344,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false);
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'Help', 'Tell a friend']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'About & help', 'Tell a friend']);
     await page.reload();
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false, 'still gone on the next visit');
