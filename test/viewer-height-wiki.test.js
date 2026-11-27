@@ -75,7 +75,7 @@ test('the detail card is short, and defaults to the nearest flight or satellite'
   assert.match(app, /H\.sortNearest\(state\.objs\.filter\(x => \(x\.kind === 'air' \|\| x\.kind === 'sat'\) && x\.el >= 0\)\)\[0\]/);
   assert.match(app, /Nearest \$\{o\.kind === 'air' \? 'flight' : 'satellite'\}/);
   const air = app.match(/if \(o\.kind === 'air'\) \{([\s\S]*?)\} else if \(o\.kind === 'sat'\)/)[1];
-  assert.equal((air.match(/kv\('/g) || []).length, 5, 'a flight shows where it flies to, altitude, speed, distance and a tracking link, plus its sky position');
+  assert.equal((air.match(/kv\('/g) || []).length, 7, 'the long card has the route, altitude, speed, distance and a tracking link; the short one has sky position with distance, and altitude with speed');
   for (const gone of ['Registration', 'ICAO hex', "kv('Heading'", "kv('Vertical'"]) assert.ok(!air.includes(gone), `${gone} is gone from the card`);
   const sat = app.match(/else if \(o\.kind === 'sat'\) \{([\s\S]*?)\} else if \(o\.kind === 'body'\)/)[1];
   assert.ok(!sat.includes('NORAD ID') && !sat.includes("'Speed'"));
@@ -86,4 +86,14 @@ test('the viewer is only as tall as the page being looked at, with no long empty
   assert.match(css, /\.pager:not\(\.nearby\) #pageNearby, \.pager\.nearby #pageRadar \{ max-height: 0; overflow: hidden; visibility: hidden; \}/);
   const wide = css.match(/@media \(min-width: 560px\) and \(min-aspect-ratio: 5\/4\) \{([\s\S]*?)\n\}/)[1];
   assert.match(wide, /body\.viewer \.pager\.nearby #pageRadar \{ max-height: none; visibility: visible; \}/, 'on a wide screen the radar is shown whichever tab was last used');
+});
+
+test('the card is short by default and "More" opens the rest, remembered', () => {
+  const app = read('app.js'), css = read('style.css');
+  assert.match(app, /let cardMore = lsGet\('fg\.cardMore'\) === true;/, 'short unless the visitor opened it');
+  assert.match(app, /function toggleMore\(\) \{ cardMore = !cardMore; lsSet\('fg\.cardMore', cardMore\); renderDetail\(\); \}/);
+  assert.match(app, /const blurb = cardMore \? blurbAll : '', more = cardMore && link/, 'the description and the Wikipedia link wait behind More');
+  assert.match(app, /data-more aria-expanded=/);
+  assert.match(app, /kv\('Altitude · speed'/);
+  assert.match(css, /\.detail\.compact \.route-far \{ display: none; \}/);
 });

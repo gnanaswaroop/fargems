@@ -460,3 +460,16 @@ body.viewer .side > #legend { flex: none; margin: 0; }
   .card dt { margin-top: 8px; font-size: 12px; }
   .card dd { margin: 0; }
 }
+
+/* The short card: a one-line route, a smaller photo tag, and the buttons in one row (More opens the rest). */
+.detail .acts { flex-wrap: wrap; align-items: center; }
+.detail .acts .more { margin-left: auto; }
+.detail .acts .tracklink { text-decoration: none; }
+.detail.compact .route { margin: 6px 0 2px; padding: 6px 10px; gap: 6px; }
+.detail.compact .route .stop small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.detail.compact .route .stop { display: block; }
+.detail.compact .route .stop b { font-size: 15px; }
+.detail.compact .route .code { margin-left: 6px; }
+.detail.compact .route .arrow { font-size: 18px; }
+.detail.compact .route-far { display: none; }
+.detail .pv-tag { font-size: 8px; }

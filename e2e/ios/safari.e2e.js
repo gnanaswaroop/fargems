@@ -1600,7 +1600,7 @@ test('card preview: no photo when Wikipedia has none, and a photo that cannot be
   const none = await linked('', FAKE_SKY, (c) => wikiAnswers(c, { thumb: false }));
   try {
     await none.page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); });
-    await none.page.waitForFunction(() => document.querySelector('#detail .blurb')); // the article arrived
+    await none.page.locator('#detail .more').click(); await none.page.waitForFunction(() => document.querySelector('#detail .blurb')); // the long card, and the article arrived
     assert.equal(await none.page.locator('#detail .pv-photo').count(), 0, 'no photo to show');
     assert.equal(await none.page.locator('#detail .pv-generic svg').count(), 1, 'a generic picture instead, so the card is never without one');
   } finally { await none.context.close(); }
@@ -1610,7 +1610,7 @@ test('card preview: no photo when Wikipedia has none, and a photo that cannot be
       window.__sawPv = false; new MutationObserver(() => { if (document.querySelector('#detail .pv img')) window.__sawPv = true; }).observe(document.querySelector('#detail'), { childList: true, subtree: true });
       window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail();
     });
-    await broken.page.waitForFunction(() => document.querySelector('#detail .blurb'));
+    await broken.page.locator('#detail .more').click(); await broken.page.waitForFunction(() => document.querySelector('#detail .blurb'));
     await broken.page.waitForFunction(() => !document.querySelector('#detail .pv-photo') && document.querySelector('#detail .pv-generic'), null, { timeout: 8000 });
     assert.equal(await broken.page.evaluate(() => window.__sawPv), true, 'it was shown, then replaced by the generic picture when it failed');
     assert.equal(await broken.page.locator('#detail img').count(), 0, 'no broken-image icon');
@@ -2019,5 +2019,26 @@ test('small phones: no page scrolls sideways at 280 and 320 px, and the card nev
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, p + ' scrolls sideways at ' + w + ' px');
       }
     }
+  } finally { await context.close(); }
+});
+
+test('card: short by default (one-line route, two rows, buttons in one row), More opens the description and long rows, and it is remembered', { skip }, async () => {
+  const { page, context } = await linked('', FAKE_SKY);
+  try {
+    await page.evaluate(() => { window.__fg.state.byId.get('air:a1').ac.call = 'AIC144'; window.__fg.state.sel = 'air:a1'; window.__fg.state.detailClosed = null; window.__fg.renderDetail(); });
+    await page.locator('#detail .acts').waitFor();
+    const short = await page.locator('#detail').boundingBox();
+    assert.equal(await page.locator('#detail .more').textContent(), 'More');
+    assert.equal(await page.locator('#detail dt').count() <= 3, true, 'at most three rows when short');
+    assert.equal(await page.locator('#detail .blurb').count(), 0, 'no description yet');
+    assert.equal(await page.locator('#detail .acts .tracklink').count(), 1, 'FlightAware sits with the buttons');
+    await page.locator('#detail .more').click();
+    await page.locator('#detail .more').filter({ hasText: 'Less' }).waitFor();
+    const long = await page.locator('#detail').boundingBox();
+    assert.ok(long.height > short.height + 30, `More makes the card taller (${short.height} -> ${long.height})`);
+    assert.deepEqual(await page.$$eval('#detail dt', (e) => e.map((x) => x.textContent)).then((t) => ['Altitude', 'Speed', 'Distance'].every((k) => t.includes(k))), true);
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.cardMore')), 'true', 'the choice is saved, so the next visit opens the same way');
+    await page.locator('#detail .more').click();
+    assert.equal(await page.locator('#detail .more').textContent(), 'More', 'and Less closes it again');
   } finally { await context.close(); }
 });
