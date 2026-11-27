@@ -946,6 +946,7 @@ function initAR() {
     getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
     onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
     getPath: () => { const so = state.sel && state.byId.get(state.sel), pts = so && pathFor(so); return pts ? { pts, kind: so.kind } : null; },
+    getSymbols: () => window.FarGemsLogic.parseArSymbols(storedValue('fg.arSymbols')),
     getCalloutLines: (ob) => window.FarGemsLogic.arCalloutLines(ob, { units: state.units, far: state.far }),
     getOffset: () => state.arOffset, getLatitude: () => (state.loc ? state.loc.lat : null),
     onOffset: (off) => { state.arOffset = off; state.dirty = true; lsSet('fg.arOffset', off); },
@@ -1294,6 +1295,7 @@ function start() {
   state.visOnly = L.parseVisOnly(storedValue('fg.visOnly'));
   state.units = L.parseUnits(storedValue('fg.units'), navigator.language);
   state.far = L.parseFar(storedValue('fg.far'));
+  state.arSymbols = L.parseArSymbols(storedValue('fg.arSymbols'));
   state.flightRangeKm = L.parseFlightRange(storedValue('fg.flightRange'));
   state.filters = L.loadLayers(storedValue('fg.layers'), reducedMotion());
   state.pins = L.parsePins(storedValue('fg.pins'));

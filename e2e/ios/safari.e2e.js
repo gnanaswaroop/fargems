@@ -1981,3 +1981,21 @@ test('card preview: a flight or a satellite with no photo gets a generic picture
     assert.deepEqual(ids, [], 'no names inside the drawing, so showing it twice in the page cannot clash');
   } finally { await context.close(); }
 });
+
+test('settings: the drawn symbols in the camera view are on at first, can be turned off, and stay off', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.goto(base + '/settings.html');
+    assert.equal(await page.isChecked('#arSymbolsToggle'), true, 'on by default');
+    await page.uncheck('#arSymbolsToggle');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '0');
+    await page.goto(base + '/settings.html');
+    assert.equal(await page.isChecked('#arSymbolsToggle'), false, 'still off after coming back');
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.waitForFunction(() => window.__fg && window.__fg.state && window.__fg.state.arSymbols !== undefined);
+    assert.equal(await page.evaluate(() => window.__fg.state.arSymbols), false, 'the sky view picked the choice up');
+    await page.goto(base + '/settings.html');
+    await page.check('#arSymbolsToggle');
+    assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '1');
+  } finally { await context.close(); }
+});

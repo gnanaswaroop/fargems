@@ -12,6 +12,7 @@
  *   onOffset(off)    -> called while the visitor drags the picture in line-up mode (optional)
  *   getPath()        -> { pts: [{ az, el, hr? }], kind } the path of the selected object, or null (optional)
  *   getLatitude()    -> the visitor's latitude, to turn the Moon's face the way it is turned in the sky (optional)
+ *   getSymbols()     -> false when the visitor turned the drawn symbols off (optional; default on)
  *   getCalloutLines(ob) -> short lines of text for the bubble beside the picked object (optional; without it the full card is used)
  * Returns { open(), close(), isOpen(), capture(), setAligning(on), isAligning() }. open() rejects with an Error whose .code is 'unsupported', 'denied' or 'failed'. */
 (function (root) {
@@ -229,7 +230,8 @@
         const p = AR.projectToScreen(ob, cam, view);
         const isSel = ob.id === sel;
         if (!p.onScreen) { if (isSel) selOff = { ob, p }; continue; }
-        ctx.save(); ctx.translate(p.x, p.y);
+        const hide = o.getSymbols ? o.getSymbols() === false : false; // the visitor turned the drawn symbols off: the real objects show, only the ring and bubble remain
+        if (!hide) { ctx.save(); ctx.translate(p.x, p.y);
         if (isSel && inline) ctx.globalAlpha = phase.icon; // the picked object's icon fades, so it does not cover the real one
         if (air && ob.course === false) { // direction not known: a plain dot
           ctx.fillStyle = '#ffb454'; ctx.beginPath(); ctx.arc(0, 0, isSel ? 7 : 6, 0, 7); ctx.fill();
@@ -254,13 +256,13 @@
           ctx.fillStyle = ob.color || '#ffd86b'; ctx.shadowColor = ob.color || '#ffd86b'; ctx.shadowBlur = 10;
           ctx.beginPath(); ctx.arc(0, 0, big ? 11 : 7, 0, 7); ctx.fill();
         }
-        ctx.restore();
+        ctx.restore(); }
         if (isSel) { // a ring of dots marks the picked object and stays when its icon has gone
           ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.setLineDash([0.1, 6]); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
           ctx.beginPath(); ctx.arc(p.x, p.y, AR.RING_R, 0, 7); ctx.stroke(); ctx.restore();
           if (inline) selDraw = { ob, p };
         }
-        if ((F.labels || isSel) && !(isSel && inline)) { const gap = ob.name === 'Moon' ? 24 : 18; label(ob.name, p.x + gap, Math.max(14, Math.min(H - 14, p.y - 14)), air ? '#ffd9a0' : '#fff', W, 2 * gap); }
+        if (!hide && (F.labels || isSel) && !(isSel && inline)) { const gap = ob.name === 'Moon' ? 24 : 18; label(ob.name, p.x + gap, Math.max(14, Math.min(H - 14, p.y - 14)), air ? '#ffd9a0' : '#fff', W, 2 * gap); }
         items.push({ id: ob.id, x: p.x, y: p.y, r: 30 });
       }
 
