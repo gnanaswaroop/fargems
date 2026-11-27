@@ -45,7 +45,7 @@ test('the camera view opens by itself unless the visitor turns that off in Setti
   assert.equal(L.parseAutoAr(null), true);
   assert.equal(L.parseAutoAr('1'), true);
   assert.equal(L.parseAutoAr('0'), false);
-  assert.match(read('settings.html'), /<label class="layer-row"><input id="autoArToggle" type="checkbox"> Open the camera view by itself/);
+  assert.match(read('settings.html'), /<b>Open the camera view by itself<\/b>.*<input id="autoArToggle" type="checkbox" role="switch">/);
   assert.match(read('settings.js'), /fg\.autoAr/);
   assert.match(read('app.js'), /parseAutoAr\(storedValue\('fg\.autoAr'\)\) && !arView\.isOpen\(\)\) return/);
 });
@@ -63,4 +63,15 @@ test('the sky view starts with a loading screen: the logo, the name and what the
   assert.match(app, /const boot = \$\('#boot'\);[^\n]*\n\s*if \(boot\) \{ boot\.classList\.add\('done'\); setTimeout\(\(\) => boot\.remove\(\), 500\); \}/);
   assert.match(css, /\.boot \{[^}]*animation: bootout \.4s 6s forwards/, 'and goes by itself if the page cannot start');
   assert.match(css, /\.boot\.done \{[^}]*pointer-events: none/);
+});
+
+test('settings: every on/off choice is a switch with a title and a hint, and the AR one says "show" and is on by default', () => {
+  const html = read('settings.html'), css = read('style.css'), js = read('settings.js');
+  for (const id of ['flipToggle', 'visOnlyToggle', 'autoArToggle', 'arSymbolsToggle']) assert.match(html, new RegExp(`<input id="${id}" type="checkbox" role="switch">`), id + ' is a switch');
+  assert.doesNotMatch(html, /class="layer-row"><input id=/, 'no plain checkbox rows are left in the display card');
+  assert.match(css, /body\.settings input\[type="checkbox"\] \{ -webkit-appearance: none; appearance: none;/, 'the switch look');
+  assert.match(css, /body\.settings \.setting select \{ width: 100%;/, 'lists sit full width under their title');
+  assert.match(js, /\$\('#arSymbolsToggle'\)\.checked = L\.parseArSymbols\(storage\.getItem\('fg\.arSymbols'\)\);/, 'on unless it was turned off');
+  assert.match(js, /e\.target\.checked \? '1' : '0'\)\);\s*\/\/ Farthest|fg\.arSymbols', e\.target\.checked \? '1' : '0'/);
+  assert.match(js, /`<label class="layer-row"><input type="checkbox" data-layer/, 'the layer switches use the same checkbox');
 });
