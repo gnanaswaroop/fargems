@@ -682,10 +682,12 @@ const AR_SKY = (phase, sunAz) => `(() => {
 })()`;
 
 // Opens the camera view, facing east with the phone upright, and lets the heading settle.
-async function openAr(page, sky) {
+// still: keep the crosshair from picking what it is held on (that would fade the picked icon while a test measures the picture).
+async function openAr(page, sky, { still = false } = {}) {
   await page.evaluate(sky);
   await page.tap('#arBtn');
   await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
+  if (still) await page.evaluate(() => window.__fg.arView().setAligning(true));
   for (let i = 0; i < 30; i++) {
     await page.evaluate(() => { const e = new Event('deviceorientation'); e.webkitCompassHeading = 90; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); });
     await sleep(30);
@@ -713,7 +715,7 @@ test('AR: the Moon is drawn lit on the side toward the Sun, with the right amoun
   try {
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
-    await openAr(page, AR_SKY(0.5, 100));
+    await openAr(page, AR_SKY(0.5, 100), { still: true });
     let h = await litHalves(page);
     assert.ok(h.right > h.total * 0.3 && h.left < h.total * 0.05, 'Sun on the right: the right half is lit ' + JSON.stringify(h));
     await page.evaluate(AR_SKY(0.5, 80)); await sleep(400);
@@ -822,7 +824,7 @@ test('AR: the Photo button makes a PNG of the picture with the overlay and share
         window.__shared.push({ name: f.name, type: f.type, sig: Array.from(buf.slice(0, 4)), w: bmp.width, h: bmp.height, r: px[0] });
       };
     });
-    await openAr(page, AR_SKY(0.5, 100));
+    await openAr(page, AR_SKY(0.5, 100), { still: true });
     await page.tap('#arShot');
     await page.waitForFunction(() => window.__shared.length === 1, null, { timeout: 10000 });
     const s = await page.evaluate(() => window.__shared[0]);
@@ -1837,23 +1839,23 @@ test('AR: the picked object icon fades and leaves a ring of dots, and a bubble w
       const { state } = window.__fg; const m = state.byId.get('body:Moon'); m.az = 100; m.el = 14; m.distKm = 384400;
       state.sel = null; state.detailClosed = null; state.dirty = true;
     });
-    const where = await page.evaluate(() => {
-      const cv = document.querySelector('#arCanvas'), W = cv.clientWidth, H = cv.clientHeight;
-      const p = window.FarGemsAR.projectToScreen({ az: 100, el: 14 }, { heading: 90, pitch: 0 }, { W, H, vfov: 63 });
-      return { x: p.x, y: p.y, W, H };
-    });
-    assert.ok(where.x > 0 && where.x < where.W && where.y > 100 && where.y < where.H - 160, 'the Moon is in the picture: ' + JSON.stringify(where));
+    // where the view has drawn it, once it has stopped moving (the picture follows the compass a little behind)
+    await page.waitForFunction(() => { const it = window.__fg.arView().item('body:Moon'); if (!it) return false; const last = window.__last; window.__last = it; return !!last && Math.hypot(last.x - it.x, last.y - it.y) < 0.5; }, null, { polling: 120, timeout: 8000 });
+    const size = await page.evaluate(() => { const cv = document.querySelector('#arCanvas'); return { W: cv.clientWidth, H: cv.clientHeight }; });
+    const spot = () => page.evaluate(() => window.__fg.arView().item('body:Moon'));
+    let where = await spot();
+    assert.ok(where.x > 0 && where.x < size.W && where.y > 100 && where.y < size.H - 160, 'the Moon is in the picture: ' + JSON.stringify([where, size]));
+    const brightAt = async (r0, r1) => { const w = await spot(); return page.evaluate(`(${AROUND})(${w.x}, ${w.y}, ${r0}, ${r1})`); };
     await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.state.dirty = true; window.__fg.renderDetail(); });
-    await sleep(150);
-    const brightAt = (r0, r1) => page.evaluate(`(${AROUND})(${where.x}, ${where.y}, ${r0}, ${r1})`);
+    // as soon as the bubble is there the icon is still whole, so it is clear what was picked
+    await page.waitForFunction(() => window.__fg.arView().callout(), null, { timeout: 5000 });
     const early = await brightAt(0, 14);
     assert.ok(early > 40, 'at first the Moon icon is there to see what was picked: ' + early);
     assert.equal(await page.isVisible('#arDetail'), false, 'and the card is not under the picture');
-    // a moment later: the bubble is placed inside the picture, away from the object
-    await page.waitForFunction(() => window.__fg.arView().callout(), null, { timeout: 3000 });
-    await sleep(2300);
+    await sleep(2400);
+    where = await spot();
     const b = await page.evaluate(() => window.__fg.arView().callout());
-    assert.ok(b.x >= 0 && b.x + b.w <= where.W && b.y >= 80 && b.y + b.h <= where.H, 'the bubble is inside the picture: ' + JSON.stringify(b));
+    assert.ok(b.x >= 0 && b.x + b.w <= size.W && b.y >= 80 && b.y + b.h <= size.H, 'the bubble is inside the picture: ' + JSON.stringify(b));
     assert.ok(b.w > 100 && b.w <= 300 && b.h > 50 && b.h < 130, 'and small: ' + JSON.stringify(b));
     const near = Math.hypot(Math.max(b.x, Math.min(where.x, b.x + b.w)) - where.x, Math.max(b.y, Math.min(where.y, b.y + b.h)) - where.y);
     assert.ok(near > 24, 'it does not sit on the object: ' + near);

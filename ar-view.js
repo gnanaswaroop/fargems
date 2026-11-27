@@ -345,7 +345,7 @@
       if (!isOpen) return;
       isOpen = false; aligning = false; cancelAnimationFrame(raf); stopCamera(); o.root.hidden = true; document.body.classList.remove('ar-on');
     }
-    return { open, close, isOpen: () => isOpen, capture, callout: () => (calloutBox ? { ...calloutBox } : null), cardShown: () => !!cardShown, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
+    return { open, close, isOpen: () => isOpen, capture, callout: () => (calloutBox ? { ...calloutBox } : null), item: (id) => { const it = items.find((q) => q.id === id); return it ? { x: it.x, y: it.y } : null; }, cardShown: () => !!cardShown, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
   }
 
   root.FarGemsARView = { create };
