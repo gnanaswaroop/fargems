@@ -682,10 +682,12 @@ const AR_SKY = (phase, sunAz) => `(() => {
 })()`;
 
 // Opens the camera view, facing east with the phone upright, and lets the heading settle.
-async function openAr(page, sky) {
+// still: keep the crosshair from picking what it is held on (that would fade the picked icon while a test measures the picture).
+async function openAr(page, sky, { still = false } = {}) {
   await page.evaluate(sky);
   await page.tap('#arBtn');
   await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
+  if (still) await page.evaluate(() => window.__fg.arView().setAligning(true));
   for (let i = 0; i < 30; i++) {
     await page.evaluate(() => { const e = new Event('deviceorientation'); e.webkitCompassHeading = 90; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); });
     await sleep(30);
@@ -713,7 +715,7 @@ test('AR: the Moon is drawn lit on the side toward the Sun, with the right amoun
   try {
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
-    await openAr(page, AR_SKY(0.5, 100));
+    await openAr(page, AR_SKY(0.5, 100), { still: true });
     let h = await litHalves(page);
     assert.ok(h.right > h.total * 0.3 && h.left < h.total * 0.05, 'Sun on the right: the right half is lit ' + JSON.stringify(h));
     await page.evaluate(AR_SKY(0.5, 80)); await sleep(400);
@@ -822,7 +824,7 @@ test('AR: the Photo button makes a PNG of the picture with the overlay and share
         window.__shared.push({ name: f.name, type: f.type, sig: Array.from(buf.slice(0, 4)), w: bmp.width, h: bmp.height, r: px[0] });
       };
     });
-    await openAr(page, AR_SKY(0.5, 100));
+    await openAr(page, AR_SKY(0.5, 100), { still: true });
     await page.tap('#arShot');
     await page.waitForFunction(() => window.__shared.length === 1, null, { timeout: 10000 });
     const s = await page.evaluate(() => window.__shared[0]);
@@ -1797,7 +1799,12 @@ test('AR: the camera button is a round shutter at the bottom right, above the ca
     const close = await box('#arClose'); assert.ok(shot.t > close.b + 200, 'far from the close button');
     // with the card open the shutter is above it, still at the right edge, and nothing overlaps
     await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.state.detailClosed = null; window.__fg.renderDetail(); });
-    await page.waitForSelector('#arDetail:not([hidden]) h3');
+    // the details are in the bubble beside the object; tapping the bubble brings the card up under the buttons
+    await page.waitForFunction(() => window.__fg.arView().callout(), null, { timeout: 5000 });
+    assert.equal(await page.isVisible('#arDetail'), false, 'with the bubble showing, there is no card');
+    const bub = await page.evaluate(() => window.__fg.arView().callout());
+    await page.touchscreen.tap(bub.x + bub.w / 2, bub.y + bub.h / 2);
+    await page.waitForSelector('#arDetail h3', { state: 'visible' });
     const card = await box('#arDetail'); shot = await box('#arShot'); align = await box('#arAlign');
     assert.ok(shot.b <= card.t + 1, 'the shutter is above the card, not on it: ' + JSON.stringify([shot, card]));
     assert.ok(shot.r > vp.width - 16, 'and at the right edge');
@@ -1806,5 +1813,113 @@ test('AR: the camera button is a round shutter at the bottom right, above the ca
     // it still works with the card open
     await page.evaluate(() => { window.__taken = 0; });
     assert.equal(await page.evaluate(() => { const r = document.querySelector('#arShot').getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).closest('#arShot') !== null; }), true, 'nothing covers it');
+  } finally { await context.close(); }
+});
+
+// Where the picked object is on the screen, and how many bright (near white) pixels there are around it at a radius.
+const AROUND = `(cx, cy, r0, r1) => {
+  const cv = document.querySelector('#arCanvas'), s = cv.width / cv.clientWidth, c = cv.getContext('2d');
+  const R = Math.round(r1 * s), x0 = Math.round(cx * s) - R, y0 = Math.round(cy * s) - R, d = c.getImageData(x0, y0, 2 * R, 2 * R).data;
+  let n = 0;
+  for (let y = 0; y < 2 * R; y++) for (let x = 0; x < 2 * R; x++) {
+    const dist = Math.hypot(x - R, y - R) / s; if (dist < r0 || dist > r1) continue;
+    const i = (y * 2 * R + x) * 4; if (d[i] > 170 && d[i + 1] > 170 && d[i + 2] > 170 && d[i + 3] > 150) n++;
+  }
+  return n;
+}`;
+
+test('AR: the picked object icon fades and leaves a ring of dots, and a bubble with its details sits beside it, joined by a dotted line', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, AR_SKY(0.5, 100));
+    // Put the Moon up and to the right of the crosshair (so that the crosshair does not pick it by itself), and pick it by hand.
+    await page.evaluate(() => {
+      const { state } = window.__fg; const m = state.byId.get('body:Moon'); m.az = 100; m.el = 14; m.distKm = 384400;
+      state.sel = null; state.detailClosed = null; state.dirty = true;
+    });
+    // where the view has drawn it, once it has stopped moving (the picture follows the compass a little behind)
+    await page.waitForFunction(() => { const it = window.__fg.arView().item('body:Moon'); if (!it) return false; const last = window.__last; window.__last = it; return !!last && Math.hypot(last.x - it.x, last.y - it.y) < 0.5; }, null, { polling: 120, timeout: 8000 });
+    const size = await page.evaluate(() => { const cv = document.querySelector('#arCanvas'); return { W: cv.clientWidth, H: cv.clientHeight }; });
+    const spot = () => page.evaluate(() => window.__fg.arView().item('body:Moon'));
+    let where = await spot();
+    assert.ok(where.x > 0 && where.x < size.W && where.y > 100 && where.y < size.H - 160, 'the Moon is in the picture: ' + JSON.stringify([where, size]));
+    const brightAt = async (r0, r1) => { const w = await spot(); return page.evaluate(`(${AROUND})(${w.x}, ${w.y}, ${r0}, ${r1})`); };
+    await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.state.dirty = true; window.__fg.renderDetail(); });
+    // as soon as the bubble is there the icon is still whole, so it is clear what was picked
+    await page.waitForFunction(() => window.__fg.arView().callout(), null, { timeout: 5000 });
+    const early = await brightAt(0, 14);
+    assert.ok(early > 40, 'at first the Moon icon is there to see what was picked: ' + early);
+    assert.equal(await page.isVisible('#arDetail'), false, 'and the card is not under the picture');
+    await sleep(2400);
+    where = await spot();
+    const b = await page.evaluate(() => window.__fg.arView().callout());
+    assert.ok(b.x >= 0 && b.x + b.w <= size.W && b.y >= 80 && b.y + b.h <= size.H, 'the bubble is inside the picture: ' + JSON.stringify(b));
+    assert.ok(b.w > 100 && b.w <= 300 && b.h > 50 && b.h < 130, 'and small: ' + JSON.stringify(b));
+    const near = Math.hypot(Math.max(b.x, Math.min(where.x, b.x + b.w)) - where.x, Math.max(b.y, Math.min(where.y, b.y + b.h)) - where.y);
+    assert.ok(near > 24, 'it does not sit on the object: ' + near);
+    const late = await brightAt(0, 14), ring = await brightAt(22, 27);
+    assert.ok(late < early * 0.15, 'the icon has faded away, so the real object is not hidden (' + early + ' to ' + late + ')');
+    assert.ok(ring > 20, 'a ring of dots marks the spot (' + ring + ' bright pixels on it)');
+    const dark = await page.evaluate(`(() => { const cv = document.querySelector('#arCanvas'), s = cv.width / cv.clientWidth, d = cv.getContext('2d').getImageData(Math.round((${b.x} + 6) * s), Math.round((${b.y} + ${b.h} / 2) * s), 1, 1).data; return [d[0], d[1], d[2], d[3]]; })()`);
+    assert.ok(dark[3] > 150 && dark[0] < 60, 'the bubble is a dark box with the text on it: ' + dark);
+    // a tap on the bubble brings the full card; a tap on it again takes it away
+    await page.touchscreen.tap(b.x + b.w / 2, b.y + b.h / 2);
+    await page.waitForSelector('#arDetail h3', { state: 'visible', timeout: 3000 });
+    assert.equal(await page.evaluate(() => window.__fg.state.sel), 'body:Moon', 'the same object is still picked');
+    await page.touchscreen.tap(b.x + b.w / 2, b.y + b.h / 2);
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#arDetail')).display === 'none', null, { timeout: 3000 });
+  } finally { await context.close(); }
+});
+
+test('AR: a saved picture has the bubble in it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__shared = []; navigator.canShare = () => true;
+      navigator.share = async (d) => {
+        const bmp = await createImageBitmap(d.files[0]), c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0);
+        window.__shared.push({ c, scale: bmp.width / document.querySelector('#arCanvas').clientWidth });
+      };
+    });
+    await openAr(page, AR_SKY(0.5, 100));
+    await page.evaluate(() => { const m = window.__fg.state.byId.get('body:Moon'); m.az = 100; m.el = 14; m.distKm = 384400; window.__fg.state.sel = 'body:Moon'; window.__fg.state.dirty = true; });
+    await page.waitForFunction(() => window.__fg.arView().callout(), null, { timeout: 3000 });
+    await sleep(600);
+    const b = await page.evaluate(() => window.__fg.arView().callout());
+    await page.tap('#arShot');
+    await page.waitForFunction(() => window.__shared.length === 1, null, { timeout: 10000 });
+    const px = await page.evaluate(`(() => { const s = window.__shared[0]; const d = s.c.getContext('2d').getImageData(Math.round((${b.x} + 6) * s.scale), Math.round((${b.y} + ${b.h} / 2) * s.scale), 1, 1).data; return [d[0], d[1], d[2]]; })()`);
+    assert.ok(px[0] < 60 && px[1] < 60, 'the dark bubble is in the saved picture: ' + px);
+  } finally { await context.close(); }
+});
+
+test('passes: the section is shown when a pass is under way or soon, and hidden when the next pass is hours away or over', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(PASSES);
+    assert.equal(await page.isVisible('#passes'), true, 'a pass in about an hour and one in three: shown');
+    const hours = (h) => page.evaluate((x) => { const { state, renderPasses } = window.__fg; const now = Date.now(); for (const p of state.passes) { p.start = now + x * 3600e3; p.end = p.start + 6 * 60e3; } renderPasses(); }, h);
+    await hours(0.02);
+    assert.equal(await page.isVisible('#passes'), true, 'about to start');
+    await page.evaluate(() => { const { state, renderPasses } = window.__fg; const now = Date.now(); for (const p of state.passes) { p.start = now - 2 * 60e3; p.end = now + 4 * 60e3; } renderPasses(); });
+    assert.equal(await page.isVisible('#passes'), true, 'under way');
+    await hours(9);
+    assert.equal(await page.isVisible('#passes'), false, 'the next pass is nine hours away: hidden');
+    await hours(30);
+    assert.equal(await page.isVisible('#passes'), false, 'tomorrow: hidden');
+    await page.evaluate(() => { const { state, renderPasses } = window.__fg; const now = Date.now(); for (const p of state.passes) { p.start = now - 20 * 60e3; p.end = now - 10 * 60e3; } renderPasses(); });
+    assert.equal(await page.isVisible('#passes'), false, 'already over: hidden');
+    // one near and one far: only the near one is listed
+    await page.evaluate(() => { const { state, renderPasses } = window.__fg; const now = Date.now(); state.passes[0].start = now + 3600e3; state.passes[0].end = state.passes[0].start + 6e5; state.passes[1].start = now + 20 * 3600e3; state.passes[1].end = state.passes[1].start + 6e5; renderPasses(); });
+    assert.deepEqual(await page.$$eval('#passes button.pass b', (b) => b.map((x) => x.textContent)), ['ISS'], 'only the one that is soon');
+    // choosing it still works with the right pass (the buttons keep their numbers)
+    await page.click('#passes button.pass');
+    assert.equal(await page.evaluate(() => window.__fg.state.passSel), 'ISS');
   } finally { await context.close(); }
 });

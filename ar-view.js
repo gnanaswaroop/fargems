@@ -3,7 +3,7 @@
  * passed to create(), so it does not depend on app.js internals. The maths lives in lib/ar.js.
  *
  * create({ root, video, canvas, closeBtn, getObjects, getFilters, getSelected, getOrientation, onSelect, onClose,
- *         getOffset?, onOffset?, getLatitude?, getPath? })
+ *         getOffset?, onOffset?, getLatitude?, getPath?, getCalloutLines? })
  *   getObjects()     -> [{ id, kind, name, az, el, az2?, el2?, color?, visible?, sunlit?, name }]
  *   getFilters()     -> layer switches { air, sat, sky, labels }
  *   getSelected()    -> id of the selected object, or null
@@ -12,6 +12,7 @@
  *   onOffset(off)    -> called while the visitor drags the picture in line-up mode (optional)
  *   getPath()        -> { pts: [{ az, el, hr? }], kind } the path of the selected object, or null (optional)
  *   getLatitude()    -> the visitor's latitude, to turn the Moon's face the way it is turned in the sky (optional)
+ *   getCalloutLines(ob) -> short lines of text for the bubble beside the picked object (optional; without it the full card is used)
  * Returns { open(), close(), isOpen(), capture(), setAligning(on), isAligning() }. open() rejects with an Error whose .code is 'unsupported', 'denied' or 'failed'. */
 (function (root) {
   'use strict';
@@ -19,7 +20,7 @@
   const VFOV = 63; // typical phone camera, vertical field of view in portrait
 
   function create(o) {
-    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000, topInset = 0, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
+    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000, topInset = 0, selTrack = { id: null, t0: 0 }, cardOpen = false, calloutBox = null, cardShown = null, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
     const ctx = o.canvas.getContext('2d');
     const FONT_SYMBOLS = '"Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
 
@@ -139,6 +140,40 @@
         o.root.appendChild(p); topInset = parseFloat(getComputedStyle(p).paddingTop) || 0; p.remove();
       } catch { topInset = 0; }
     }
+    // The details of the picked object in a bubble beside it, joined to it by a dotted line, so the object itself stays uncovered
+    // and the details are in the picture (and in a saved picture). Tapping the bubble opens the full card.
+    function drawCallout(ob, p, lines, alpha, W, H) {
+      const padX = 11, padY = 9, lh = 17, titleFont = '700 14px system-ui, -apple-system, sans-serif', bodyFont = '500 12.5px system-ui, -apple-system, sans-serif', moreFont = '600 11px system-ui, -apple-system, sans-serif';
+      ctx.save(); ctx.globalAlpha = alpha; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.font = titleFont; const tw = ctx.measureText(lines[0]).width;
+      ctx.font = moreFont; const mw = ctx.measureText('More ›').width;
+      ctx.font = bodyFont; let w = Math.max(tw + 12 + mw, ...lines.slice(1).map((s) => ctx.measureText(s).width)) + 2 * padX;
+      w = Math.min(w, Math.max(120, Math.min(280, W - 16)));
+      const h = 2 * padY + lines.length * lh;
+      const box = AR.placeCallout(p.x, p.y, w, h, { left: 8, top: topInset + 92, right: W - 8, bottom: H - 150 }, undefined, items.filter((it) => it.id !== ob.id).map((it) => ({ x: it.x, y: it.y, r: 26 })));
+      calloutBox = box;
+      const lead = AR.calloutLeader(p.x, p.y, box);
+      if (lead) { // the dotted pointer
+        ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.setLineDash([0.1, 6]); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
+        ctx.beginPath(); ctx.moveTo(lead.x1, lead.y1); ctx.lineTo(lead.x2, lead.y2); ctx.stroke(); ctx.restore();
+      }
+      const r = 12; // the bubble: a rounded box, dark and a little see-through, with a light edge
+      ctx.beginPath(); ctx.moveTo(box.x + r, box.y); ctx.arcTo(box.x + w, box.y, box.x + w, box.y + h, r); ctx.arcTo(box.x + w, box.y + h, box.x, box.y + h, r);
+      ctx.arcTo(box.x, box.y + h, box.x, box.y, r); ctx.arcTo(box.x, box.y, box.x + w, box.y, r); ctx.closePath();
+      ctx.fillStyle = 'rgba(7, 11, 20, .84)'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255, 255, 255, .28)'; ctx.stroke();
+      const x = box.x + padX; let y = box.y + padY + lh / 2;
+      ctx.font = titleFont; ctx.fillStyle = '#fff'; ctx.fillText(lines[0], x, y);
+      ctx.font = moreFont; ctx.fillStyle = '#5ad1e6'; ctx.textAlign = 'right'; ctx.fillText('More ›', box.x + w - padX, y); ctx.textAlign = 'left';
+      ctx.font = bodyFont; ctx.fillStyle = '#d4dcec';
+      for (const s of lines.slice(1)) { y += lh; ctx.fillText(s, x, y); }
+      ctx.restore();
+    }
+    // The full card under the picture shows when there is no bubble (nothing picked, or the picked object is out of the picture),
+    // or when the visitor has tapped the bubble for more.
+    function showCard(on) {
+      if (cardShown === on || !o.root.classList) return;
+      cardShown = on; o.root.classList.toggle('ar-card', on);
+    }
     function drawFrame() {
       raf = requestAnimationFrame(drawFrame);
       const { W, H } = fitCanvas();
@@ -157,7 +192,11 @@
       lastFocal = AR.focalFor(H, VFOV);
       const objects = o.getObjects(), sun = objects.find((b) => b.kind === 'body' && b.name === 'Sun');
       const F = o.getFilters(), sel = o.getSelected();
-      items = [];
+      items = []; calloutBox = null;
+      const nowMs = (typeof performance !== 'undefined' ? performance : Date).now();
+      if (sel !== selTrack.id) { selTrack = { id: sel, t0: nowMs }; cardOpen = false; } // a new pick starts again with the bubble
+      const inline = !!(sel && o.getCalloutLines), phase = inline ? AR.calloutPhase(nowMs - selTrack.t0) : { bubble: 0, icon: 1 };
+      let selDraw = null;
 
       // Horizon line and compass points, so you can tell the picture is lined up with the sky.
       ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath();
@@ -191,6 +230,7 @@
         const isSel = ob.id === sel;
         if (!p.onScreen) { if (isSel) selOff = { ob, p }; continue; }
         ctx.save(); ctx.translate(p.x, p.y);
+        if (isSel && inline) ctx.globalAlpha = phase.icon; // the picked object's icon fades, so it does not cover the real one
         if (air && ob.course === false) { // direction not known: a plain dot
           ctx.fillStyle = '#ffb454'; ctx.beginPath(); ctx.arc(0, 0, isSel ? 7 : 6, 0, 7); ctx.fill();
         } else if (air) {
@@ -215,8 +255,12 @@
           ctx.beginPath(); ctx.arc(0, 0, big ? 11 : 7, 0, 7); ctx.fill();
         }
         ctx.restore();
-        if (isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 24, 0, 7); ctx.stroke(); }
-        if (F.labels || isSel) { const gap = ob.name === 'Moon' ? 24 : 18; label(ob.name, p.x + gap, Math.max(14, Math.min(H - 14, p.y - 14)), air ? '#ffd9a0' : '#fff', W, 2 * gap); }
+        if (isSel) { // a ring of dots marks the picked object and stays when its icon has gone
+          ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.setLineDash([0.1, 6]); ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
+          ctx.beginPath(); ctx.arc(p.x, p.y, AR.RING_R, 0, 7); ctx.stroke(); ctx.restore();
+          if (inline) selDraw = { ob, p };
+        }
+        if ((F.labels || isSel) && !(isSel && inline)) { const gap = ob.name === 'Moon' ? 24 : 18; label(ob.name, p.x + gap, Math.max(14, Math.min(H - 14, p.y - 14)), air ? '#ffd9a0' : '#fff', W, 2 * gap); }
         items.push({ id: ob.id, x: p.x, y: p.y, r: 30 });
       }
 
@@ -227,6 +271,12 @@
         aimSt = aim.st; aimProgress = aim.progress;
         if (aim.select) o.onSelect(aim.select);
       }
+
+      if (selDraw) { // the picked object is in the picture: its details beside it
+        const lines = o.getCalloutLines(selDraw.ob) || [];
+        if (lines.length && phase.bubble > 0) drawCallout(selDraw.ob, selDraw.p, lines, phase.bubble, W, H);
+      }
+      showCard(cardOpen || !selDraw);
 
       if (selOff) { // the selected object is outside the picture: point toward it from the edge
         const e = AR.edgeIndicator(selOff.p.xc, selOff.p.yc, W, H, 30);
@@ -272,8 +322,9 @@
 
     function onTap(e) {
       if (aligning) { drag = null; return; } // dragging, not choosing
-      const r = o.canvas.getBoundingClientRect();
-      const hit = AR.pickNearest(items, e.clientX - r.left, e.clientY - r.top);
+      const r = o.canvas.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+      if (calloutBox && cx >= calloutBox.x && cx <= calloutBox.x + calloutBox.w && cy >= calloutBox.y && cy <= calloutBox.y + calloutBox.h) { cardOpen = !cardOpen; return; } // the bubble: more details
+      const hit = AR.pickNearest(items, cx, cy);
       o.onSelect(hit ? hit.id : null);
     }
     o.canvas.addEventListener('pointerup', onTap);
@@ -284,7 +335,7 @@
       if (isOpen) return Promise.resolve();
       if (!pending) {
         pending = openCamera().then(() => {
-          isOpen = true; heading = null; aimSt = { id: null, since: 0, done: false }; aimProgress = 0; o.root.hidden = false; document.body.classList.add('ar-on'); measureInset();
+          isOpen = true; heading = null; selTrack = { id: null, t0: 0 }; cardOpen = false; calloutBox = null; cardShown = null; if (o.root.classList) o.root.classList.add('ar-card'); aimSt = { id: null, since: 0, done: false }; aimProgress = 0; o.root.hidden = false; document.body.classList.add('ar-on'); measureInset();
           raf = requestAnimationFrame(drawFrame);
         }).finally(() => { pending = null; });
       }
@@ -294,7 +345,7 @@
       if (!isOpen) return;
       isOpen = false; aligning = false; cancelAnimationFrame(raf); stopCamera(); o.root.hidden = true; document.body.classList.remove('ar-on');
     }
-    return { open, close, isOpen: () => isOpen, capture, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
+    return { open, close, isOpen: () => isOpen, capture, callout: () => (calloutBox ? { ...calloutBox } : null), item: (id) => { const it = items.find((q) => q.id === id); return it ? { x: it.x, y: it.y } : null; }, cardShown: () => !!cardShown, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
   }
 
   root.FarGemsARView = { create };
