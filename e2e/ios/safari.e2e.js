@@ -2057,3 +2057,15 @@ test('loading screen: the sky view has one with the logo, the name and the title
     assert.equal(await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('#boot')), null, 'nothing covers the page');
   } finally { await context.close(); }
 });
+
+test('settings: the farthest-flight box shows its whole value, inside its row, at 280 to 768 px wide', { skip }, async () => {
+  const { page, context } = await iphone({ storage: { ...SAVED, 'fg.flightRange': '100' } });
+  try {
+    for (const w of [280, 320, 390, 768]) {
+      await page.setViewportSize({ width: w, height: 700 });
+      await page.goto(base + '/settings.html');
+      const m = await page.evaluate(() => { const i = document.querySelector('#flightRange'), r = i.getBoundingClientRect(), t = i.closest('.setting').getBoundingClientRect(); return { clipped: i.scrollWidth > i.clientWidth, inside: r.left >= t.left - 1 && r.right <= t.right + 1, wide: r.width >= 70, value: i.value }; });
+      assert.deepEqual(m, { clipped: false, inside: true, wide: true, value: '100' }, 'at ' + w + ' px');
+    }
+  } finally { await context.close(); }
+});

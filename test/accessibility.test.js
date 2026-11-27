@@ -75,3 +75,10 @@ test('settings: every on/off choice is a switch with a title and a hint, and the
   assert.match(js, /e\.target\.checked \? '1' : '0'\)\);\s*\/\/ Farthest|fg\.arSymbols', e\.target\.checked \? '1' : '0'/);
   assert.match(js, /`<label class="layer-row"><input type="checkbox" data-layer/, 'the layer switches use the same checkbox');
 });
+
+test('settings: the farthest-flight number keeps a box wide enough for its value, without spin arrows, and drops under its title on narrow screens', () => {
+  const css = read('style.css');
+  assert.match(css, /body\.settings \.setting input\[type="number"\] \{[^}]*width: 6em; min-width: 6em; flex: none;/);
+  assert.match(css, /::-webkit-inner-spin-button[^}]*-webkit-appearance: none/);
+  assert.match(css, /@media \(max-width: 400px\) \{\s*body\.settings \.setting:has\(input\[type="number"\]\) \{ flex-direction: column/);
+});
