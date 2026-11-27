@@ -139,5 +139,5 @@ test('the crosshair shows the hold filling, and the picture draws no aim state b
   assert.match(src, /AR\.aimStep\(aimSt, AR\.aimTarget\(items, W, H\), /);
   assert.match(src, /if \(aim\.select\) o\.onSelect\(aim\.select\);/);
   assert.match(src, /if \(aimProgress > 0 && aimProgress < 1\)/, 'a ring fills while holding');
-  assert.match(src, /isOpen = true; heading = null; aimSt = \{ id: null, since: 0, done: false \}; aimProgress = 0;/, 'a fresh start each time the view opens');
+  assert.match(src, /isOpen = true; heading = null; [^\n]*aimSt = \{ id: null, since: 0, done: false \}; aimProgress = 0;/, 'a fresh start each time the view opens');
 });

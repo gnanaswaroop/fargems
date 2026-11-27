@@ -200,6 +200,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .ar-shutter span { position: absolute; inset: 5px; border-radius: 50%; background: #fff; transition: transform .08s; }
 .ar-shutter:active span { transform: scale(.88); }
 .ar-shutter:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ar:not(.ar-card) .ar-detail { display: none; } /* the details are in the bubble beside the object; tapping the bubble brings the card */
 .ar-detail { position: relative; max-height: 38vh; overflow: auto; background: rgba(7, 11, 20, .85); }
 body.ar-on { overflow: hidden; }
 

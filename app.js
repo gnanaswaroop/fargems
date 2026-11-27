@@ -551,9 +551,12 @@ function renderStatus() {
 }
 function renderPasses() {
   const el = $('#passes');
-  if (!state.passes.length) { el.hidden = true; return; }
+  // Only a pass that is under way or starts within the next few hours is worth a place on the page; otherwise the section is hidden.
+  const soon = window.FarGemsLogic.passesSoon(state.passes, Date.now());
+  if (!soon.length) { el.hidden = true; return; }
   el.hidden = false;
   setHtml(el, '<h3>Next station passes (≥10°)</h3><p class="muted small">Tap a pass to see its path across the sky.</p><ul class="pass-list">' + state.passes.map((p, i) => {
+    if (!soon.includes(p)) return '';
     const on = state.passSel === p.name;
     return `<li><button type="button" class="pass${on ? ' on' : ''}" data-pass="${i}" aria-pressed="${on}"><b>${esc(p.name)}</b><span>${esc(fmtDay(p.start))} · max ${Math.round(p.max)}° · ${dir16(p.riseAz)} → ${p.setAz != null ? dir16(p.setAz) : '…'}</span></button></li>`;
   }).join('') + '</ul>');
@@ -933,6 +936,7 @@ function initAR() {
     getObjects: () => state.objs, getFilters: () => state.filters, getSelected: () => state.sel, getOrientation: () => state.ori,
     onSelect: (id) => { state.sel = id; state.dirty = true; renderDetail(); },
     getPath: () => { const so = state.sel && state.byId.get(state.sel), pts = so && pathFor(so); return pts ? { pts, kind: so.kind } : null; },
+    getCalloutLines: (ob) => window.FarGemsLogic.arCalloutLines(ob, { units: state.units, far: state.far }),
     getOffset: () => state.arOffset, getLatitude: () => (state.loc ? state.loc.lat : null),
     onOffset: (off) => { state.arOffset = off; state.dirty = true; lsSet('fg.arOffset', off); },
     onClose: () => { arState.openedBy = null; dropArEntry(); arState.auto = window.FarGemsAR.suppress(arState.auto); }, // stay on the radar until the phone has been laid flat once
@@ -1244,6 +1248,6 @@ function start() {
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 }
 // For the browser tests: with ?fgtest=1 in the address the tests can reach the page's state and redraw it.
-if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses, closeDetail, pathFor, settleCourses };
+if (/[?&]fgtest=1\b/.test(location.search)) window.__fg = { state, draw, renderNearby, renderDetail, renderPasses, closeDetail, pathFor, settleCourses, arView: () => arView };
 start();
 })();
