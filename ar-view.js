@@ -19,7 +19,7 @@
   const VFOV = 63; // typical phone camera, vertical field of view in portrait
 
   function create(o) {
-    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000;
+    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
     const ctx = o.canvas.getContext('2d');
     const FONT_SYMBOLS = '"Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
 
@@ -108,6 +108,9 @@
     function crosshair(W, H) {
       const cx = W / 2, cy = H / 2, gap = 4, arm = 10;
       ctx.save(); ctx.lineCap = 'round';
+      if (aimProgress > 0 && aimProgress < 1) { // holding on an object: a ring fills, and the object is picked when it closes
+        ctx.lineWidth = 3; ctx.strokeStyle = '#5ad1e6'; ctx.beginPath(); ctx.arc(cx, cy, gap + arm + 6, -Math.PI / 2, -Math.PI / 2 + aimProgress * 2 * Math.PI); ctx.stroke();
+      }
       for (const [w, c] of [[3, 'rgba(0,0,0,.55)'], [1.25, 'rgba(255,255,255,.95)']]) {
         ctx.lineWidth = w; ctx.strokeStyle = c; ctx.beginPath();
         ctx.moveTo(cx - gap - arm, cy); ctx.lineTo(cx - gap, cy); ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + gap + arm, cy);
@@ -196,6 +199,14 @@
         items.push({ id: ob.id, x: p.x, y: p.y, r: 30 });
       }
 
+      // The crosshair picks what it is held on, without a tap (not while the picture is being lined up by hand).
+      if (aligning) { aimSt = { id: null, since: 0, done: false }; aimProgress = 0; }
+      else {
+        const aim = AR.aimStep(aimSt, AR.aimTarget(items, W, H), (typeof performance !== 'undefined' ? performance : Date).now(), sel);
+        aimSt = aim.st; aimProgress = aim.progress;
+        if (aim.select) o.onSelect(aim.select);
+      }
+
       if (selOff) { // the selected object is outside the picture: point toward it from the edge
         const e = AR.edgeIndicator(selOff.p.xc, selOff.p.yc, W, H, 30);
         ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.angle); ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2;
@@ -252,7 +263,7 @@
       if (isOpen) return Promise.resolve();
       if (!pending) {
         pending = openCamera().then(() => {
-          isOpen = true; heading = null; o.root.hidden = false; document.body.classList.add('ar-on');
+          isOpen = true; heading = null; aimSt = { id: null, since: 0, done: false }; aimProgress = 0; o.root.hidden = false; document.body.classList.add('ar-on');
           raf = requestAnimationFrame(drawFrame);
         }).finally(() => { pending = null; });
       }
