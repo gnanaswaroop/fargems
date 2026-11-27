@@ -1997,5 +1997,27 @@ test('settings: the drawn symbols in the camera view are on at first, can be tur
     await page.goto(base + '/settings.html');
     await page.check('#arSymbolsToggle');
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '1');
+
+  } finally { await context.close(); }
+});
+
+test('small phones: no page scrolls sideways at 280 and 320 px, and the card never squeezes its values into a thin column', { skip }, async () => {
+  const { page, context } = await linked('', FAKE_SKY);
+  try {
+    for (const w of [280, 320]) {
+      await page.setViewportSize({ width: w, height: 640 });
+      await page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.state.detailClosed = null; window.__fg.renderDetail(); });
+      await page.locator('#detail dd').first().waitFor();
+      const widths = await page.$$eval('#detail dd', (els) => els.map((e) => e.getBoundingClientRect().width));
+      assert.ok(widths.length && widths.every((x) => x >= w * 0.6), 'values keep most of the width at ' + w + ' px: ' + widths.join());
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, 'the sky view scrolls sideways at ' + w + ' px');
+    }
+    for (const w of [280, 320]) {
+      await page.setViewportSize({ width: w, height: 640 });
+      for (const p of ['index.html', 'about.html', 'settings.html']) {
+        await page.goto(base + '/' + p);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, p + ' scrolls sideways at ' + w + ' px');
+      }
+    }
   } finally { await context.close(); }
 });

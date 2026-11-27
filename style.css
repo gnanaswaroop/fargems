@@ -449,3 +449,14 @@ body.viewer .side > #legend { flex: none; margin: 0; }
 .route .arrow { color: var(--accent); font-size: 22px; line-height: 1; }
 .route-far { display: block; margin: 2px 0 6px; font-size: 12px; color: var(--muted); }
 .nearby-row .airline-name { font-weight: 600; color: var(--text); }
+
+/* Small screens: nothing runs together, and a narrow card never squeezes its values into a thin column. */
+.card > .layer-row { margin-top: 10px; }
+.card dd, .about dd { overflow-wrap: anywhere; min-width: 0; }
+.card h2, .card h3, .about h2 { text-wrap: balance; }
+.card p, .about p { text-wrap: pretty; }
+@media (max-width: 340px) {
+  .card dl { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .card dt { margin-top: 8px; font-size: 12px; }
+  .card dd { margin: 0; }
+}

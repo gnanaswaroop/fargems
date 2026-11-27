@@ -49,3 +49,10 @@ test('the camera view opens by itself unless the visitor turns that off in Setti
   assert.match(read('settings.js'), /fg\.autoAr/);
   assert.match(read('app.js'), /parseAutoAr\(storedValue\('fg\.autoAr'\)\) && !arView\.isOpen\(\)\) return/);
 });
+
+test('small screens: rows in a card are spaced, long values wrap inside the card, and a very narrow card stacks label over value', () => {
+  const css = read('style.css');
+  assert.match(css, /\.card > \.layer-row \{ margin-top: 10px; \}/);
+  assert.match(css, /\.card dd, \.about dd \{ overflow-wrap: anywhere; min-width: 0; \}/);
+  assert.match(css, /@media \(max-width: 340px\) \{\s*\.card dl \{ grid-template-columns: minmax\(0, 1fr\)/);
+});
