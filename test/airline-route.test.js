@@ -44,8 +44,10 @@ test('routeStops gives both ends the same shape: a code and a place', () => {
 test('the card shows the airline under the name and the route as two equal ends; the list and the share text have the airline too', () => {
   const app = read('app.js'), css = read('style.css');
   assert.match(app, /const airline = o\.kind === 'air' && o\.ac \? H\.airlineOf\(o\.ac\.call\) : null, airlineLine = airline \? `<p class="airline">\$\{esc\(airline\)\}<\/p>` : '';/);
-  assert.match(app, /<h3>\$\{title\}<\/h3>\$\{nv\}\$\{airlineLine\}\$\{lead\}\$\{routeBlock\}<dl>/, 'the airline right under the name (after a not-visible line, when there is one), the route before the facts');
-  assert.match(app, /<h3>\$\{title\}<\/h3>\$\{nv\}\$\{airlineLine\}\$\{routeBlock\}<dl>/, 'and in the camera view');
+  assert.match(app, /<h3>\$\{title\}<\/h3>\$\{sub\}<\/div><\/div>`;/, 'the airline right under the name, in the head of the card');
+  assert.match(app, /const sub = airlineLine \|\| /);
+  assert.match(app, /\$\{head\('a'\)\}\$\{nv\}\$\{lead\}\$\{routeBlock\}<dl>/, 'then the not-visible line, and the route before the facts');
+  assert.match(app, /\$\{head\('b'\)\}\$\{nv\}\$\{routeBlock\}<dl>/, 'and in the camera view');
   assert.match(app, /end\('From', st\.from\)\}<span class="arrow" aria-hidden="true">→<\/span>\$\{end\('To', st\.to\)/, 'From and To are drawn by the same function');
   assert.doesNotMatch(app, /kv\('Flying to'/, 'no more heading on the destination alone');
   assert.doesNotMatch(app, /<small class="muted">from \$/, 'no more greyed-out start');

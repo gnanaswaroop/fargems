@@ -512,6 +512,12 @@ const L = window.FarGemsLogic;
 const storedValue = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
+// The phase of the Moon in words, from how much of it is lit and whether it is growing (what the card already holds), so it needs
+// no astronomy library; the library is the fallback when the Moon's own numbers are not there.
+function moonLabel(o) {
+  if (o && Number.isFinite(o.phase) && typeof o.waxing === 'boolean') { const th = Math.acos(1 - 2 * Math.max(0, Math.min(1, o.phase))) * 180 / Math.PI; return moonPhaseName(o.waxing ? th : 360 - th); }
+  return moonName();
+}
 function moonName() {
   try { return moonPhaseName(Astronomy.MoonPhase(new Date())); } catch { return 'Moon'; }
 }
@@ -682,8 +688,11 @@ function renderDetailCard() {
   const more = link ? `<p class="wikirow">${link}</p>` : '';
   const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
   const nv = notVisibleLine(o);
-  setHtml($('#detail'), `${X}${previewHtml(o, wt, wk, 'a')}<h3>${title}</h3>${nv}${airlineLine}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
-  setHtml($('#arDetail'), `${X}${previewHtml(o, wt, wk, 'b')}<h3>${title}</h3>${nv}${airlineLine}${routeBlock}<dl>${rows}</dl>${more}`);
+  // The head of the card: the picture beside the name and one line under it (the airline, the Moon's phase, or the kind of object).
+  const sub = airlineLine || (o.kind === 'air' ? '' : `<p class="airline">${esc(o.name === 'Moon' ? moonLabel(o) : H.typeOf(o).label)}</p>`);
+  const head = (uid) => `<div class="hd">${previewHtml(o, wt, wk, uid)}<div class="hdt"><h3>${title}</h3>${sub}</div></div>`;
+  setHtml($('#detail'), `${X}${head('a')}${nv}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
+  setHtml($('#arDetail'), `${X}${head('b')}${nv}${routeBlock}<dl>${rows}</dl>${more}`);
 }
 
 // What Wikipedia says about an article, fetched once the first time an object is looked at. An article that does not exist
@@ -709,7 +718,8 @@ function previewHtml(o, wt, wk, uid) {
   if (kind === 'art') return `<figure class="pv pv-art">${P.bodyArt(o, { waxing: o.waxing, south: !!(state.loc && state.loc.lat < 0), uid })}</figure>`;
   if (kind === 'photo' && wk && wk.thumb && wt) {
     const name = wt.replace(/ \(.*\)$/, '');
-    return `<figure class="pv pv-photo"><img src="${esc(wk.thumb)}" alt="" width="96" height="64" loading="lazy" decoding="async" referrerpolicy="no-referrer"><figcaption>${esc(o.kind === 'air' ? name + ' (example photo)' : name)}</figcaption></figure>`;
+    const what = o.kind === 'air' ? name + ' (example photo of this type of aircraft)' : name;
+    return `<figure class="pv pv-photo" title="${esc(what)}"><img src="${esc(wk.thumb)}" alt="${esc(what)}" width="72" height="48" loading="lazy" decoding="async" referrerpolicy="no-referrer">${o.kind === 'air' ? '<span class="pv-tag">example</span>' : ''}</figure>`;
   }
   return '';
 }
