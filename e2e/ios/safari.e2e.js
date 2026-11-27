@@ -2095,3 +2095,28 @@ test('radar bodies: Saturn has rings, the Moon shows its phase toward the Sun, a
     assert.ok(await page.evaluate(() => window.__bodies.filter((b) => b.n === 'Moon').length > 0));
   } finally { await context.close(); }
 });
+
+test('installed app: the icon opens the sky view; the web page still starts at the landing page', { skip }, async () => {
+  const open = async ({ standalone, storage }) => {
+    const r = await iphone({ storage });
+    if (standalone) await r.context.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true, configurable: true }));
+    await r.page.goto(base + '/index.html').catch(() => {}); // the redirect can interrupt the first load
+    return r;
+  };
+  const installed = await open({ standalone: true, storage: SAVED });
+  try {
+    await installed.page.waitForURL('**/viewer.html');
+    assert.equal(await installed.page.locator('#sky').count(), 1, 'the sky view is what opened');
+    assert.deepEqual(installed.errors, []);
+  } finally { await installed.context.close(); }
+  const web = await open({ standalone: false, storage: SAVED });
+  try {
+    await web.page.locator('#allowBtn').waitFor({ state: 'attached' });
+    assert.match(web.page.url(), /\/index\.html$/, 'in a browser the landing page stays');
+  } finally { await web.context.close(); }
+  const first = await open({ standalone: true, storage: {} });
+  try {
+    await first.page.locator('#allowBtn').waitFor({ state: 'attached' });
+    assert.match(first.page.url(), /\/index\.html$/, 'installed but no location yet: the landing page asks for it');
+  } finally { await first.context.close(); }
+});

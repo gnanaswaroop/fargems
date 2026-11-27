@@ -16,6 +16,11 @@
     catch { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; }
   })();
 
+  // An installed app goes straight to the sky view (once there is a location); the web page starts here.
+  const launched = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const toViewer = O.launchTarget(storage, launched);
+  if (toViewer) { location.replace(toViewer); return; }
+
   const els = {
     allow: $('#allowBtn'), sample: $('#sampleBtn'), msg: $('#msg'),
     loc: $('#locState'), compass: $('#compassState'), open: $('#openLink'),
