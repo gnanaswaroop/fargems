@@ -69,7 +69,9 @@ test('tablet: a visit after that stays on the home page, with the sky view one t
   const { page, context } = await tablet({ permission: true, storage: { 'fg.loc': JSON.stringify({ lat: 17.4435, lon: 78.3772 }) } });
   try {
     await page.goto(base + '/index.html');
-    await page.waitForTimeout(1200);
+    // proving that nothing happens: wait a bounded time for the redirect, and say 'stayed' when it does not come
+    const outcome = await page.waitForURL('**/viewer.html', { timeout: 1500 }).then(() => 'redirected', () => 'stayed');
+    assert.equal(outcome, 'stayed', 'a returning visitor is not sent on to the sky view');
     assert.match(page.url(), /index\.html$/);
     assert.equal(await page.isVisible('#openLink'), true);
     assert.equal(await page.isVisible('#permsCard'), false, 'nothing left to allow');

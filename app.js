@@ -524,8 +524,15 @@ function moonName() {
 // Writing a container again throws away any text the visitor has selected in it, and the page refreshes itself every two
 // seconds. So a container is only written when its content actually changed, and not while someone is selecting text in it
 // (the next refresh catches up).
+// A press (a finger or the mouse) that began inside a container: until it is let go the container is not written again, because a
+// button that is replaced between the press and the release gets no click, and the card is rewritten every couple of seconds as the
+// object moves. The next refresh catches up. (A press that has lasted more than three seconds is not waited for.)
+let pressIn = null, pressAt = 0;
+document.addEventListener('pointerdown', (e) => { pressIn = e.target; pressAt = Date.now(); }, true);
+for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, () => { pressIn = null; }, true);
 function setHtml(el, html) {
   if (!el || el.__html === html) return;
+  if (pressIn && Date.now() - pressAt < 3000 && el.contains(pressIn)) return;
   const sel = window.getSelection && window.getSelection();
   if (sel && !sel.isCollapsed && sel.rangeCount && el.contains(sel.anchorNode)) return;
   el.__html = html; el.innerHTML = html;
