@@ -2141,4 +2141,17 @@ test('card: an interesting fact sits behind More, the picture cannot be tapped, 
       await page.locator('#detail [data-more]').click();
     }
   } finally { await context.close(); }
+
+});
+
+test('sky view: tapping the logo does nothing; there is no way back to the landing page', { skip }, async () => {
+  const r = await iphone({ storage: SAVED });
+  try {
+    await r.page.goto(base + '/viewer.html');
+    await r.page.locator('#sky').waitFor({ state: 'attached' });
+    assert.equal(await r.page.locator('header a[href="index.html"]').count(), 0, 'no link to the landing page in the header');
+    await r.page.locator('header .brand').tap();
+    assert.match(r.page.url(), /\/viewer\.html/, 'still on the sky view');
+    assert.deepEqual(r.errors, []);
+  } finally { await r.context.close(); }
 });
