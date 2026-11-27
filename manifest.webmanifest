@@ -3,7 +3,7 @@
   "short_name": "FarGems",
   "description": "Live aircraft, satellites, planets, Moon and meteor showers above your location.",
   "id": "./",
-  "start_url": "./",
+  "start_url": "viewer.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

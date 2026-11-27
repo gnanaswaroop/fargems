@@ -102,6 +102,14 @@ test('startTarget sends the visitor to the viewer only once a location is known'
   assert.equal(O.startTarget(memStorage({ [O.LOC_KEY]: '{"lat":1,"lon":2}' })), 'viewer.html');
 });
 
+test('launchTarget: the installed app goes straight to the viewer once a location is known, the web page does not', () => {
+  const saved = memStorage({ [O.LOC_KEY]: '{"lat":1,"lon":2}' });
+  assert.equal(O.launchTarget(saved, true), 'viewer.html');
+  assert.equal(O.launchTarget(saved, false), null, 'a visitor in a browser sees the landing page');
+  assert.equal(O.launchTarget(memStorage(), true), null, 'no location yet: the landing page asks for it');
+  assert.equal(O.launchTarget(saved), null);
+});
+
 test('SAMPLE_LOCATION is the agreed sample coordinate pair and is frozen', () => {
   assert.equal(O.SAMPLE_LOCATION.lat, 17.4435);
   assert.equal(O.SAMPLE_LOCATION.lon, 78.3772);

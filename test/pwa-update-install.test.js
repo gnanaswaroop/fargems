@@ -103,3 +103,13 @@ test('compass: starts by itself where no permission is needed, and waits for a r
   assert.match(app, /if \(wait\) \{ state\.compassPending = true; return; \}/);
   assert.match(app, /if \(state\.compassPending && !state\.compass\) \{ state\.compass = true; state\.compassPending = false;/);
 });
+
+test('the installed app opens on the sky view, with the same identity, and the landing page sends an installed app there', () => {
+  const m = JSON.parse(read('manifest.webmanifest'));
+  assert.equal(m.start_url, 'viewer.html', 'the icon opens the viewer');
+  assert.equal(m.id, './', 'the app keeps its identity, so an installed copy is updated and not duplicated');
+  assert.equal(m.scope, './');
+  const js = read('landing.js');
+  assert.match(js, /const toViewer = O\.launchTarget\(storage, launched\);\r?\n\s*if \(toViewer\) \{ location\.replace\(toViewer\); return; \}/, 'also for copies installed before the manifest changed');
+  assert.ok(js.indexOf('O.launchTarget') < js.indexOf('const els = {'), 'decided before the page is built');
+});
