@@ -50,7 +50,7 @@ test('About sits in a "..." menu at the top right, which opens, closes and is la
   assert.ok(html.indexOf('class="menu"') < html.indexOf('class="hero"'), 'the menu comes first, at the top');
   assert.match(menu, /id="menuBtn"[^>]*aria-label="More"[^>]*aria-expanded="false"[^>]*aria-controls="menuList"/);
   assert.match(menu, /<ul id="menuList" class="menu-list" hidden>/);
-  assert.match(menu, /href="about\.html">About &amp; help</);
+  assert.match(menu, /href="about\.html">About</);
   assert.doesNotMatch(menu, />Help</, 'About and Help are one entry');
   assert.doesNotMatch(menu, /github\.com/, 'the GitHub link lives on the About page');
   assert.match(css, /\.menu\{[^}]*justify-content:flex-end/, 'pushed to the right');
