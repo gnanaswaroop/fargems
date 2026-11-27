@@ -635,9 +635,11 @@ The search bar takes room, so it is hidden until it is wanted: a magnifier in th
 
 The reusable, flake-proof pieces of the browser tests are in `e2e/ios/helpers.js` and the rules (and what went wrong without each) are in `docs/TESTING.md`. `test/e2e-practices.test.js` fails the build, with the reason, when a browser test assigns to the browser's own camera function, taps the AR button without the camera put on the page, defines its own copy of a helper, or adds a fixed wait (the existing ones are counted and may only go down).
 
-## 44. Drawn symbols switch
+## 44. Hiding virtual objects in the camera view
 
-Settings has "Draw symbols over the objects in the camera view" (key `fg.arSymbols`, on unless set to 0). Off means the camera view draws no icons and no names over the objects, so the real ones show; the dotted ring, the details bubble and the crosshair picking stay. There is no automatic indoor or outdoor detection.
+Settings has "Hide virtual objects when the real object is shown in the AR view" (saved as `fg.arSymbols`, where 0 means hide; unticked is the usual). By default the symbols are drawn, and the picked object's icon stays drawn for as long as it is picked, with the dotted ring and the details bubble beside it (an earlier version faded the picked icon after 1.5 s; that was removed). Ticked, no icon or name is drawn over the objects, so the real ones show; the ring, the bubble and crosshair picking stay. There is no automatic indoor or outdoor detection.
+
+The sky view also opens with a loading screen (`#boot`: logo, FarGems and "What’s flying above you") that goes once the first drawing is done, or by itself after 6 s.
 
 ## 45. The short card
 

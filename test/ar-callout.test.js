@@ -97,9 +97,9 @@ test('the bubble says what the object is and a few facts, in four lines at most'
 /* ---- the camera view with a clock the test controls ---- */
 function viewEnv(objects, { selected = () => null, lines = (ob) => [ob.name, 'one', 'two'], withLines = true, symbols } = {}) {
   let now = 5000, cb = null, alpha = 1;
-  const calls = [], classes = new Set();
+  const calls = [], classes = new Set(), saved = []; // save() and restore() keep the alpha, as a real canvas does
   const ctx = new Proxy({}, {
-    get: (t, k) => (k === 'globalAlpha' ? alpha : k in t ? t[k] : (...a) => { calls.push({ k, a, alpha, dash: t._dash }); if (k === 'setLineDash') t._dash = a[0]; return { width: 10 }; }),
+    get: (t, k) => (k === 'globalAlpha' ? alpha : k in t ? t[k] : (...a) => { if (k === 'save') saved.push(alpha); if (k === 'restore' && saved.length) alpha = saved.pop(); calls.push({ k, a, alpha, dash: t._dash }); if (k === 'setLineDash') t._dash = a[0]; return { width: 10 }; }),
     set: (t, k, v) => { if (k === 'globalAlpha') alpha = v; else t[k] = v; return true; },
   });
   const canvas = { width: 0, height: 0, clientWidth: 400, clientHeight: 800, getContext: () => ctx, addEventListener(n, f) { (canvas.l = canvas.l || {})[n] = f; }, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
@@ -141,7 +141,7 @@ test('picking an object: the details come in a bubble beside it and the card sta
   const b = e.view.callout(); assert.ok(b.x >= 8 && b.x + b.w <= 392, 'inside the picture');
 });
 
-test('the picked object icon fades after a moment and a ring of dots stays', async () => {
+test('the picked object icon STAYS (it must not fade away while drawn symbols are on) and a ring of dots goes round it', async () => {
   const e = viewEnv([moon(10, 12)]);
   await e.view.open(); e.select('body:Moon'); e.run(300);
   const ring = () => e.calls.filter((c) => c.k === 'arc' && c.a[2] === AR.RING_R);
@@ -150,8 +150,7 @@ test('the picked object icon fades after a moment and a ring of dots stays', asy
   const icon = () => e.calls.filter((c) => c.k === 'arc' && c.a[2] === 11); // the Moon's icon in this test (no Moon drawing is loaded)
   e.calls.length = 0; e.run(32);
   assert.ok(icon().length > 0 && icon().every((c) => c.alpha === 1), 'the icon is whole at first: ' + icon().map((c) => c.alpha));
-  e.run(1800); e.calls.length = 0; e.run(32);
-  assert.ok(icon().length > 0 && icon().every((c) => c.alpha === 0), 'and gone later: ' + icon().map((c) => c.alpha));
+  for (const ms of [1800, 4000, 12000]) { e.run(ms); e.calls.length = 0; e.run(32); assert.ok(icon().length > 0 && icon().every((c) => c.alpha === 1), 'still whole after a long time: ' + icon().map((c) => c.alpha)); }
   assert.ok(ring().length > 0, 'the ring of dots is still there');
   assert.ok(e.calls.some((c) => c.k === 'lineTo'), 'and so is the dotted pointer to the bubble');
 });
@@ -221,11 +220,11 @@ test('the passes list uses it, and is hidden when nothing is left', () => {
   assert.match(app, /if \(!soon\.includes\(p\)\) return '';/, 'a far pass is not listed, and the buttons keep their numbers');
 });
 
-/* ---- the switch for the drawn symbols (settings: "Draw symbols over the objects in the camera view") ---- */
+/* ---- the switch for the drawn symbols (settings: "Hide virtual objects when the real object is shown in the AR view") ---- */
 test('the setting is on unless the visitor turned it off, and it is in settings and read by the app', () => {
   assert.equal(L.parseArSymbols(null), true); assert.equal(L.parseArSymbols('1'), true); assert.equal(L.parseArSymbols('0'), false);
-  assert.match(read('settings.html'), /<input id="arSymbolsToggle" type="checkbox"> Draw symbols over the objects/);
-  assert.match(read('settings.js'), /storage\.setItem\('fg\.arSymbols', e\.target\.checked \? '1' : '0'\)/);
+  assert.match(read('settings.html'), /<input id="arSymbolsToggle" type="checkbox"> Hide virtual objects when the real object is shown in the AR view/);
+  assert.match(read('settings.js'), /storage\.setItem\('fg\.arSymbols', e\.target\.checked \? '0' : '1'\)/);
   assert.match(read('app.js'), /getSymbols: \(\) => window\.FarGemsLogic\.parseArSymbols\(storedValue\('fg\.arSymbols'\)\)/);
 });
 
@@ -246,4 +245,12 @@ test('symbols off: no icon and no name is drawn over the objects, but the ring a
   assert.ok(e.calls.some((c) => c.k === 'setLineDash' && c.a[0] && c.a[0][0] === 0.1), 'the dotted ring goes round the real object');
   assert.ok(e.view.callout(), 'and the details are beside it');
   assert.equal(dots(), 0, 'with no symbol drawn');
+});
+
+test('a picked flight and a picked planet keep their icons too, for as long as they stay picked', async () => {
+  for (const [ob, glyph] of [[{ id: 'air:z', kind: 'air', name: 'AIC144', az: 10, el: 12, course: false }, 'arc'], [{ id: 'body:Mars', kind: 'body', name: 'Mars', az: 10, el: 12, color: '#f66' }, 'arc']]) {
+    const e = viewEnv([ob]);
+    await e.view.open(); e.select(ob.id); e.run(300);
+    for (const ms of [200, 3000, 10000]) { e.run(ms); e.calls.length = 0; e.run(32); const dots = e.calls.filter((c) => c.k === 'arc' && c.a[2] > 4 && c.a[2] < 14); assert.ok(dots.length > 0 && dots.every((c) => c.alpha === 1), ob.id + ' icon whole after ' + ms + ' ms'); }
+  }
 });
