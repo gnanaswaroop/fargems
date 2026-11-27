@@ -62,3 +62,12 @@ test('all four app icons are drawn from icon.svg at their own size, with a ring 
   const total = M.ICONS.reduce((n, i) => n + fs.statSync(path.join(__dirname, '..', i.file)).size, 0);
   assert.ok(total < 450 * 1024, 'the four icons are ' + Math.round(total / 1024) + ' KB');
 });
+
+test('the icon tile is one flat colour: a gradient behind the logo read as a blurry glow on the home screen', () => {
+  const M = require('../scripts/make-icons.js');
+  for (const round of [true, false]) {
+    const svg = M.iconSvg('<g id="art"/>', 512, round);
+    assert.doesNotMatch(svg, /Gradient|url\(#/, 'no gradient or other soft fill');
+    assert.ok(svg.includes(`fill="${M.TILE}"`), 'the tile is the flat colour');
+  }
+});
