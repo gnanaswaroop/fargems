@@ -166,14 +166,17 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .detail .blurb { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text); }
 .detail .wikirow { margin: 8px 0 0; }
 /* the picture at the top of a card: drawn for the Sun, Moon and planets, a photo of the type for flights and satellites */
-.detail .pv { float: left; margin: 0 12px 6px 0; padding: 0; width: 64px; }
-.detail .pv svg { display: block; width: 64px; height: 64px; }
-.detail .pv-photo { width: 96px; }
-.detail .pv img { display: block; width: 96px; height: 64px; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.05); }
-.detail .pv figcaption { margin-top: 2px; font-size: 10.5px; line-height: 1.2; color: var(--muted); }
-.ar-detail .pv-photo { width: 72px; } .ar-detail .pv img { width: 72px; height: 48px; }
-.detail .route { clear: both; } /* the From and To row keeps the whole width, below the picture */
-.detail::after { content: ""; display: block; clear: both; }
+.detail .hd { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; min-width: 0; }
+.detail .hdt { flex: 1; min-width: 0; }
+.detail .hdt h3 { margin: 0; }
+.detail .hdt .airline { margin: 2px 0 0; }
+.detail .pv { position: relative; flex: none; margin: 0; padding: 0; width: 52px; }
+.detail .pv svg { display: block; width: 52px; height: 52px; }
+.detail .pv-photo { width: 72px; }
+.detail .pv img { display: block; width: 72px; height: 48px; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.05); }
+.detail .pv-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 0 2px; border-radius: 0 0 8px 8px; background: rgba(5, 8, 14, .62); color: #cfd6e4; font-size: 9px; line-height: 1.1; text-align: center; letter-spacing: .04em; text-transform: uppercase; }
+.ar-detail .pv { width: 40px; } .ar-detail .pv svg { width: 40px; height: 40px; }
+.ar-detail .pv-photo { width: 60px; } .ar-detail .pv img { width: 60px; height: 40px; }
 /* the sky view's text can be selected and copied */
 #detail, #status, #hud, .nearby-list, #passes { user-select: text; -webkit-user-select: text; }
 

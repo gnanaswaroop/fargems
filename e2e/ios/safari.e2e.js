@@ -1641,6 +1641,11 @@ test('tabs: a segmented control with icons, the chosen tab filled, and a count o
 
 // The picture at the top of the card. Wikipedia and its picture server are answered by the test.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+// How much taller the card is with its picture than without it.
+const tallerBy = async (page, most) => {
+  const d = await page.evaluate(() => { const c = document.querySelector('#detail'), pv = c.querySelector('.pv'), h1 = c.getBoundingClientRect().height; pv.style.display = 'none'; const h0 = c.getBoundingClientRect().height; pv.style.display = ''; return h1 - h0; });
+  assert.ok(d <= most, 'the picture makes the card ' + d + ' px taller (at most ' + most + ')');
+};
 const wikiAnswers = async (context, { thumb = true, picture = 200 } = {}) => {
   await context.route('https://en.wikipedia.org/api/rest_v1/page/summary/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
     body: JSON.stringify(Object.assign({ type: 'standard', extract: 'An aircraft type.' }, thumb ? { thumbnail: { source: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/x/xy/Airbus_A320neo.jpg/320px-Airbus_A320neo.jpg?utm_source=en.wikipedia.org', width: 320, height: 213 } } : {})) }));
@@ -1651,10 +1656,13 @@ test('card preview: the Moon and the planets are drawn on the card, the Moon as 
   const { page, context } = await linked('', FAKE_SKY);
   const asked = []; page.on('request', (q) => { if (/wikipedia|wikimedia/.test(q.url())) asked.push(q.url()); });
   try {
-    await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.renderDetail(); });
+    await page.evaluate(() => { window.__fg.state.byId.get('body:Moon').waxing = true; window.__fg.state.sel = 'body:Moon'; window.__fg.renderDetail(); });
     const moon = page.locator('#detail .pv-art svg');
     assert.equal(await moon.isVisible(), true, 'a picture on the card');
     assert.equal(await moon.getAttribute('aria-label'), 'The Moon tonight, 98% lit');
+    assert.equal(await page.evaluate(() => document.querySelector('#detail .pv-art svg image').getAttribute('href')), 'assets/moon-full.jpg', 'a real photograph of the Moon, from this app');
+    await tallerBy(page, 10);
+    assert.match(await page.textContent('#detail .hdt'), /Moon[\s\S]*Full Moon/, 'the head says what phase it is (98% lit and growing: Full Moon), from the numbers on the card');
     const box = await moon.boundingBox(); assert.ok(box.width >= 48 && box.width <= 80, 'a small preview: ' + box.width);
     const titleLeft = await page.evaluate(() => { const r = document.createRange(); r.selectNodeContents(document.querySelector('#detail h3')); return r.getClientRects()[0].left; });
     assert.ok(titleLeft >= box.x + box.width - 1, 'the title is beside it, not under it');
@@ -1675,13 +1683,16 @@ test('card preview: the Moon and the planets are drawn on the card, the Moon as 
 test('card preview: a flight shows the photo of its type from Wikipedia, named as that type, and the card has room for it', { skip }, async () => {
   const { page, context } = await linked('', FAKE_SKY, (c) => wikiAnswers(c));
   try {
-    await page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); });
+    await page.evaluate(() => { window.__fg.state.byId.get('air:a1').ac.call = 'AIC144'; window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); }); // with an airline line, as a flight card has
     const img = page.locator('#detail .pv-photo img');
     await img.waitFor({ state: 'visible' });
     assert.match(await img.getAttribute('src'), /^https:\/\/thumb\.wikimedia\.org\/.*Airbus_A320neo/);
     assert.equal(await img.getAttribute('referrerpolicy'), 'no-referrer');
     await page.waitForFunction(() => { const i = document.querySelector('#detail .pv-photo img'); return i && i.complete && i.naturalWidth > 0; });
-    assert.equal(await page.textContent('#detail .pv-photo figcaption'), 'Airbus A320neo family (example photo)', 'the caption says which type, and that it is an example');
+    assert.equal(await img.getAttribute('alt'), 'Airbus A320neo family (example photo of this type of aircraft)', 'says which type, and that it is an example');
+    assert.equal(await page.textContent('#detail .pv-tag'), 'example', 'and the picture itself says so');
+    assert.equal(await page.locator('#detail figcaption').count(), 0, 'no caption line that makes the card taller');
+    await tallerBy(page, 10); // the photo sits beside the name and the airline, so it adds (almost) no height
     const card = await page.locator('#detail').boundingBox(), pic = await img.boundingBox();
     assert.ok(pic.x >= card.x && pic.x + pic.width <= card.x + card.width + 1, 'inside the card');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page does not scroll sideways');

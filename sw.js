@@ -4,7 +4,7 @@
 // Bump VERSION whenever this file's caching behaviour changes: activating a new version deletes
 // the older caches, so stale files cannot linger.
 const VERSION = 'fargems-v3';
-const SHELL = ['./', 'index.html', 'about.html', 'landing.js', 'viewer.html', 'settings.html', 'settings.js', 'config.js', 'style.css', 'lib/update.js', 'update.js', 'nav.js', 'icon-maskable-512.png', 'lib/logic.js', 'lib/onboarding.js', 'lib/permalink.js', 'lib/preview.js', 'lib/declination.js', 'lib/ar.js', 'lib/moon.js', 'ar-view.js', 'app.js', 'manifest.webmanifest',
+const SHELL = ['./', 'index.html', 'about.html', 'landing.js', 'viewer.html', 'settings.html', 'settings.js', 'config.js', 'style.css', 'lib/update.js', 'update.js', 'nav.js', 'icon-maskable-512.png', 'lib/logic.js', 'lib/onboarding.js', 'lib/permalink.js', 'lib/preview.js', 'assets/moon-full.jpg', 'lib/declination.js', 'lib/ar.js', 'lib/moon.js', 'ar-view.js', 'app.js', 'manifest.webmanifest',
   'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 const CDN_HOSTS = ['cdn.jsdelivr.net'];
 
