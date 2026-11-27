@@ -57,7 +57,7 @@ test('the detail card links to Wikipedia, shows the opening when it arrives, and
   assert.match(app, /const wt = H\.wikiTitle\(o\), wk = wt && wikiInfo\(wt\);/);
   assert.match(app, /class="wiki" href="\$\{H\.wikiUrl\(wt\)\}" target="_blank" rel="noopener">Read about/);
   assert.match(app, /wikiSummaryUrl\(title\)/);
-  assert.match(app, /j\.type === 'standard' \? \{ extract: j\.extract \} : \{ miss: true \}/, 'a disambiguation page is not shown');
+  assert.match(app, /j\.type === 'standard' \? \{ extract: j\.extract, thumb: [^}]*\} : \{ miss: true \}/, 'a disambiguation page is not shown');
   assert.match(app, /e\.message === 'missing'\) entry\.info = \{ miss: true \}; else wikiCache\.delete\(title\)/, 'offline is retried, a missing article is final');
   assert.match(app, /wikiBlurb\(wk\.extract\)/);
   assert.match(app, /setHtml\(\$\('#arDetail'\)/, 'the camera view gets the link too');

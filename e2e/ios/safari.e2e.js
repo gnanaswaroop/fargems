@@ -287,9 +287,10 @@ test('viewer: the detail card shows the nearest flight or satellite, can pin it,
 });
 
 // A link to one object (viewer.html#o=<id>): the sky libraries are blocked so the test sets up the objects itself.
-const linked = async (hash, setup) => {
+const linked = async (hash, setup, before) => {
   const r = await iphone({ storage: SAVED });
   await r.context.route('https://cdn.jsdelivr.net/**', (x) => x.abort());
+  if (before) await before(r.context); // answers to set up before the page asks
   await r.page.goto(base + '/viewer.html?fgtest=1' + hash);
   if (setup) await r.page.evaluate(setup);
   return r;
@@ -1636,4 +1637,77 @@ test('tabs: a segmented control with icons, the chosen tab filled, and a count o
     await page.keyboard.press('ArrowLeft');
     assert.equal(await page.getAttribute('#tabRadar', 'aria-selected'), 'true');
   } finally { await context.close(); }
+});
+
+// The picture at the top of the card. Wikipedia and its picture server are answered by the test.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+const wikiAnswers = async (context, { thumb = true, picture = 200 } = {}) => {
+  await context.route('https://en.wikipedia.org/api/rest_v1/page/summary/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+    body: JSON.stringify(Object.assign({ type: 'standard', extract: 'An aircraft type.' }, thumb ? { thumbnail: { source: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/x/xy/Airbus_A320neo.jpg/320px-Airbus_A320neo.jpg?utm_source=en.wikipedia.org', width: 320, height: 213 } } : {})) }));
+  await context.route('https://thumb.wikimedia.org/**', (r) => (picture === 200 ? r.fulfill({ status: 200, contentType: 'image/png', body: PNG }) : r.abort()));
+};
+
+test('card preview: the Moon and the planets are drawn on the card, the Moon as it is lit, with no network', { skip }, async () => {
+  const { page, context } = await linked('', FAKE_SKY);
+  const asked = []; page.on('request', (q) => { if (/wikipedia|wikimedia/.test(q.url())) asked.push(q.url()); });
+  try {
+    await page.evaluate(() => { window.__fg.state.sel = 'body:Moon'; window.__fg.renderDetail(); });
+    const moon = page.locator('#detail .pv-art svg');
+    assert.equal(await moon.isVisible(), true, 'a picture on the card');
+    assert.equal(await moon.getAttribute('aria-label'), 'The Moon tonight, 98% lit');
+    const box = await moon.boundingBox(); assert.ok(box.width >= 48 && box.width <= 80, 'a small preview: ' + box.width);
+    const titleLeft = await page.evaluate(() => { const r = document.createRange(); r.selectNodeContents(document.querySelector('#detail h3')); return r.getClientRects()[0].left; });
+    assert.ok(titleLeft >= box.x + box.width - 1, 'the title is beside it, not under it');
+    assert.equal(await page.evaluate(() => { const s = document.querySelector('#detail .pv svg'); return s.getBoundingClientRect().height > 40 && !!s.querySelector('circle'); }), true, 'it is drawn');
+    for (const [id, label] of [['body:Mars', 'Mars'], ['body:Saturn', 'Saturn with its rings'], ['body:Sun', 'The Sun']]) {
+      await page.evaluate((i) => { const { state } = window.__fg; state.objs.push({ id: i, kind: 'body', name: i.slice(5), az: 100, el: 20, distKm: 1e8, range: 1e8, phase: 0.9, color: '#cc7755' }); state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = i; window.__fg.renderDetail(); }, id);
+      assert.equal(await page.locator('#detail .pv-art svg').getAttribute('aria-label'), label);
+    }
+    assert.equal(await page.evaluate(() => document.querySelectorAll('#detail .pv img').length), 0, 'a drawing, not a photo');
+    assert.equal(asked.some((u) => /(upload|thumb)\.wikimedia/.test(u)), false, 'no picture is fetched for a planet');
+    // the camera view card has its own copy, with its own names, so both show
+    const ids = await page.evaluate(() => [...document.querySelectorAll('#detail svg [id], #arDetail svg [id]')].map((n) => n.id));
+    assert.equal(new Set(ids).size, ids.length, 'no name is used twice in the page: ' + ids.join());
+    assert.equal(await page.evaluate(() => !!document.querySelector('#arDetail .pv-art svg')), true);
+  } finally { await context.close(); }
+});
+
+test('card preview: a flight shows the photo of its type from Wikipedia, named as that type, and the card has room for it', { skip }, async () => {
+  const { page, context } = await linked('', FAKE_SKY, (c) => wikiAnswers(c));
+  try {
+    await page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); });
+    const img = page.locator('#detail .pv-photo img');
+    await img.waitFor({ state: 'visible' });
+    assert.match(await img.getAttribute('src'), /^https:\/\/thumb\.wikimedia\.org\/.*Airbus_A320neo/);
+    assert.equal(await img.getAttribute('referrerpolicy'), 'no-referrer');
+    await page.waitForFunction(() => { const i = document.querySelector('#detail .pv-photo img'); return i && i.complete && i.naturalWidth > 0; });
+    assert.equal(await page.textContent('#detail .pv-photo figcaption'), 'Airbus A320neo family (example photo)', 'the caption says which type, and that it is an example');
+    const card = await page.locator('#detail').boundingBox(), pic = await img.boundingBox();
+    assert.ok(pic.x >= card.x && pic.x + pic.width <= card.x + card.width + 1, 'inside the card');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the page does not scroll sideways');
+    // moving to another object takes it away
+    await page.evaluate(() => { window.__fg.state.sel = 'star:Vega'; window.__fg.renderDetail(); });
+    assert.equal(await page.locator('#detail .pv').count(), 0, 'a star has no preview');
+  } finally { await context.close(); }
+});
+
+test('card preview: no photo when Wikipedia has none, and a photo that cannot be loaded goes away', { skip }, async () => {
+  const none = await linked('', FAKE_SKY, (c) => wikiAnswers(c, { thumb: false }));
+  try {
+    await none.page.evaluate(() => { window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail(); });
+    await none.page.waitForFunction(() => document.querySelector('#detail .blurb')); // the article arrived
+    assert.equal(await none.page.locator('#detail .pv').count(), 0, 'nothing to show, nothing shown');
+  } finally { await none.context.close(); }
+  const broken = await linked('', FAKE_SKY, (c) => wikiAnswers(c, { picture: 'fail' }));
+  try {
+    await broken.page.evaluate(() => { // note that the picture was there before it failed, so that its going away is seen
+      window.__sawPv = false; new MutationObserver(() => { if (document.querySelector('#detail .pv img')) window.__sawPv = true; }).observe(document.querySelector('#detail'), { childList: true, subtree: true });
+      window.__fg.state.sel = 'air:a1'; window.__fg.renderDetail();
+    });
+    await broken.page.waitForFunction(() => document.querySelector('#detail .blurb'));
+    await broken.page.waitForFunction(() => !document.querySelector('#detail .pv'), null, { timeout: 8000 });
+    assert.equal(await broken.page.evaluate(() => window.__sawPv), true, 'it was shown, then taken away when it failed');
+    assert.equal(await broken.page.locator('#detail img').count(), 0, 'no broken-image icon');
+    assert.match(await broken.page.textContent('#detail'), /AIC144/, 'the rest of the card is still there');
+  } finally { await broken.context.close(); }
 });
