@@ -158,7 +158,7 @@ test('viewer: the gear opens Settings and Help, and Escape closes it', { skip },
     assert.equal(await page.isVisible('#gearList'), false);
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearList'), true);
-    assert.deepEqual(await page.$$eval('#gearList a', (as) => as.map((a) => [a.textContent, a.getAttribute('href')])), [['Settings', 'settings.html'], ['About & help', 'about.html']]);
+    assert.deepEqual(await page.$$eval('#gearList a', (as) => as.map((a) => [a.textContent, a.getAttribute('href')])), [['Settings', 'settings.html'], ['About', 'about.html']]);
     await page.keyboard.press('Escape');
     assert.equal(await page.isVisible('#gearList'), false);
     await page.tap('#gearBtn');
@@ -1335,7 +1335,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.tap('#gearBtn');
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'About & help', 'Install app', 'Tell a friend']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.map((e) => e.textContent.trim())), ['Settings', 'About', 'Install app', 'Tell a friend']);
     assert.equal(await page.isVisible('#gearInstall'), true);
     await page.tap('#gearInstall');
     assert.equal(await page.isVisible('#gearList'), false, 'the menu closes');
@@ -1344,7 +1344,7 @@ test('gear menu: Install app is offered in the sky view, and says how when the b
     await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false);
-    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'About & help', 'Tell a friend']);
+    assert.deepEqual(await page.$$eval('#gearList li', (els) => els.filter((e) => !e.hidden).map((e) => e.textContent.trim())), ['Settings', 'About', 'Tell a friend']);
     await page.reload();
     await page.tap('#gearBtn');
     assert.equal(await page.isVisible('#gearInstall'), false, 'still gone on the next visit');
@@ -1452,7 +1452,7 @@ test('flights in the list name their airline beside the type, and the share text
 
 // Instead of a share sheet (which this test browser has not got) the page copies the text; the test reads what was copied.
 const copyOnly = (page) => page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied.push(t); return Promise.resolve(); } }, configurable: true }); });
-const SHARE_RE = /^Try this: look up, then open FarGems\. It names the planes, the ISS, planets and the Moon above you right now, on a live radar or through your phone.s camera\. Free, no sign-up\. .{1,4} http:\/\/localhost:\d+\/$/u;
+const SHARE_RE = /^FarGems: What.s flying above you\. For anyone who looks up and wonders what that is: spot planes, the ISS, planets and the Moon live, on a radar or through your camera\. Free, no sign-up\. .{1,4} http:\/\/localhost:\d+\/$/u;
 
 test('share the app: from the gear menu in the sky view', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
@@ -1500,7 +1500,7 @@ test('share the app: the phone share sheet gets the title, the text and the addr
     await page.tap('#shareApp');
     await page.waitForFunction(() => window.__shared.length === 1);
     const d = await page.evaluate(() => window.__shared[0]);
-    assert.match(d.text, /^Try this: look up, then open FarGems\./);
+    assert.match(d.text, /^FarGems: What.s flying above you\. For anyone who looks up/);
     assert.match(d.url, /^http:\/\/localhost:\d+\/$/);
     assert.ok(d.title.length > 5);
     assert.match(await page.textContent('#settingsMsg'), /Thanks for sharing/);
