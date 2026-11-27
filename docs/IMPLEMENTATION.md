@@ -638,3 +638,7 @@ The reusable, flake-proof pieces of the browser tests are in `e2e/ios/helpers.js
 ## 44. Drawn symbols switch
 
 Settings has "Draw symbols over the objects in the camera view" (key `fg.arSymbols`, on unless set to 0). Off means the camera view draws no icons and no names over the objects, so the real ones show; the dotted ring, the details bubble and the crosshair picking stay. There is no automatic indoor or outdoor detection.
+
+## 45. The short card
+
+The detail card is short by default: picture, name, a one-line route, two rows (sky position with distance, altitude with speed) and one row of buttons (Pin, Share, FlightAware, More). More (saved as `fg.cardMore`) opens the long rows, the Wikipedia description and its link, and the km to go. Other kinds keep their rows and keep the description behind More.

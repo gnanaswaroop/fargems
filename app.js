@@ -646,6 +646,10 @@ function notVisibleLine(o) {
   if (key && state.filters[key] === false) parts.push(`Its layer is switched off, so it is not drawn. Turn it on in Layers.`);
   return parts.length ? `<p class="notvis" role="status" data-notvis="${o.el < 0 ? 'below' : 'hidden'}">${esc(parts.join(' '))}</p>` : '';
 }
+// The card is short by default: the picture, the name, where it is going, where to look and the numbers that matter. "More" opens the
+// rest (the description, the Wikipedia link, the long rows), and the choice is remembered.
+let cardMore = lsGet('fg.cardMore') === true;
+function toggleMore() { cardMore = !cardMore; lsSet('fg.cardMore', cardMore); renderDetail(); }
 function renderDetail() { renderDetailCard(); syncLink(); }
 function renderDetailCard() {
   // The same card shows under the radar and over the camera picture.
@@ -669,15 +673,17 @@ function renderDetailCard() {
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '', routeBlock = '';
   const airline = o.kind === 'air' && o.ac ? H.airlineOf(o.ac.call) : null, airlineLine = airline ? `<p class="airline">${esc(airline)}</p>` : '';
-  const here = kv('Sky position', `${Math.round(o.el)}° up · ${dir16(o.az)} (${Math.round(o.az)}°)`);
+  const hereText = `${Math.round(o.el)}° up · ${dir16(o.az)} (${Math.round(o.az)}°)`, here = kv('Sky position', hereText);
+  $('#detail').classList.toggle('compact', !cardMore);
   if (o.kind === 'air') {
     const a = o.ac;
     title += a.type ? ` <small class="muted">${esc(a.type)}</small>` : '';
     const rt = routeText(a), hasBlock = rt.startsWith('<div class="route">');
     routeBlock = hasBlock ? rt : '';
-    rows = (hasBlock ? '' : kv('Route', rt)) + here + kv('Altitude', H.altitudeText(o.altFt, state.units))
-      + kv('Speed', H.speedText(a.gs, state.units)) + kv('Distance', H.lengthText(o.range, state.units))
-      + (a.call ? kv('Track', `<a href="https://www.flightaware.com/live/flight/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">FlightAware ↗</a>`) : '');
+    const alt = H.altitudeText(o.altFt, state.units), spd = H.speedText(a.gs, state.units), dist = H.lengthText(o.range, state.units);
+    rows = (hasBlock ? '' : kv('Route', rt)) + (cardMore ? here + kv('Altitude', alt)
+      + kv('Speed', spd) + kv('Distance', dist) : kv('Sky position', `${hereText} · ${dist}`) + kv('Altitude · speed', [alt, spd].filter(Boolean).join(' · ')))
+      + (cardMore && a.call ? kv('Track', `<a href="https://www.flightaware.com/live/flight/${encodeURIComponent(a.call)}" target="_blank" rel="noopener">FlightAware ↗</a>`) : '');
   } else if (o.kind === 'sat') {
     rows = here + kv('Altitude', H.lengthText(o.altKm, state.units)) + kv('Distance', H.lengthText(o.range, state.units))
       + kv('Lighting', o.visible ? 'Sunlit, visible to the eye' : o.sunlit ? 'Sunlit, but the sky is too bright' : 'In Earth’s shadow')
@@ -694,9 +700,12 @@ function renderDetailCard() {
   const wt = H.wikiTitle(o), wk = wt && wikiInfo(wt);
   const link = wt && !(wk && wk.miss) ? `<a class="wiki" href="${H.wikiUrl(wt)}" target="_blank" rel="noopener">Read about ${esc(wt.replace(/ \(.*\)$/, ''))} on Wikipedia ↗</a>` : '';
   const lead = nearest ? `<p class="muted small">Nearest ${o.kind === 'air' ? 'flight' : 'satellite'}. Tap anything else on the radar to switch.</p>` : '';
-  const blurb = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
-  const more = link ? `<p class="wikirow">${link}</p>` : '';
-  const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
+  const blurbAll = wk && wk.extract ? `<p class="blurb">${esc(H.wikiBlurb(wk.extract))}</p>` : '';
+  const blurb = cardMore ? blurbAll : '', more = cardMore && link ? `<p class="wikirow">${link}</p>` : '';
+  const hasMore = o.kind === 'air' || !!blurbAll || !!link;
+  const fa = !cardMore && o.kind === 'air' && o.ac && o.ac.call ? `<a class="btn tracklink" href="https://www.flightaware.com/live/flight/${encodeURIComponent(o.ac.call)}" target="_blank" rel="noopener">FlightAware ↗</a>` : '';
+  const moreBtn = hasMore ? `<button class="btn more" type="button" data-more aria-expanded="${cardMore}">${cardMore ? 'Less' : 'More'}</button>` : '';
+  const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button>${fa}${moreBtn}</p>`;
   const nv = notVisibleLine(o);
   // The head of the card: the picture beside the name and one line under it (the airline, the Moon's phase, or the kind of object).
   const sub = airlineLine || (o.kind === 'air' ? '' : `<p class="airline">${esc(o.name === 'Moon' ? moonLabel(o) : H.typeOf(o).label)}</p>`);
@@ -1165,7 +1174,8 @@ function bindUI() {
   // Pin and share buttons (the cards and rows are redrawn, so the clicks are caught one level up).
   document.addEventListener('click', (e) => {
     const pin = e.target.closest('[data-pin]'), share = e.target.closest('[data-share]');
-    if (pin) { e.stopPropagation(); togglePinned(pin.dataset.pin); }
+    if (e.target.closest('[data-more]')) toggleMore();
+    else if (pin) { e.stopPropagation(); togglePinned(pin.dataset.pin); }
     else if (share) { const o = state.byId.get(share.dataset.share); if (o) shareObject(o); }
   });
   // The gear: Settings and Help.
