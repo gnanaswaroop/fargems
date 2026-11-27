@@ -771,6 +771,39 @@ test('AR: facing east, the East pole stands above the crosshair and a red arrow 
   } finally { await context.close(); }
 });
 
+// The test compass says east (90), the phone is upright, so the middle of the picture is the horizon in the east.
+const skyWith = (az, el) => `() => {
+  const { state, renderNearby, renderDetail } = window.__fg;
+  state.objs = [{ id: 'body:Moon', kind: 'body', name: 'Moon', az: ${az}, el: ${el}, distKm: 384400, mag: null, phase: 0.6, color: '#e6ecf5' }];
+  state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = null; renderNearby(); renderDetail(); state.dirty = true;
+}`;
+
+test('AR: holding the crosshair on an object picks it without a tap, and its card shows', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, eval(skyWith(90, 0))); // the Moon is right at the crosshair
+    await page.waitForFunction(() => window.__fg.state.sel === 'body:Moon', null, { timeout: 5000 });
+    assert.match(await page.evaluate(() => document.querySelector('#arDetail').textContent), /Moon/, 'the card over the camera picture');
+    assert.equal(await page.evaluate(() => location.hash), '#o=body:Moon', 'and it is the pick everywhere else too');
+  } finally { await context.close(); }
+});
+
+test('AR: an object that is not at the crosshair is not picked, and a tap still picks it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, eval(skyWith(90, 12))); // 12 degrees above the middle
+    await sleep(1500);
+    assert.equal(await page.evaluate(() => window.__fg.state.sel), null, 'nothing is at the crosshair, so nothing is picked');
+    const at = await page.evaluate(() => { const c = document.querySelector('#arCanvas'), r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 - 12 * (r.height / 63) }; });
+    await page.touchscreen.tap(at.x, at.y);
+    await page.waitForFunction(() => window.__fg.state.sel === 'body:Moon', null, { timeout: 5000 });
+  } finally { await context.close(); }
+});
+
 test('AR: the Photo button makes a PNG of the picture with the overlay and shares it', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
@@ -825,12 +858,14 @@ test('AR: dragging in line-up mode corrects the heading, keeps it, and the radar
     await page.tap('#arAlign');
     assert.equal(await page.isVisible('#arAlignBar'), true);
     assert.equal(await page.getAttribute('#arAlign', 'aria-pressed'), 'true');
+    const pickBefore = await page.evaluate(() => __fg.state.sel); // the Moon is at the crosshair, so holding there has already picked it
+    await page.evaluate(() => { __fg.state.sel = null; });
     const box = await page.locator('#arCanvas').boundingBox();
     const x = box.x + box.width / 2, y = box.y + box.height / 2;
     await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y, { steps: 6 }); await page.mouse.up();
     const off = await page.evaluate(() => __fg.state.arOffset);
     assert.ok(off.h < -1 && off.h > -15, 'dragging right lowers the heading: ' + JSON.stringify(off));
-    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'a drag chooses nothing');
+    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'a drag chooses nothing, and the crosshair picks nothing while lining up (picked before: ' + pickBefore + ')');
     assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('fg.arOffset'))), off, 'kept for next time');
     // The Moon is now drawn to the right of the middle by about the drag.
     await sleep(300);
