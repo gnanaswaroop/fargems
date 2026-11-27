@@ -858,12 +858,14 @@ test('AR: dragging in line-up mode corrects the heading, keeps it, and the radar
     await page.tap('#arAlign');
     assert.equal(await page.isVisible('#arAlignBar'), true);
     assert.equal(await page.getAttribute('#arAlign', 'aria-pressed'), 'true');
+    const pickBefore = await page.evaluate(() => __fg.state.sel); // the Moon is at the crosshair, so holding there has already picked it
+    await page.evaluate(() => { __fg.state.sel = null; });
     const box = await page.locator('#arCanvas').boundingBox();
     const x = box.x + box.width / 2, y = box.y + box.height / 2;
     await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y, { steps: 6 }); await page.mouse.up();
     const off = await page.evaluate(() => __fg.state.arOffset);
     assert.ok(off.h < -1 && off.h > -15, 'dragging right lowers the heading: ' + JSON.stringify(off));
-    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'a drag chooses nothing');
+    assert.equal(await page.evaluate(() => __fg.state.sel), null, 'a drag chooses nothing, and the crosshair picks nothing while lining up (picked before: ' + pickBefore + ')');
     assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('fg.arOffset'))), off, 'kept for next time');
     // The Moon is now drawn to the right of the middle by about the drag.
     await sleep(300);
