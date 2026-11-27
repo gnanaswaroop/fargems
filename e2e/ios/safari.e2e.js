@@ -2120,3 +2120,15 @@ test('installed app: the icon opens the sky view; the web page still starts at t
     assert.match(first.page.url(), /\/index\.html$/, 'installed but no location yet: the landing page asks for it');
   } finally { await first.context.close(); }
 });
+
+test('sky view: tapping the logo does nothing; there is no way back to the landing page', { skip }, async () => {
+  const r = await iphone({ storage: SAVED });
+  try {
+    await r.page.goto(base + '/viewer.html');
+    await r.page.locator('#sky').waitFor({ state: 'attached' });
+    assert.equal(await r.page.locator('header a[href="index.html"]').count(), 0, 'no link to the landing page in the header');
+    await r.page.locator('header .brand').tap();
+    assert.match(r.page.url(), /\/viewer\.html/, 'still on the sky view');
+    assert.deepEqual(r.errors, []);
+  } finally { await r.context.close(); }
+});
