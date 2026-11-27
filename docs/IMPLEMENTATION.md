@@ -570,7 +570,7 @@ The logo has a thin white ring: `icon.svg` draws it as an outline (nothing is pa
 
 ## 30. Sharing the app
 
-Tell a friend is in the home page "..." menu, the sky view gear menu and, under the heading Pass it on, on the Settings page. It sends one short text (about 110 characters, so it fits a WhatsApp message or a tweet with the address): the app name and its title, "FarGems: What’s flying above you.", on the first line, then one line on what you can do with it ("Spot planes, shining stars, satellites, planets live above you or in an AR view."). The address is the site root, taken from where the page is served. `shareApp` in `lib/onboarding.js` uses the phone share sheet when there is one, otherwise it copies the text and the address, and closing the sheet is not an error.
+Tell a friend is in the home page "..." menu, the sky view gear menu and, under the heading Pass it on, on the Settings page. It sends one short text (about 130 characters, so it fits a WhatsApp message or a tweet with the address): the app name and its title, "FarGems: What’s flying above you!", on the first line, a blank line, then one line on what you can do with it ("Spot planes, shining stars, satellites, planets live above you with an augmented reality view."). The address is the site root, taken from where the page is served. `shareApp` in `lib/onboarding.js` uses the phone share sheet when there is one, otherwise it copies the text and the address, and closing the sheet is not an error.
 
 ## 31. The tabs
 

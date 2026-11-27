@@ -7,12 +7,12 @@ const path = require('node:path');
 const O = require('../lib/onboarding.js');
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
-test('the share text is the app name and title, then one short line on what you can do', () => {
+test('the share text is the app name and title, a blank line, then one short line on what you can do', () => {
   const d = O.appShare({ origin: 'https://fargems.example', pathname: '/viewer.html' });
-  assert.ok(d.text.length <= 120, 'short: ' + d.text.length + ' characters');
-  assert.ok((d.text + ' ' + d.url).length <= 160, 'with the address it is a short message');
-  assert.match(d.text, /^FarGems: What.s flying above you\nSpot planes, shining stars, satellites, planets live above you or in an AR view\.$/, 'the title on the first line, what you can do on the second');
-  for (const word of [/planes/, /stars/, /satellites/, /planets/, /\bAR\b/]) assert.match(d.text, word);
+  assert.ok(d.text.length <= 140, 'short: ' + d.text.length + ' characters');
+  assert.ok((d.text + ' ' + d.url).length <= 180, 'with the address it is a short message');
+  assert.match(d.text, /^FarGems: What.s flying above you!\n\nSpot planes, shining stars, satellites, planets live above you with an augmented reality view\.$/, 'the title, a blank line, then what you can do');
+  for (const word of [/planes/, /stars/, /satellites/, /planets/, /augmented reality/]) assert.match(d.text, word);
   assert.doesNotMatch(d.text, /\d+\.\d{2,}/, 'no coordinates');
   assert.doesNotMatch(d.text, /https?:/, 'the address is separate, so the share sheet can place it');
   assert.equal(O.SHARE_TEXT, d.text);
