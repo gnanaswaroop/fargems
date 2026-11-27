@@ -136,6 +136,22 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 
 /* ---------- radar and nearby pages ---------- */
 /* The two views, as one segmented control: the chosen one is filled, each has an icon, and Nearby says how many things it lists */
+/* Search: one line above both views, with the results in a list that drops from it */
+.searchbar { position: relative; margin: 0 0 10px; z-index: 30; }
+.searchbar input { width: 100%; box-sizing: border-box; flex: none; padding: 10px 14px; border-radius: 999px; background: var(--card); }
+.searchbar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.search-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 4px; list-style: none; max-height: min(60vh, 420px); overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
+.search-results[hidden] { display: none; }
+.search-results li.active .srch, .srch:hover, .srch:focus-visible { background: rgba(255, 255, 255, .07); }
+.srch { width: 100%; display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.srch .ico { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .04); }
+.srch .ico svg { width: 22px; height: 22px; }
+.srch .nm { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srch .nm small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.srch .nm small.muted { display: inline; }
+.srch .meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.srch.away .meta { color: #ffb454; }
+.search-none { padding: 12px; color: var(--muted); font-size: 14px; }
 .tabs { display: flex; gap: 4px; margin: 10px 0; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
 .tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; transition: background .15s, color .15s; }
 .tab:hover { color: var(--text); }

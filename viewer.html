@@ -37,6 +37,11 @@
     <button id="tabRadar" class="tab on" type="button" role="tab" aria-selected="true" aria-controls="pageRadar" tabindex="0"><svg class="tab-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 12L19 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Radar</span></button>
     <button id="tabNearby" class="tab" type="button" role="tab" aria-selected="false" aria-controls="pageNearby" tabindex="-1"><svg class="tab-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4.5" cy="6.5" r="1.4" fill="currentColor"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor"/><circle cx="4.5" cy="17.5" r="1.4" fill="currentColor"/></svg><span>Nearby</span><span id="nearbyCount" class="count" hidden></span></button>
   </nav>
+  <div id="searchbar" class="searchbar" role="search">
+    <label class="sr-only" for="searchBox">Search the sky</label>
+    <input id="searchBox" type="search" placeholder="Search: ISS, Moon, Vega, a flight…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="searchResults" aria-autocomplete="list">
+    <ul id="searchResults" class="search-results" role="listbox" aria-label="Search results" hidden></ul>
+  </div>
   <div class="pager-view">
   <div id="pager" class="pager">
     <div class="page" id="pageRadar" role="tabpanel" aria-labelledby="tabRadar">
@@ -124,6 +129,7 @@
 <script defer src="lib/logic.js"></script>
 <script defer src="lib/onboarding.js"></script>
 <script defer src="lib/permalink.js"></script>
+<script defer src="lib/search.js"></script>
 <script defer src="lib/preview.js"></script>
 <script defer src="lib/declination.js"></script>
 <script defer src="lib/ar.js"></script>
