@@ -75,6 +75,7 @@ test('the page loads the preview code, the app keeps it offline, and a photo tha
   assert.match(app, /\$\{previewHtml\(o, wt, wk, 'a'\)\}<h3>/); assert.match(app, /\$\{previewHtml\(o, wt, wk, 'b'\)\}<h3>/, 'in both copies of the card');
   assert.match(app, /referrerpolicy="no-referrer"/, 'the photo request says nothing about where it was opened from');
   assert.match(app, /document\.addEventListener\('error'[^\n]*closest\('\.pv'\)\.remove\(\)[^\n]*true\);/, 'a broken image takes its frame with it');
+  assert.match(read('style.css'), /\.detail \.route \{ clear: both; \}/, 'the From and To row is not squeezed beside the picture');
   assert.match(app, /waxing = Astronomy\.MoonPhase\(now\) < 180/);
   assert.doesNotMatch(read('lib/preview.js'), /fetch\(|XMLHttpRequest|localStorage/, 'the preview code asks for nothing itself');
 });

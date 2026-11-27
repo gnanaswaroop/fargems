@@ -1711,3 +1711,22 @@ test('card preview: no photo when Wikipedia has none, and a photo that cannot be
     assert.match(await broken.page.textContent('#detail'), /AIC144/, 'the rest of the card is still there');
   } finally { await broken.context.close(); }
 });
+
+test('card preview: with a photo on the card, the From and To row still has the whole width, below the photo', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await wikiAnswers(context);
+    await routeSetup(page, context, ROUTE_JSON);
+    await page.evaluate(flightSky('AIC144'));
+    await page.waitForSelector('#detail .route .stop', { timeout: 8000 });
+    await page.waitForFunction(() => { const i = document.querySelector('#detail .pv-photo img'); return i && i.complete && i.naturalWidth > 0; });
+    const m = await page.evaluate(() => {
+      const r = (s) => document.querySelector(s).getBoundingClientRect(), pic = r('#detail .pv-photo img'), route = r('#detail .route'), card = r('#detail');
+      const stops = [...document.querySelectorAll('#detail .route .stop')].map((e) => e.getBoundingClientRect());
+      return { picBottom: pic.bottom, routeTop: route.top, routeW: route.width, cardW: card.width, rows: stops.map((b) => b.top), right: Math.max(...stops.map((b) => b.right)), left: Math.min(...stops.map((b) => b.left)), cardLeft: card.left };
+    });
+    assert.ok(m.routeTop >= m.picBottom - 1, 'the route starts below the photo: ' + JSON.stringify(m));
+    assert.ok(m.routeW >= m.cardW - 40, 'and has the width of the card: ' + JSON.stringify(m));
+    assert.ok(Math.abs(m.rows[0] - m.rows[1]) < 4 && m.right <= 390, 'From and To are in one row inside the phone width: ' + JSON.stringify(m));
+  } finally { await context.close(); }
+});

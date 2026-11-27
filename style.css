@@ -172,6 +172,7 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .detail .pv img { display: block; width: 96px; height: 64px; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.05); }
 .detail .pv figcaption { margin-top: 2px; font-size: 10.5px; line-height: 1.2; color: var(--muted); }
 .ar-detail .pv-photo { width: 72px; } .ar-detail .pv img { width: 72px; height: 48px; }
+.detail .route { clear: both; } /* the From and To row keeps the whole width, below the picture */
 .detail::after { content: ""; display: block; clear: both; }
 /* the sky view's text can be selected and copied */
 #detail, #status, #hud, .nearby-list, #passes { user-select: text; -webkit-user-select: text; }
