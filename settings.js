@@ -64,8 +64,9 @@
   $('#visOnlyToggle').addEventListener('change', (e) => storage.setItem('fg.visOnly', e.target.checked ? '1' : '0'));
   $('#autoArToggle').checked = L.parseAutoAr(storage.getItem('fg.autoAr'));
   $('#autoArToggle').addEventListener('change', (e) => storage.setItem('fg.autoAr', e.target.checked ? '1' : '0'));
-  $('#arSymbolsToggle').checked = L.parseArSymbols(storage.getItem('fg.arSymbols'));
-  $('#arSymbolsToggle').addEventListener('change', (e) => storage.setItem('fg.arSymbols', e.target.checked ? '1' : '0'));
+  // The box says "hide", the saved value says "draw": ticked saves 0 (do not draw), and unticked, the usual, saves 1.
+  $('#arSymbolsToggle').checked = !L.parseArSymbols(storage.getItem('fg.arSymbols'));
+  $('#arSymbolsToggle').addEventListener('change', (e) => storage.setItem('fg.arSymbols', e.target.checked ? '0' : '1'));
   // Farthest flight to show (km). The saved value is the cleaned-up number, so the box always shows what is used.
   $('#flightRange').value = L.parseFlightRange(storage.getItem('fg.flightRange'));
   $('#flightRange').addEventListener('change', (e) => {

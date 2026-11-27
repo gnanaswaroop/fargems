@@ -1722,7 +1722,7 @@ const AROUND = `(cx, cy, r0, r1) => {
   return n;
 }`;
 
-test('AR: the picked object icon fades and leaves a ring of dots, and a bubble with its details sits beside it, joined by a dotted line', { skip }, async () => {
+test('AR: the picked object icon stays, with a ring of dots round it, and a bubble with its details sits beside it, joined by a dotted line', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
@@ -1754,7 +1754,7 @@ test('AR: the picked object icon fades and leaves a ring of dots, and a bubble w
     const near = Math.hypot(Math.max(b.x, Math.min(where.x, b.x + b.w)) - where.x, Math.max(b.y, Math.min(where.y, b.y + b.h)) - where.y);
     assert.ok(near > 24, 'it does not sit on the object: ' + near);
     const late = await brightAt(0, 14), ring = await brightAt(22, 27);
-    assert.ok(late < early * 0.15, 'the icon has faded away, so the real object is not hidden (' + early + ' to ' + late + ')');
+    assert.ok(late > early * 0.6, 'the icon is still there after the bubble came, it does not go away (' + early + ' to ' + late + ')');
     assert.ok(ring > 20, 'a ring of dots marks the spot (' + ring + ' bright pixels on it)');
     const dark = await page.evaluate(`(() => { const cv = document.querySelector('#arCanvas'), s = cv.width / cv.clientWidth, d = cv.getContext('2d').getImageData(Math.round((${b.x} + 6) * s), Math.round((${b.y} + ${b.h} / 2) * s), 1, 1).data; return [d[0], d[1], d[2], d[3]]; })()`);
     assert.ok(dark[3] > 150 && dark[0] < 60, 'the bubble is a dark box with the text on it: ' + dark);
@@ -1987,16 +1987,16 @@ test('settings: the drawn symbols in the camera view are on at first, can be tur
   const { page, context } = await iphone({ storage: SAVED });
   try {
     await page.goto(base + '/settings.html');
-    assert.equal(await page.isChecked('#arSymbolsToggle'), true, 'on by default');
-    await page.uncheck('#arSymbolsToggle');
+    assert.equal(await page.isChecked('#arSymbolsToggle'), false, 'the hide box is not ticked at first: symbols are drawn');
+    await page.check('#arSymbolsToggle');
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '0');
     await page.goto(base + '/settings.html');
-    assert.equal(await page.isChecked('#arSymbolsToggle'), false, 'still off after coming back');
+    assert.equal(await page.isChecked('#arSymbolsToggle'), true, 'still ticked after coming back');
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.waitForFunction(() => window.__fg && window.__fg.state && window.__fg.state.arSymbols !== undefined);
-    assert.equal(await page.evaluate(() => window.__fg.state.arSymbols), false, 'the sky view picked the choice up');
+    assert.equal(await page.evaluate(() => window.__fg.state.arSymbols), false, 'the sky view picked the choice up (symbols not drawn)');
     await page.goto(base + '/settings.html');
-    await page.check('#arSymbolsToggle');
+    await page.uncheck('#arSymbolsToggle');
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '1');
 
   } finally { await context.close(); }
@@ -2041,5 +2041,19 @@ test('card: short by default (one-line route, two rows, buttons in one row), Mor
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.cardMore')), 'true', 'the choice is saved, so the next visit opens the same way');
     await page.locator('#detail .more').click();
     assert.equal(await page.locator('#detail .more').textContent(), 'More', 'and Less closes it again');
+  } finally { await context.close(); }
+});
+
+test('loading screen: the sky view has one with the logo, the name and the title, and it is gone once the view is up, leaving nothing over the page', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await page.route('**/app.js*', async (r) => { await sleep(700); r.continue(); }); // slow start, so the screen can be seen
+    await page.goto(base + '/viewer.html', { waitUntil: 'commit' });
+    await page.locator('#boot').waitFor({ state: 'visible' });
+    assert.equal(await page.textContent('#boot .boot-name'), 'FarGems');
+    assert.match(await page.textContent('#boot .boot-title'), /What’s flying above you/);
+    assert.equal(await page.locator('#boot img').count(), 1);
+    await page.waitForSelector('#boot', { state: 'detached', timeout: 8000 });
+    assert.equal(await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight / 2).closest('#boot')), null, 'nothing covers the page');
   } finally { await context.close(); }
 });

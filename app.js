@@ -1331,6 +1331,8 @@ function start() {
   setInterval(refreshSats, 3600e3);
   setInterval(updatePasses, 20 * 60e3);
   requestAnimationFrame(loop);
+  const boot = $('#boot'); // the loading screen goes once the sky view has drawn
+  if (boot) { boot.classList.add('done'); setTimeout(() => boot.remove(), 500); }
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 }
 // For the browser tests: with ?fgtest=1 in the address the tests can reach the page's state and redraw it.

@@ -232,7 +232,6 @@
         if (!p.onScreen) { if (isSel) selOff = { ob, p }; continue; }
         const hide = o.getSymbols ? o.getSymbols() === false : false; // the visitor turned the drawn symbols off: the real objects show, only the ring and bubble remain
         if (!hide) { ctx.save(); ctx.translate(p.x, p.y);
-        if (isSel && inline) ctx.globalAlpha = phase.icon; // the picked object's icon fades, so it does not cover the real one
         if (air && ob.course === false) { // direction not known: a plain dot
           ctx.fillStyle = '#ffb454'; ctx.beginPath(); ctx.arc(0, 0, isSel ? 7 : 6, 0, 7); ctx.fill();
         } else if (air) {
