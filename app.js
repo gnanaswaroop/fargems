@@ -237,7 +237,9 @@ function computeSky(now) {
     try { const il = Astronomy.Illumination(name, now); mag = il.mag; phase = il.phase_fraction; } catch { /* optional */ }
     if (name === 'Sun') state.sunAlt = h.altitude;
     if (name === 'Moon') state.moonIllum = phase;
-    objs.push({ id: 'body:' + name, kind: 'body', name, color, az: h.azimuth, el: h.altitude, mag: name === 'Sun' || name === 'Moon' ? null : mag, phase, distKm: eq.dist * AU_KM });
+    let waxing; // the Moon's lit side (for its picture on the card): growing in the first half of the month
+    if (name === 'Moon') { try { waxing = Astronomy.MoonPhase(now) < 180; } catch { /* optional */ } }
+    objs.push({ id: 'body:' + name, kind: 'body', name, color, az: h.azimuth, el: h.altitude, mag: name === 'Sun' || name === 'Moon' ? null : mag, phase, waxing, distKm: eq.dist * AU_KM });
   }
   for (const [name, ra, dec] of STARS) {
     const h = Astronomy.Horizon(now, ao, ra / 15, dec, 'normal');
@@ -680,8 +682,8 @@ function renderDetailCard() {
   const more = link ? `<p class="wikirow">${link}</p>` : '';
   const acts = `<p class="acts">${pinButtonLabelled(o)}<button class="btn" type="button" data-share="${esc(o.id)}">Share</button></p>`;
   const nv = notVisibleLine(o);
-  setHtml($('#detail'), `${X}<h3>${title}</h3>${nv}${airlineLine}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
-  setHtml($('#arDetail'), `${X}<h3>${title}</h3>${nv}${airlineLine}${routeBlock}<dl>${rows}</dl>${more}`);
+  setHtml($('#detail'), `${X}${previewHtml(o, wt, wk, 'a')}<h3>${title}</h3>${nv}${airlineLine}${lead}${routeBlock}<dl>${rows}</dl>${blurb}${more}${acts}`);
+  setHtml($('#arDetail'), `${X}${previewHtml(o, wt, wk, 'b')}<h3>${title}</h3>${nv}${airlineLine}${routeBlock}<dl>${rows}</dl>${more}`);
 }
 
 // What Wikipedia says about an article, fetched once the first time an object is looked at. An article that does not exist
@@ -694,11 +696,25 @@ function wikiInfo(title) {
   wikiCache.set(title, entry);
   fetch(window.FarGemsLogic.wikiSummaryUrl(title), { headers: { Accept: 'application/json' } })
     .then(r => (r.ok ? r.json() : Promise.reject(new Error('missing'))))
-    .then(j => { entry.info = j && j.type === 'standard' ? { extract: j.extract } : { miss: true }; })
+    .then(j => { entry.info = j && j.type === 'standard' ? { extract: j.extract, thumb: window.FarGemsPreview ? window.FarGemsPreview.photoOf(j) : null } : { miss: true }; })
     .catch(e => { if (e && e.message === 'missing') entry.info = { miss: true }; else wikiCache.delete(title); }) // offline: ask again later
     .finally(() => { if (entry.info) renderDetail(); });
   return null;
 }
+// The small picture at the top of the card: the Sun, Moon and planets are drawn here (the Moon as it is lit tonight); a flight or
+// a satellite gets the photo of its type or station from its Wikipedia article once that has arrived, named as the type's photo
+// because it is not a picture of this very aircraft. Nothing is shown while there is nothing to show.
+function previewHtml(o, wt, wk, uid) {
+  const P = window.FarGemsPreview, kind = P && P.photoKind(o);
+  if (kind === 'art') return `<figure class="pv pv-art">${P.bodyArt(o, { waxing: o.waxing, south: !!(state.loc && state.loc.lat < 0), uid })}</figure>`;
+  if (kind === 'photo' && wk && wk.thumb && wt) {
+    const name = wt.replace(/ \(.*\)$/, '');
+    return `<figure class="pv pv-photo"><img src="${esc(wk.thumb)}" alt="" width="96" height="64" loading="lazy" decoding="async" referrerpolicy="no-referrer"><figcaption>${esc(o.kind === 'air' ? name + ' (example photo)' : name)}</figcaption></figure>`;
+  }
+  return '';
+}
+// A picture that does not load (offline, blocked, removed) takes its place away, so the card never shows a broken image.
+document.addEventListener('error', (ev) => { const t = ev.target; if (t && t.tagName === 'IMG' && t.closest && t.closest('.pv')) t.closest('.pv').remove(); }, true);
 // A distance to the Sun, Moon or a planet for the detail card. AU gets a tooltip that says what it is.
 function farDistanceHtml(km) {
   const text = esc(window.FarGemsLogic.formatDistance(km, state.units, state.far));

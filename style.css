@@ -165,6 +165,15 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 .nearby-row .wiki { font-size: 12px; margin-left: 4px; white-space: nowrap; }
 .detail .blurb { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text); }
 .detail .wikirow { margin: 8px 0 0; }
+/* the picture at the top of a card: drawn for the Sun, Moon and planets, a photo of the type for flights and satellites */
+.detail .pv { float: left; margin: 0 12px 6px 0; padding: 0; width: 64px; }
+.detail .pv svg { display: block; width: 64px; height: 64px; }
+.detail .pv-photo { width: 96px; }
+.detail .pv img { display: block; width: 96px; height: 64px; object-fit: cover; border-radius: 8px; background: rgba(255,255,255,.05); }
+.detail .pv figcaption { margin-top: 2px; font-size: 10.5px; line-height: 1.2; color: var(--muted); }
+.ar-detail .pv-photo { width: 72px; } .ar-detail .pv img { width: 72px; height: 48px; }
+.detail .route { clear: both; } /* the From and To row keeps the whole width, below the picture */
+.detail::after { content: ""; display: block; clear: both; }
 /* the sky view's text can be selected and copied */
 #detail, #status, #hud, .nearby-list, #passes { user-select: text; -webkit-user-select: text; }
 
