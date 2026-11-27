@@ -105,7 +105,7 @@ test('the search is quick enough for thousands of satellites', () => {
 /* ---- the page ---- */
 test('the page has a search box above both views, loads the search code and keeps it offline', () => {
   const v = read('viewer.html'), sw = read('sw.js');
-  assert.match(v, /<div id="searchbar" class="searchbar" role="search">\s*<label class="sr-only" for="searchBox">Search the sky<\/label>\s*<input id="searchBox" type="search"/);
+  assert.match(v, /<div id="searchbar" class="searchbar" role="search" hidden>\s*<label class="sr-only" for="searchBox">Search the sky<\/label>\s*<input id="searchBox" type="search"/);
   assert.match(v, /role="combobox" aria-expanded="false" aria-controls="searchResults" aria-autocomplete="list"/);
   assert.match(v, /<ul id="searchResults" class="search-results" role="listbox" aria-label="Search results" hidden><\/ul>/);
   assert.ok(v.indexOf('id="searchbar"') > v.indexOf('role="tablist"') && v.indexOf('id="searchbar"') < v.indexOf('class="pager-view"'), 'between the tabs and the two views');
@@ -134,7 +134,12 @@ test('picking a result selects the object like a tap does, and every view follow
   const css = read('style.css');
   assert.ok(/^\.sr\{position:absolute;width:1px/m.test(css),'the screen-reader-only rule is still there, so the row class must differ from it');
   assert.match(app, /bindUI\(\) \{\r?\n  bindSearch\(\);/);
-  assert.match(app, /const choose = \(id\) => \{ if \(!id\) return; box\.value = ''; close\(\); pickFromSearch\(id\); box\.blur\(\); \};/);
+  assert.match(app, /const choose = \(id\) => \{ if \(!id\) return; closeBar\(\); pickFromSearch\(id\); box\.blur\(\); \};/);
+  assert.match(app, /const openBar = \(\) => { bar\.hidden = false;/, 'the bar opens from the magnifier');
+  assert.match(app, /const closeBar = \(\) => { box\.value = ''; close\(\); bar\.hidden = true;/, 'and goes away again');
+  assert.match(app, /if \(btn\) btn\.addEventListener\('click'/);
+  assert.match(read('viewer.html'), /<button id="searchBtn" class="menu-btn" type="button" aria-label="Search the sky" aria-expanded="false" aria-controls="searchbar">/, 'a magnifier in the header, before the settings button');
+  assert.ok(read('viewer.html').indexOf('id="searchBtn"') < read('viewer.html').indexOf('id="gearBtn"'));
   assert.match(app, /e\.key === 'Enter'/); assert.match(app, /e\.key === 'Escape'/); assert.match(app, /e\.key === 'ArrowDown' \|\| e\.key === 'ArrowUp'/);
   assert.match(app, /if \(e\.key !== '\/' \|\| e\.ctrlKey/, 'the slash key jumps to the box');
   assert.doesNotMatch(read('lib/search.js'), /fetch\(|localStorage|document\./, 'the search code only looks at what it is given');

@@ -1947,14 +1947,23 @@ test('passes: the section is shown when a pass is under way or soon, and hidden 
 });
 
 // Search: find an object by name and pick it, the same as tapping it.
+// The search bar takes no room until it is wanted: it opens from the magnifier in the header.
+const openSearch = async (page) => { if (!(await page.isVisible('#searchBox'))) await page.tap('#searchBtn'); await page.waitForSelector('#searchBox', { state: 'visible' }); };
+const typeSearch = async (page, text) => { await openSearch(page); await page.fill('#searchBox', text); };
 const searchSky = (extra) => `${FAKE_SKY}; (() => { const { state } = window.__fg; state.unseen = new Map([['sat:48274', { why: 'below', name: 'CSS (TIANHE)', el: -23, az: 45 }], ['air:zz1', { why: 'far', name: 'QTR8', el: 3, az: 1, rangeKm: 300 }]]); ${extra || ''} })()`;
 
 test('search: typing a name lists matches, and picking one selects it on the radar, in the Nearby list and in the address', { skip }, async () => {
   const { page, context } = await linked('', searchSky());
   try {
-    assert.equal(await page.isVisible('#searchBox'), true, 'a search box is on the page');
+    assert.equal(await page.isVisible('#searchBox'), false, 'the search box takes no room until it is wanted');
+    assert.equal(await page.isVisible('#searchBtn'), true, 'a magnifier in the header opens it');
+    assert.equal(await page.getAttribute('#searchBtn', 'aria-expanded'), 'false');
+    await page.tap('#searchBtn');
+    assert.equal(await page.isVisible('#searchBox'), true, 'tapping the magnifier shows it');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'searchBox', 'ready to type');
+    assert.equal(await page.getAttribute('#searchBtn', 'aria-expanded'), 'true');
     assert.equal(await page.isVisible('#searchResults'), false, 'and no list until something is typed');
-    await page.fill('#searchBox', 'iss');
+    await typeSearch(page, 'iss');
     const rows = await page.$$eval('#searchResults button.srch', (b) => b.map((x) => x.textContent));
     assert.equal(rows.length, 1); assert.match(rows[0], /ISS \(ZARYA\)/); assert.match(rows[0], /Space station/); assert.match(rows[0], /40° up/);
     assert.equal(await page.getAttribute('#searchBox', 'aria-expanded'), 'true');
@@ -1965,6 +1974,7 @@ test('search: typing a name lists matches, and picking one selects it on the rad
     assert.match(await page.textContent('#detail h3'), /ISS \(ZARYA\)/, 'its card is shown');
     assert.equal(await page.evaluate(() => location.hash), '#o=sat:25544', 'and it has its link in the address');
     assert.equal(await page.inputValue('#searchBox'), '', 'the box is cleared'); assert.equal(await page.isVisible('#searchResults'), false, 'and the list is gone');
+    assert.equal(await page.isVisible('#searchBox'), false, 'and the bar goes away again, giving its room back');
     await page.click('#tabNearby');
     assert.equal(await page.getAttribute('.nearby-row[data-id="sat:25544"]', 'class').then((c) => /\bsel\b/.test(c)), true, 'the Nearby list marks it as the selected one');
   } finally { await context.close(); }
@@ -1975,10 +1985,10 @@ test('search: picking from the Nearby page shows the radar, and a second search 
   try {
     await page.click('#tabNearby');
     assert.equal(await page.evaluate(() => document.querySelector('#pager').classList.contains('nearby')), true);
-    await page.fill('#searchBox', 'moon'); await page.click('#searchResults button.srch');
+    await typeSearch(page, 'moon'); await page.click('#searchResults button.srch');
     assert.equal(await page.evaluate(() => document.querySelector('#pager').classList.contains('nearby')), false, 'the radar is in view with its card');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), 'body:Moon');
-    await page.fill('#searchBox', 'vega'); await page.click('#searchResults button.srch');
+    await typeSearch(page, 'vega'); await page.click('#searchResults button.srch');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), 'star:Vega'); assert.match(await page.textContent('#detail h3'), /Vega/);
     assert.equal(await page.evaluate(() => location.hash), '#o=star:Vega');
   } finally { await context.close(); }
@@ -2000,25 +2010,29 @@ test('search: the keyboard works: slash opens it, arrows move, Enter picks, Esca
     assert.equal(await page.getAttribute(`#searchResults li:nth-child(${n})`, 'aria-selected'), 'true', 'up from the first goes round to the last');
     await page.keyboard.press('Escape');
     assert.equal(await page.inputValue('#searchBox'), ''); assert.equal(await page.isVisible('#searchResults'), false);
+    assert.equal(await page.isVisible('#searchBox'), false, 'Escape puts the bar away');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'searchBtn', 'and the focus goes back to the magnifier');
+    await page.keyboard.press('/');
+    assert.equal(await page.isVisible('#searchBox'), true, 'the slash opens it again');
     await page.keyboard.type('ve');
     await page.keyboard.press('Enter');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), 'star:Vega', 'Enter picks the active result');
-    await page.keyboard.type('/'); // typing a slash while in a box is just a slash, not a jump
-    await page.evaluate(() => document.activeElement.blur());
+    await page.keyboard.press('/'); await page.keyboard.type('x/'); // a slash typed in the box is just a slash, not a jump
+    assert.equal(await page.inputValue('#searchBox'), 'x/');
   } finally { await context.close(); }
 });
 
 test('search: an object that is not in the sky now can be picked, and its card says why', { skip }, async () => {
   const { page, context } = await linked('', searchSky());
   try {
-    await page.fill('#searchBox', 'tianhe');
+    await typeSearch(page, 'tianhe');
     const row = (await page.$$eval('#searchResults button.srch', (b) => b.map((x) => x.textContent)))[0];
     assert.match(row, /CSS \(TIANHE\)/); assert.match(row, /below the horizon/);
     await page.click('#searchResults button.srch');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), 'sat:48274');
     assert.match(await page.textContent('#detail .notvis'), /below the horizon/i, 'the card says why it is not on the radar');
     assert.doesNotMatch(await page.textContent('#detail'), /Nearest|AIC144/, 'not swapped for another object');
-    await page.fill('#searchBox', 'qtr'); assert.match(await page.textContent('#searchResults button.srch'), /too far to see/);
+    await typeSearch(page, 'qtr'); assert.match(await page.textContent('#searchResults button.srch'), /too far to see/);
     await page.click('#searchResults button.srch');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), 'air:zz1');
   } finally { await context.close(); }
@@ -2027,13 +2041,16 @@ test('search: an object that is not in the sky now can be picked, and its card s
 test('search: nothing found says so, and clicking elsewhere closes the list', { skip }, async () => {
   const { page, context } = await linked('', searchSky());
   try {
-    await page.fill('#searchBox', 'zzzz');
+    await typeSearch(page, 'zzzz');
     assert.match(await page.textContent('#searchResults .search-none'), /Nothing in the sky called “zzzz”/);
     await page.keyboard.press('Enter');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), null, 'Enter with nothing found picks nothing');
-    await page.fill('#searchBox', 'moon'); assert.equal(await page.isVisible('#searchResults'), true);
+    await typeSearch(page, 'moon'); assert.equal(await page.isVisible('#searchResults'), true);
     await page.mouse.click(5, 400);
-    assert.equal(await page.isVisible('#searchResults'), false, 'a click elsewhere closes it');
+    assert.equal(await page.isVisible('#searchResults'), false, 'a click elsewhere closes the list');
+    assert.equal(await page.isVisible('#searchBox'), true, 'but the bar stays while there is something typed in it');
+    await page.fill('#searchBox', ''); await page.mouse.click(5, 400);
+    assert.equal(await page.isVisible('#searchBox'), false, 'and goes when it is empty and the visitor clicks away');
   } finally { await context.close(); }
 });
 
@@ -2044,7 +2061,7 @@ test('search: a picked object is the selected one in the camera view too', { ski
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.evaluate(AR_SKY(0.5, 100));
     await page.evaluate(() => { const m = window.__fg.state.byId.get('body:Moon'); m.az = 100; m.el = 14; m.distKm = 384400; window.__fg.state.dirty = true; });
-    await page.fill('#searchBox', 'moon'); await page.click('#searchResults button.srch');
+    await typeSearch(page, 'moon'); await page.click('#searchResults button.srch');
     assert.equal(await page.evaluate(() => window.__fg.state.sel), 'body:Moon');
     await fakeCamera(page); await page.tap('#arBtn'); await arShown(page);
     for (let i = 0; i < 30; i++) { await page.evaluate(() => { const e = new Event('deviceorientation'); e.webkitCompassHeading = 90; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); }); await sleep(30); }
