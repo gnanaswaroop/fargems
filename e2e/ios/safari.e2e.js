@@ -1987,16 +1987,16 @@ test('settings: the drawn symbols in the camera view are on at first, can be tur
   const { page, context } = await iphone({ storage: SAVED });
   try {
     await page.goto(base + '/settings.html');
-    assert.equal(await page.isChecked('#arSymbolsToggle'), false, 'the hide box is not ticked at first: symbols are drawn');
-    await page.check('#arSymbolsToggle');
+    assert.equal(await page.isChecked('#arSymbolsToggle'), true, 'the switch is on at first: virtual objects are shown');
+    await page.uncheck('#arSymbolsToggle');
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '0');
     await page.goto(base + '/settings.html');
-    assert.equal(await page.isChecked('#arSymbolsToggle'), true, 'still ticked after coming back');
+    assert.equal(await page.isChecked('#arSymbolsToggle'), false, 'still off after coming back');
     await page.goto(base + '/viewer.html?fgtest=1');
     await page.waitForFunction(() => window.__fg && window.__fg.state && window.__fg.state.arSymbols !== undefined);
     assert.equal(await page.evaluate(() => window.__fg.state.arSymbols), false, 'the sky view picked the choice up (symbols not drawn)');
     await page.goto(base + '/settings.html');
-    await page.uncheck('#arSymbolsToggle');
+    await page.check('#arSymbolsToggle');
     assert.equal(await page.evaluate(() => localStorage.getItem('fg.arSymbols')), '1');
 
   } finally { await context.close(); }

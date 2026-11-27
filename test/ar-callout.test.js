@@ -223,8 +223,8 @@ test('the passes list uses it, and is hidden when nothing is left', () => {
 /* ---- the switch for the drawn symbols (settings: "Hide virtual objects when the real object is shown in the AR view") ---- */
 test('the setting is on unless the visitor turned it off, and it is in settings and read by the app', () => {
   assert.equal(L.parseArSymbols(null), true); assert.equal(L.parseArSymbols('1'), true); assert.equal(L.parseArSymbols('0'), false);
-  assert.match(read('settings.html'), /<input id="arSymbolsToggle" type="checkbox"> Hide virtual objects when the real object is shown in the AR view/);
-  assert.match(read('settings.js'), /storage\.setItem\('fg\.arSymbols', e\.target\.checked \? '0' : '1'\)/);
+  assert.match(read('settings.html'), /<b>Show virtual objects in the AR view<\/b>.*<input id="arSymbolsToggle" type="checkbox" role="switch">/);
+  assert.match(read('settings.js'), /storage\.setItem\('fg\.arSymbols', e\.target\.checked \? '1' : '0'\)/);
   assert.match(read('app.js'), /getSymbols: \(\) => window\.FarGemsLogic\.parseArSymbols\(storedValue\('fg\.arSymbols'\)\)/);
 });
 

@@ -637,10 +637,14 @@ The reusable, flake-proof pieces of the browser tests are in `e2e/ios/helpers.js
 
 ## 44. Hiding virtual objects in the camera view
 
-Settings has "Hide virtual objects when the real object is shown in the AR view" (saved as `fg.arSymbols`, where 0 means hide; unticked is the usual). By default the symbols are drawn, and the picked object's icon stays drawn for as long as it is picked, with the dotted ring and the details bubble beside it (an earlier version faded the picked icon after 1.5 s; that was removed). Ticked, no icon or name is drawn over the objects, so the real ones show; the ring, the bubble and crosshair picking stay. There is no automatic indoor or outdoor detection.
+Settings has the switch "Show virtual objects in the AR view" (saved as `fg.arSymbols`: 1 shown, 0 hidden; on by default). By default the symbols are drawn, and the picked object's icon stays drawn for as long as it is picked, with the dotted ring and the details bubble beside it (an earlier version faded the picked icon after 1.5 s; that was removed). Off, no icon or name is drawn over the objects, so the real ones show; the ring, the bubble and crosshair picking stay. There is no automatic indoor or outdoor detection.
 
 The sky view also opens with a loading screen (`#boot`: logo, FarGems and "What’s flying above you") that goes once the first drawing is done, or by itself after 6 s.
 
 ## 45. The short card
 
 The detail card is short by default: picture, name, a one-line route, two rows (sky position with distance, altitude with speed) and one row of buttons (Pin, Share, FlightAware, More). More (saved as `fg.cardMore`) opens the long rows, the Wikipedia description and its link, and the km to go. Other kinds keep their rows and keep the description behind More.
+
+## 46. Settings look
+
+Every on/off choice in settings (and each map layer) is a switch: the real checkbox with `role="switch"`, drawn as a track and a knob by `body.settings input[type="checkbox"]`. Each row has a bold title and a small hint (`.setting`, `.s-text`); lists sit full width under their title and a number keeps a small box.
