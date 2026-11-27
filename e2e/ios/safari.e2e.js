@@ -82,6 +82,11 @@ async function iphone({ storage = {}, answer = 'granted', quiet = false, device 
     HTMLVideoElement.prototype.play = () => Promise.resolve();
     // Every message the app shows in its toast, in order, so a message that is soon replaced can still be checked.
     window.__toasts = [];
+    // Every click and its target, and every error, with the time, for the failure message when a step times out.
+    window.__clicks = []; window.__errs = [];
+    document.addEventListener('click', (e) => window.__clicks.push([(e.target && (e.target.id || e.target.tagName)) + '', Math.round(performance.now())]), true);
+    window.addEventListener('error', (e) => window.__errs.push(String(e.message).slice(0, 120)));
+    window.addEventListener('unhandledrejection', (e) => window.__errs.push('rejection: ' + String(e.reason).slice(0, 120)));
     document.addEventListener('DOMContentLoaded', () => {
       const t = document.querySelector('#toast');
       if (t) new MutationObserver(() => { if (t.textContent) window.__toasts.push(t.textContent); }).observe(t, { childList: true, characterData: true, subtree: true });
@@ -681,11 +686,20 @@ const AR_SKY = (phase, sunAz) => `(() => {
   state.sel = null; state.dirty = true;
 })()`;
 
+// Waits for the camera view to show; when it does not, the failure says what the page was doing.
+async function arShown(page, timeout = 15000) {
+  try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout }); }
+  catch (e) {
+    const d = await page.evaluate(() => ({ hidden: document.querySelector('#ar').hidden, asked: window.__ios && window.__ios.asked.length, toasts: window.__toasts, clicks: window.__clicks, errs: window.__errs, now: Math.round(performance.now()), arBtn: (() => { const b = document.querySelector('#arBtn'), r = b && b.getBoundingClientRect(); return r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), b.disabled, !!b.onclick]; })(), compass: localStorage.getItem('fg.compass'), ready: document.readyState, libs: [typeof Astronomy, typeof satellite], body: document.body.className })).catch((err) => ({ evaluateFailed: String(err) }));
+    e.message += ' | page state: ' + JSON.stringify(d); throw e;
+  }
+}
+
 // Opens the camera view, facing east with the phone upright, and lets the heading settle.
 async function openAr(page, sky) {
   await page.evaluate(sky);
   await page.tap('#arBtn');
-  await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout: 15000 });
+  await arShown(page);
   for (let i = 0; i < 30; i++) {
     await page.evaluate(() => { const e = new Event('deviceorientation'); e.webkitCompassHeading = 90; e.alpha = 0; e.beta = 90; e.gamma = 0; e.absolute = false; window.dispatchEvent(e); });
     await sleep(30);
