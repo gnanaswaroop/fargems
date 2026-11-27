@@ -83,10 +83,10 @@ async function iphone({ storage = {}, answer = 'granted', quiet = false, device 
     // Every message the app shows in its toast, in order, so a message that is soon replaced can still be checked.
     window.__toasts = [];
     // Every click and its target, and every error, with the time, for the failure message when a step times out.
-    window.__clicks = []; window.__errs = [];
-    document.addEventListener('click', (e) => window.__clicks.push([(e.target && (e.target.id || e.target.tagName)) + '', Math.round(performance.now())]), true);
-    window.addEventListener('error', (e) => window.__errs.push(String(e.message).slice(0, 120)));
-    window.addEventListener('unhandledrejection', (e) => window.__errs.push('rejection: ' + String(e.reason).slice(0, 120)));
+    window.__diagClicks = []; window.__diagErrs = [];
+    document.addEventListener('click', (e) => window.__diagClicks.push([(e.target && (e.target.id || e.target.tagName)) + '', Math.round(performance.now())]), true);
+    window.addEventListener('error', (e) => window.__diagErrs.push(String(e.message).slice(0, 120)));
+    window.addEventListener('unhandledrejection', (e) => window.__diagErrs.push('rejection: ' + String(e.reason).slice(0, 120)));
     document.addEventListener('DOMContentLoaded', () => {
       const t = document.querySelector('#toast');
       if (t) new MutationObserver(() => { if (t.textContent) window.__toasts.push(t.textContent); }).observe(t, { childList: true, characterData: true, subtree: true });
@@ -690,7 +690,7 @@ const AR_SKY = (phase, sunAz) => `(() => {
 async function arShown(page, timeout = 15000) {
   try { await page.waitForFunction(() => !document.querySelector('#ar').hidden, null, { timeout }); }
   catch (e) {
-    const d = await page.evaluate(() => ({ hidden: document.querySelector('#ar').hidden, asked: window.__ios && window.__ios.asked.length, toasts: window.__toasts, clicks: window.__clicks, errs: window.__errs, now: Math.round(performance.now()), arBtn: (() => { const b = document.querySelector('#arBtn'), r = b && b.getBoundingClientRect(); return r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), b.disabled, !!b.onclick]; })(), compass: localStorage.getItem('fg.compass'), ready: document.readyState, libs: [typeof Astronomy, typeof satellite], body: document.body.className })).catch((err) => ({ evaluateFailed: String(err) }));
+    const d = await page.evaluate(() => ({ hidden: document.querySelector('#ar').hidden, asked: window.__ios && window.__ios.asked.length, toasts: window.__toasts, clicks: window.__diagClicks, errs: window.__diagErrs, now: Math.round(performance.now()), arBtn: (() => { const b = document.querySelector('#arBtn'), r = b && b.getBoundingClientRect(); return r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), b.disabled, !!b.onclick]; })(), compass: localStorage.getItem('fg.compass'), ready: document.readyState, libs: [typeof Astronomy, typeof satellite], body: document.body.className })).catch((err) => ({ evaluateFailed: String(err) }));
     e.message += ' | page state: ' + JSON.stringify(d); throw e;
   }
 }
