@@ -1017,7 +1017,62 @@ function autoAR() {
   if (r.action === 'close') { arView.close(); arState.openedBy = null; dropArEntry(); }
   else if (r.action === 'open') openAR('auto');
 }
+// Search: type part of a name (ISS, Moon, Vega, a flight number, an airline, an aircraft type) and pick one of the results. Picking
+// it is the same as tapping it on the radar: it is the selected object, which the radar, the Nearby list, the camera view and the
+// address all follow. An object that is not in the sky right now can be picked too, and its card says why it is not on the radar.
+function pickFromSearch(id) {
+  state.linkId = id; state.sel = id; state.passSel = null; state.detailClosed = null; state.dirty = true;
+  renderDetail(); renderNearby(); renderPasses(); setPage('radar');
+  const card = $('#detail'); if (card && card.scrollIntoView) { try { card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch { /* the card is where it is */ } }
+}
+function searchWhere(r) {
+  if (!r.up || (Number.isFinite(r.el) && r.el < 0)) return r.why === 'far' ? 'too far to see' : 'below the horizon';
+  return Number.isFinite(r.el) ? `${Math.round(r.el)}° up · ${dir16(r.az)}` : 'up now';
+}
+function bindSearch() {
+  const box = $('#searchBox'), list = $('#searchResults'), S = window.FarGemsSearch, H = window.FarGemsLogic;
+  if (!box || !list || !S) return;
+  let results = [], active = -1;
+  const close = () => { list.hidden = true; box.setAttribute('aria-expanded', 'false'); box.removeAttribute('aria-activedescendant'); active = -1; };
+  const mark = () => {
+    [...list.querySelectorAll('[role="option"]')].forEach((li, i) => { li.setAttribute('aria-selected', String(i === active)); li.classList.toggle('active', i === active); });
+    if (active >= 0) box.setAttribute('aria-activedescendant', 'sr-' + active); else box.removeAttribute('aria-activedescendant');
+  };
+  const render = () => {
+    const q = box.value.trim();
+    if (!q) { close(); return; }
+    results = S.search(q, { objs: state.objs, unseen: state.unseen }, { airlineOf: H.airlineOf, limit: 8 });
+    list.hidden = false; box.setAttribute('aria-expanded', 'true'); active = results.length ? 0 : -1;
+    list.innerHTML = results.length ? results.map((r, i) => {
+      const t = H.typeOf({ kind: r.kind, name: r.name }), live = state.byId.get(r.id), icon = NEARBY_ICONS[t.key] ? NEARBY_ICONS[t.key](live || r) : '';
+      return `<li role="option" id="sr-${i}" aria-selected="false"><button type="button" class="srch${r.up ? '' : ' away'}" data-id="${esc(r.id)}" tabindex="-1"><span class="ico" aria-hidden="true">${icon}</span>`
+        + `<span class="nm">${esc(r.name)}${r.detail ? ` <small class="muted">${esc(r.detail)}</small>` : ''}<small class="kind">${esc(t.label)}</small></span><span class="meta">${esc(searchWhere(r))}</span></button></li>`;
+    }).join('') : `<li class="search-none" role="option" aria-disabled="true">Nothing in the sky called “${esc(q)}”.</li>`;
+    mark();
+  };
+  const choose = (id) => { if (!id) return; box.value = ''; close(); pickFromSearch(id); box.blur(); };
+  box.addEventListener('input', render);
+  box.addEventListener('focus', render);
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!results.length || list.hidden) return;
+      e.preventDefault(); active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length; mark();
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); const r = results[active >= 0 ? active : 0]; if (r && !list.hidden) choose(r.id);
+    } else if (e.key === 'Escape') { box.value = ''; close(); }
+  });
+  list.addEventListener('mousedown', (e) => e.preventDefault()); // keep the focus in the box until a result is chosen
+  list.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('button[data-id]'); if (b) choose(b.getAttribute('data-id')); });
+  document.addEventListener('click', (e) => { if (!list.hidden && !(e.target.closest && e.target.closest('#searchbar'))) close(); });
+  document.addEventListener('keydown', (e) => { // "/" jumps to the search box, as in many sites
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target, tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    e.preventDefault(); box.focus();
+  });
+}
 function bindUI() {
+  bindSearch();
   const cv = $('#sky');
   const pointers = new Map(); // active touches or mouse buttons, by pointer id
   let down = null, pinchDist = 0;
