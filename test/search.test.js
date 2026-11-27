@@ -113,6 +113,16 @@ test('the page has a search box above both views, loads the search code and keep
   assert.match(sw, /'lib\/search\.js'/);
 });
 
+test('the Settings menu drops over the search box, and in the landscape layouts the box stands in the header and takes no height', () => {
+  const css = read('style.css');
+  const z = (sel) => { const i = css.indexOf(sel + ' {') >= 0 ? css.indexOf(sel + ' {') : css.indexOf(sel + '{'); return Number((css.slice(i, css.indexOf('}', i)).match(/z-index:\s*(\d+)/) || [])[1]); };
+  assert.ok(z('.menu-list') > z('.searchbar'), 'menu ' + z('.menu-list') + ' over search ' + z('.searchbar'));
+  const wide = css.slice(css.indexOf('@media (min-width: 560px) and (min-aspect-ratio: 5/4) {'), css.indexOf('@media (min-width: 560px) and (min-aspect-ratio: 5/4) and (max-height: 560px) {'));
+  assert.match(wide, /body\.viewer \.searchbar \{ position: absolute; top: 9px;/, 'wide landscape: in the header');
+  const compact = css.slice(css.indexOf('@media (min-width: 560px) and (min-aspect-ratio: 5/4) and (max-height: 560px) {'));
+  assert.match(compact, /body\.viewer \.searchbar \{ top: 3px;/, 'a phone on its side: smaller, higher up');
+});
+
 test('picking a result selects the object like a tap does, and every view follows', () => {
   const app = read('app.js');
   const fn = app.slice(app.indexOf('function pickFromSearch'), app.indexOf('function searchWhere'));
