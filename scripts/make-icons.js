@@ -20,8 +20,11 @@ const ART_RADIUS = 146;      // the radius of the ring that icon.svg draws aroun
 const ART_CENTRE = [256, 262]; // where that ring is centred
 const ART_FIT = 0.94;         // how much of the space inside the ring the artwork uses
 const ROUND_RING = 0.02;     // ring thickness of the round icons, as a share of the icon size (10 px at 512)
-const FULL_RING = 0.022;     // ring thickness of the full-bleed icons
+const FULL_RING = 0.028;     // ring thickness of the full-bleed icons
 const SAFE_RADIUS = 0.385;   // of the icon size: the ring's centre line on a full-bleed icon, so with half its thickness it stays inside the 40% radius no mask cuts
+
+// One flat colour for the tile. A gradient here read as a soft, blurry glow (a lighter disc with a fuzzy edge) around the logo on a phone's home screen.
+const TILE = '#0d1b3a';
 
 const ICONS = [
   { file: 'icon-512.png', size: 512, round: true },
@@ -36,9 +39,8 @@ function iconSvg(art, n, round) {
   const ringR = round ? n / 2 - sw / 2 : n * SAFE_RADIUS;       // the ring's centre line
   const scale = ART_FIT * (ringR - sw / 2) / ART_RADIUS;         // the artwork's own ring would land on the ring's inner edge; a little smaller leaves room
   const [cx, cy] = ART_CENTRE;
-  const tile = round ? `<circle cx="${n / 2}" cy="${n / 2}" r="${n / 2}" fill="url(#tile)"/>` : `<rect width="${n}" height="${n}" fill="url(#tile)"/>`;
+  const tile = round ? `<circle cx="${n / 2}" cy="${n / 2}" r="${n / 2}" fill="${TILE}"/>` : `<rect width="${n}" height="${n}" fill="${TILE}"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}" viewBox="0 0 ${n} ${n}">
-  <defs><radialGradient id="tile" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#173d63"/><stop offset=".45" stop-color="#112447"/><stop offset="1" stop-color="#0b1836"/></radialGradient></defs>
   ${tile}
   <g transform="translate(${n / 2} ${n / 2}) scale(${scale}) translate(${-cx} ${-cy})">${art}</g>
   <circle cx="${n / 2}" cy="${n / 2}" r="${ringR}" fill="none" stroke="#ffffff" stroke-width="${sw}"/>
@@ -75,4 +77,4 @@ async function main() {
   await browser.close();
 }
 if (require.main === module) main().catch((e) => { console.error(e.message); process.exit(1); });
-module.exports = { iconSvg, ICONS, ART_FIT, SAFE_RADIUS, FULL_RING, ROUND_RING, ART_RADIUS };
+module.exports = { TILE, iconSvg, ICONS, ART_FIT, SAFE_RADIUS, FULL_RING, ROUND_RING, ART_RADIUS };
