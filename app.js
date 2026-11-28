@@ -467,10 +467,12 @@ function draw() {
   for (const o of state.objs) { // satellites
     if (o.kind !== 'sat' || !F.sat) continue;
     const p = P(o.az, o.el), major = /^(ISS|CSS)/.test(o.name);
-    ctx.fillStyle = o.visible ? '#ffffff' : (o.sunlit ? COL.sat : COL.satDim);
-    if (o.visible) { ctx.shadowColor = COL.sat; ctx.shadowBlur = 8; }
-    const r = major ? 4.2 : 2.6; ctx.beginPath(); ctx.moveTo(p.x, p.y - r); ctx.lineTo(p.x + r, p.y); ctx.lineTo(p.x, p.y + r); ctx.lineTo(p.x - r, p.y); ctx.closePath(); ctx.fill();
-    ctx.shadowBlur = 0;
+    // The satellite emoji: full colour when the Sun lights it, faded in the Earth's shadow, with a white glow when the eye can see it.
+    // A space station and the picked satellite are larger.
+    ctx.save(); ctx.font = ((major || o.id === sel) ? 22 : 14) + 'px ' + window.FarGemsLogic.SAT_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.globalAlpha = o.visible || o.sunlit ? 1 : 0.4; // the emoji is drawn at the fill's opacity, so the fill must be solid
+    if (o.visible) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 10; }
+    ctx.fillText(window.FarGemsLogic.SAT_GLYPH, p.x, p.y); ctx.restore();
     if (major || o.id === sel) label(o, p, 7, -6, COL.sat); hit(o, p, 11);
   }
   for (const o of state.objs) { // aircraft
