@@ -132,8 +132,8 @@ a.btn.go{text-decoration:none;margin:16px 0 8px}
 
 /* ---------- radar zoom controls ---------- */
 /* The radar controls sit in a row just under the radar, so they never cover it. */
-.zoombar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0 0; }
-.zoombar .btn { padding: 8px 14px; font-size: 14px; background: var(--card); }
+.zoombar { display: flex; flex-wrap: nowrap; justify-content: center; gap: 6px; margin: 10px 0 0; } /* one row, always: the buttons shrink, they never wrap */
+.zoombar .btn { padding: 8px 10px; font-size: 14px; background: var(--card); white-space: nowrap; min-width: 0; }
 
 /* ---------- radar and nearby pages ---------- */
 /* The two views, as one segmented control: the chosen one is filled, each has an icon, and Nearby says how many things it lists */

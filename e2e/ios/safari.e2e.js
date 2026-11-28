@@ -2253,7 +2253,7 @@ test('radar: the nearest satellite whose card shows on load is marked on the rad
   } finally { await context.close(); }
 });
 
-test('legend: a ? button under the radar opens the key and brings it into view', { skip }, async () => {
+test('legend: a Legend button in the same row as zoom and reset opens the key and brings it into view', { skip }, async () => {
   const { page, context } = await iphone({ storage: SAVED });
   try {
     await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
@@ -2262,6 +2262,12 @@ test('legend: a ? button under the radar opens the key and brings it into view',
     const b = await page.locator('#legendBtn').boundingBox(), sky = await page.locator('#sky').boundingBox(), vp = page.viewportSize();
     assert.ok(b && b.y > sky.y + sky.height - 4 && b.y + b.height <= vp.height, 'the button is right under the radar, on the first screen: ' + JSON.stringify({ b, sky: sky.y + sky.height, vp: vp.height }));
     assert.ok(b.x + b.width <= vp.width, 'inside the screen');
+    for (const w of [320, 390]) {
+      await page.setViewportSize({ width: w, height: vp.height });
+      const tops = await page.evaluate(() => [...document.querySelectorAll('.zoombar .btn')].map((e) => Math.round(e.getBoundingClientRect().top)));
+      assert.equal(new Set(tops).size, 1, 'zoom, reset, AR and Legend share one row at ' + w + ' px wide: ' + JSON.stringify(tops));
+    }
+    await page.setViewportSize(vp);
     assert.equal(await page.isVisible('#legend .legend-list'), false);
     await page.tap('#legendBtn');
     await page.waitForFunction(() => document.querySelector('#legend').open);
