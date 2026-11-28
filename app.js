@@ -392,7 +392,7 @@ function draw() {
   }
   // The path of the selected object: where a flight or a satellite is going next, or where the Sun, Moon, a planet or a star goes
   // over the next hours. Nothing for an object that does not move (a geostationary satellite).
-  const selObj = state.sel && state.byId.get(state.sel), selPath = selObj && pathFor(selObj);
+  const selObj = (state.sel || state.shownId) && state.byId.get(state.sel || state.shownId), selPath = selObj && pathFor(selObj);
   if (selPath && selPath.length > 1) {
     const col = selObj.kind === 'air' ? COL.air : selObj.kind === 'sat' ? COL.sat : selObj.kind === 'met' ? COL.met : '#dbe6ff';
     ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.9; ctx.setLineDash([5, 4]); ctx.beginPath();
@@ -408,7 +408,7 @@ function draw() {
     ctx.restore();
   }
   state.hits = [];
-  const F = state.filters, sel = state.sel;
+  const F = state.filters, sel = state.sel || state.shownId; // the picked object, or the nearest one whose card is showing
   // Names are queued while the objects are drawn and placed afterwards, most important first, so that two names never
   // sit on top of each other: each name tries a few spots around its object and is skipped if none is free (only
   // minor ones: the selected object, the Sun, Moon and planets and the space stations always get a name).
@@ -416,6 +416,12 @@ function draw() {
   const pinned = new Set(state.pins);
   const label = (o, p, dx = 8, dy = -8, col = '#cfd8e8') => { if (!F.labels) return; const pin = pinned.has(o.id); labelQ.push({ o, p, dx, dy, col, text: (pin ? '★ ' : '') + (o.id === sel ? o.name : L.shortLabel(o.name)), prio: o.id === sel ? 0 : pin ? 0.5 : (LABEL_PRIO[o.kind] || 5) }); };
   const placeLabels = () => {
+    const so = sel && state.byId.get(sel); // a ring round the picked object, or the nearest one whose card is showing
+    if (so && so.el >= -1) {
+      const rp = P(so.az, Math.max(0, so.el));
+      ctx.save(); ctx.strokeStyle = so.kind === 'air' ? COL.air : so.kind === 'sat' ? COL.sat : so.kind === 'met' ? COL.met : '#dbe6ff'; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, 11, 0, 7); ctx.stroke(); ctx.restore();
+    }
     ctx.font = '11px system-ui'; ctx.textBaseline = 'alphabetic';
     const placed = [...fixed], overlaps = (r) => placed.some((q) => r.x0 < q.x1 && r.x1 > q.x0 && r.y0 < q.y1 && r.y1 > q.y0);
     labelQ.sort((a, b) => a.prio - b.prio);
@@ -661,6 +667,7 @@ function renderDetailCard() {
   // The details can be closed with the cross (or Escape): the card goes away until something is picked again.
   const closed = !!state.detailClosed && state.detailClosed.sel === state.sel;
   if (!closed) state.detailClosed = null;
+  state.shownId = null; // the nearest object when its card is shown without a pick: the radar and the list mark it too
   $('#detail').hidden = closed; $('#arDetail').hidden = closed;
   if (closed) return;
   const X = '<button type="button" class="close-detail" data-close-detail aria-label="Close the details">✕</button>';
@@ -675,6 +682,7 @@ function renderDetailCard() {
   const ps = state.passSel && state.passes.find((p) => p.name === state.passSel);
   if (ps && !state.byId.has(ps.id) && (!state.sel || state.sel === ps.id)) { put(passCard(ps)); return; } // the station is not up yet: say when
   if (!o) { put('<p class="muted">Tap an object on the radar to see its details.</p>'); return; }
+  if (nearest) { state.shownId = o.id; state.dirty = true; }
   const kv = (k, v) => v == null || v === '' ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
   let title = esc(o.name), rows = '', routeBlock = '';
   const airline = o.kind === 'air' && o.ac ? H.airlineOf(o.ac.call) : null, airlineLine = airline ? `<p class="airline">${esc(airline)}</p>` : '';
@@ -845,7 +853,7 @@ function renderNearby() {
   const wikiTitle = (o) => H.wikiTitle(o);
   setHtml(el, sorted.map(o => {
     const t = H.typeOf(o);
-    return `<li><div class="nearby-row${state.sel === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
+    return `<li><div class="nearby-row${(state.sel || state.shownId) === o.id ? ' sel' : ''}" data-id="${esc(o.id)}" data-type="${t.key}" role="button" tabindex="0">` +
       `<span class="ico" aria-hidden="true">${(NEARBY_ICONS[t.key] || NEARBY_ICONS.star)(o)}</span>` +
       `<span class="nm">${pinButton(o)}${esc(o.name)}</span>` +
       `<span class="meta">${esc(H.formatDistance(o.distKm, state.units, state.far))}</span>` +

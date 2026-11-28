@@ -2218,3 +2218,37 @@ test('Settings: Calibrate shows the saved correction, clears it, and opens the c
     assert.ok(!/calibrate/.test(await page.evaluate(() => location.search)), 'the flag is dropped from the address');
   } finally { await context.close(); }
 });
+
+test('radar: the nearest satellite whose card shows on load is marked on the radar and in the list', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__texts = []; window.__rings = [];
+      const orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { window.__texts.push(t); return orig.apply(this, arguments); };
+      const arc = CanvasRenderingContext2D.prototype.arc;
+      CanvasRenderingContext2D.prototype.arc = function (x, y, r) { if (r === 11) window.__rings.push([x, y]); return arc.apply(this, arguments); };
+      const { state, renderNearby, renderDetail } = window.__fg;
+      state.objs = [
+        { id: 'sat:9', kind: 'sat', name: 'TESTSAT 9', az: 120, el: 40, distKm: 800, range: 800, altKm: 500, speed: 7, visible: false, sunlit: true, norad: 9 },
+        { id: 'sat:8', kind: 'sat', name: 'TESTSAT 8', az: 300, el: 30, distKm: 2000, range: 2000, altKm: 500, speed: 7, visible: false, sunlit: true, norad: 8 },
+      ];
+      state.byId = new Map(state.objs.map((o) => [o.id, o])); state.sel = null;
+      renderDetail(); renderNearby(); state.dirty = true;
+    });
+    await sleep(500);
+    assert.match(await page.textContent('#detail'), /Nearest satellite/);
+    assert.equal(await page.evaluate(() => window.__fg.state.shownId), 'sat:9');
+    const t = await page.evaluate(() => window.__texts);
+    assert.ok(t.includes('TESTSAT 9'), 'the nearest one is named on the radar');
+    assert.ok(!t.includes('TESTSAT 8'), 'the others are not');
+    assert.ok((await page.evaluate(() => window.__rings.length)) > 0, 'and ringed');
+    assert.equal(await page.evaluate(() => document.querySelector('.nearby-row.sel') && document.querySelector('.nearby-row.sel').dataset.id), 'sat:9', 'marked in the list');
+    // Picking something else moves the mark; closing the card removes it.
+    await page.evaluate(() => { const g = window.__fg; g.state.sel = 'sat:8'; g.renderDetail(); g.renderNearby(); });
+    assert.equal(await page.evaluate(() => window.__fg.state.shownId), null);
+    assert.equal(await page.evaluate(() => document.querySelector('.nearby-row.sel').dataset.id), 'sat:8');
+  } finally { await context.close(); }
+});

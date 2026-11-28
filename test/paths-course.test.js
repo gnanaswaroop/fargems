@@ -114,7 +114,7 @@ test('the app settles each flight\'s course at every poll, draws a plain dot whe
   assert.match(ar, /if \(air && ob\.course === false\)/, 'and in the camera view');
   assert.match(app, /function pathFor\(o\)/);
   for (const bit of ['stepS: 15, maxS: 900', 'stepS: 30, maxS: 2400', 'H.isMoving(pts, 2)', 'stepS: 900, maxS: 43200', "o.kind === 'star'", "o.kind === 'met' && o.shower", "o.kind === 'body'"]) assert.ok(app.includes(bit), bit);
-  assert.match(app, /const selObj = state\.sel && state\.byId\.get\(state\.sel\), selPath = selObj && pathFor\(selObj\);/);
+  assert.match(app, /const selObj = \(state\.sel \|\| state\.shownId\) && state\.byId\.get\(state\.sel \|\| state\.shownId\), selPath = selObj && pathFor\(selObj\);/);
   assert.match(app, /haloText\('\+' \+ q\.hr \+ 'h'/, 'hour marks on the radar');
   assert.match(ar, /const path = o\.getPath && o\.getPath\(\);/);
   assert.match(app, /getPath: \(\) => \{ const so = state\.sel && state\.byId\.get\(state\.sel\), pts = so && pathFor\(so\);/);
