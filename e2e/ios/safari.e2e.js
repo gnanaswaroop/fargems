@@ -2277,3 +2277,46 @@ test('legend: a Legend button in the same row as zoom and reset opens the key an
     assert.ok(l.y >= 0 && l.y + l.height <= vp.height, 'the key is on the screen now: ' + JSON.stringify(l));
   } finally { await context.close(); }
 });
+
+test('radar: satellites and space stations are drawn with the satellite emoji', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__glyphs = [];
+      const orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { if (t === '\u{1F6F0}\uFE0F') window.__glyphs.push({ size: parseInt(this.font, 10), font: this.font, fill: this.fillStyle, alpha: this.globalAlpha }); return orig.apply(this, arguments); };
+    });
+    await page.evaluate(FAKE_SKY);
+    await page.evaluate(() => {
+      const { state } = window.__fg;
+      state.objs.push({ id: 'sat:7', kind: 'sat', name: 'SOME SAT', az: 200, el: 20, distKm: 900, range: 900, altKm: 500, speed: 7, visible: false, sunlit: false, norad: 7 });
+      state.byId = new Map(state.objs.map((o) => [o.id, o])); state.dirty = true;
+    });
+    await sleep(500);
+    const g = await page.evaluate(() => window.__glyphs.slice(-4));
+    assert.ok(g.length >= 2 && g.every((x) => /Emoji/.test(x.font)), 'drawn with an emoji font, not left on the previous font: ' + JSON.stringify(g));
+    assert.ok(g.every((x) => x.fill === '#ffffff'), 'a solid fill (an emoji is drawn at the opacity of the fill, a see-through fill left from the last drawing made them vanish): ' + JSON.stringify(g));
+    assert.ok(g.some((x) => x.size >= 20), 'the space station is larger: ' + JSON.stringify(g));
+    assert.ok(g.some((x) => x.size <= 15 && x.alpha < 0.6), 'a satellite in the Earth\'s shadow is small and faded: ' + JSON.stringify(g));
+  } finally { await context.close(); }
+});
+
+test('AR: a satellite in view is drawn with the satellite emoji, solid, and glows when the eye can see it', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(() => {
+      window.__ar = [];
+      const orig = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t, x, y) { if (t === '\u{1F6F0}\uFE0F') window.__ar.push({ font: this.font, fill: this.fillStyle, blur: this.shadowBlur, alpha: this.globalAlpha }); return orig.apply(this, arguments); };
+    });
+    await openAr(page, `${AR_SKY(0.5, 200)}; (() => { const { state } = window.__fg; state.objs.push({ id: 'sat:7', kind: 'sat', name: 'SOME SAT', az: 90, el: 10, distKm: 900, range: 900, altKm: 500, speed: 7, visible: true, sunlit: true, norad: 7 }); state.byId = new Map(state.objs.map((o) => [o.id, o])); })()`);
+    await sleep(500);
+    const g = await page.evaluate(() => window.__ar.slice(-3));
+    assert.ok(g.length > 0, 'drawn');
+    assert.ok(g.every((x) => x.fill === '#ffffff' && /Emoji/.test(x.font) && x.blur > 0), JSON.stringify(g));
+  } finally { await context.close(); }
+});

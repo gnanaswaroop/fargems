@@ -242,8 +242,9 @@
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 4;
           ctx.fillText(L.PLANE_GLYPH, 0, 0);
         } else if (sat) {
-          ctx.fillStyle = ob.visible ? '#fff' : '#5ad1e6'; const r = isSel ? 8 : 6;
-          ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.font = (isSel ? 32 : 26) + 'px ' + L.SAT_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          if (ob.visible) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; } // a white glow: the eye can see it
+          ctx.fillText(L.SAT_GLYPH, 0, 0);
         } else if (ob.name === 'Moon' && root.FarGemsMoon && ob.phase != null) {
           // The Moon as it looks tonight: lit on the side toward the Sun, with the right amount lit, turned as it is in the sky.
           const limb = sun ? AR.directionOnScreen(ob, sun, cam) : -Math.PI / 2;

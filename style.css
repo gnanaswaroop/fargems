@@ -427,6 +427,7 @@ body.ar-on .toast { z-index: 70; }
 .legend-list li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; }
 .legend-list .sym { display: grid; place-items: center; height: 24px; }
 .legend-list .plane { color: #ffb454; font-size: 20px; }
+.legend-list .sat { font-size: 18px; }
 body.viewer .side > #legend { flex: none; margin: 0; }
 
 /* The cross that closes the details */
