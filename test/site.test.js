@@ -18,7 +18,7 @@ const localRefs = (page) => {
   return [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1])
     .filter((r) => !/^(https?:|data:|#|mailto:)/.test(r))
     .filter((r) => !r.startsWith('__SITE_URL__')) // filled in at build time
-    .filter((r) => r !== 'viewer.html') // navigation target, not an asset
+    .filter((r) => !/^viewer\.html(\?|$)/.test(r)) // navigation target (with or without a query), not an asset
     .map((r) => r.split('#')[0]); // a page address with an anchor is the page
 };
 const PAGES = ['index.html', 'about.html', 'viewer.html', 'settings.html'];

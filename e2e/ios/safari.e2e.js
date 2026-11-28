@@ -2199,3 +2199,22 @@ test('AR: Snap lines the overlay up on the Moon in one tap, and says so when not
     assert.deepEqual(await page.evaluate(() => __fg.state.arOffset), off, 'unchanged');
   } finally { await context.close(); }
 });
+
+test('Settings: Calibrate shows the saved correction, clears it, and opens the camera view in line-up mode', { skip }, async () => {
+  const { page, context } = await iphone({ storage: { ...SAVED, 'fg.arOffset': JSON.stringify({ h: 6.04, p: -2 }) } });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/settings.html');
+    assert.equal(await page.textContent('#calState'), 'heading +6.0°, tilt −2.0°');
+    await page.tap('#calReset');
+    assert.equal(await page.textContent('#calState'), 'None');
+    assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('fg.arOffset'))), { h: 0, p: 0 });
+    assert.equal(await page.getAttribute('#calBtn', 'href'), 'viewer.html?calibrate=1');
+    await context.addInitScript(() => { const fake = { getTracks: () => [{ stop() {} }] }; Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: async () => fake }, configurable: true, writable: true }); });
+    await page.goto(base + '/viewer.html?calibrate=1&fgtest=1');
+    await arShown(page);
+    assert.equal(await page.isVisible('#arAlignBar'), true, 'straight into line-up mode');
+    assert.equal(await page.getAttribute('#arAlign', 'aria-pressed'), 'true');
+    assert.ok(!/calibrate/.test(await page.evaluate(() => location.search)), 'the flag is dropped from the address');
+  } finally { await context.close(); }
+});
