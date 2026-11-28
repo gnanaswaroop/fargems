@@ -53,9 +53,9 @@ test('the key explains the radar: centre and edge, every symbol, and the meteor 
   assert.ok(v.indexOf('id="passes"') < v.indexOf('id="legend"'), 'the key comes after the details and passes');
 });
 
-test('a ? button in the bar under the radar opens the key and scrolls to it', () => {
+test('a Legend button in the bar under the radar opens the key and scrolls to it', () => {
   const v = fs.readFileSync(path.join(__dirname, '..', 'viewer.html'), 'utf8'), app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-  assert.match(v, /<button id="legendBtn" class="btn" type="button" aria-label="What do the symbols mean\?" aria-controls="legend"[^>]*>\?<\/button>/);
+  assert.match(v, /<button id="legendBtn" class="btn" type="button" aria-label="What do the symbols mean\?" aria-controls="legend"[^>]*>Legend<\/button>/);
   assert.ok(v.indexOf('id="arBtn"') < v.indexOf('id="legendBtn"') && v.indexOf('id="legendBtn"') < v.indexOf('id="status"'), 'in the zoom bar, under the radar');
   assert.match(app, /\$\('#legendBtn'\)\.onclick = \(\) => \{ const d = \$\('#legend'\); d\.open = true;[^}]*scrollIntoView/);
 });

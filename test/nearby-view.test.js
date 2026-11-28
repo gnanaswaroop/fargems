@@ -57,7 +57,7 @@ test('the page does not throw away selected text: unchanged content is not rewri
 
 test('the radar controls sit in a row under the radar, not on top of it', () => {
   const css = read('style.css'), html = read('viewer.html');
-  assert.match(css, /\.zoombar \{ display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 10px 0 0; \}/);
+  assert.match(css, /\.zoombar \{ display: flex; flex-wrap: nowrap; justify-content: center; gap: 6px; margin: 10px 0 0; \}/);
   assert.doesNotMatch(css, /\.zoombar \{ position: absolute/);
   const sky = html.indexOf('<canvas id="sky"'), bar = html.indexOf('class="zoombar"');
   assert.ok(sky > -1 && bar > sky, 'the controls come after the radar');
