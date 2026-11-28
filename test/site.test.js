@@ -177,7 +177,7 @@ test('logo: cut-outs are real holes (a mask), so no background colour is painted
 });
 
 test('logo: landing and viewer headers show the logo beside the wordmark', () => {
-  assert.match(read('index.html'), /<img class="logo logo-lg" src="icon\.svg" alt="FarGems logo" width="88" height="88"/);
+  assert.match(read('index.html'), /<img class="logo logo-lg" src="logo-animated\.svg" alt="FarGems logo" width="88" height="88"/);
   assert.match(read('viewer.html'), /<span class="brand"><img class="logo logo-sm" src="icon\.svg" alt="" width="34" height="34"/);
 });
 
@@ -281,4 +281,16 @@ test('favicon.ico: browsers that ask for it get the icon, and it is published', 
   assert.equal(ico.subarray(off, off + 8).toString('hex'), '89504e470d0a1a0a', 'a PNG inside');
   assert.equal(off + len, ico.length);
   assert.match(read('.github/workflows/pages.yml'), /apple-touch-icon\.png favicon\.ico og-image\.png/, 'published with the site');
+});
+
+test('animated logo: the landing page and the loading screen use it, it stays still for reduced motion, and it is cached for offline', () => {
+  const svg = read('logo-animated.svg');
+  assert.match(svg, /^<svg [^>]*viewBox="108 114 296 296"/, 'the same frame as icon.svg, so it is the same size');
+  assert.match(svg, /@media \(prefers-reduced-motion: reduce\) \{ \.star \{ animation: none; \} \}/);
+  assert.doesNotMatch(svg, /<script|href=|https?:\/\/(?!www\.w3\.org)|onload/i, 'plain shapes and animation only');
+  for (const page of ['index.html', 'viewer.html']) {
+    assert.match(read(page), /<picture><source srcset="icon\.svg" media="\(prefers-reduced-motion: reduce\)"><img[^>]*src="logo-animated\.svg"/, page + ': still logo for reduced motion, animated otherwise');
+  }
+  assert.match(read('sw.js'), /'logo-animated\.svg'/, 'works offline');
+  assert.match(read('.github/workflows/pages.yml'), /icon\.svg logo-animated\.svg /, 'published with the site');
 });

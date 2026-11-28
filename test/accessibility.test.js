@@ -59,7 +59,7 @@ test('small screens: rows in a card are spaced, long values wrap inside the card
 
 test('the sky view starts with a loading screen: the logo, the name and what the app is, which goes once the view has drawn', () => {
   const html = read('viewer.html'), app = read('app.js'), css = read('style.css');
-  assert.match(html, /<body class="viewer">\s*<div id="boot" class="boot" role="status"[^>]*><img src="icon\.svg"[^>]*><div class="boot-name">Far<b>Gems<\/b><\/div><div class="boot-title">What’s flying above you<\/div>/);
+  assert.match(html, /<body class="viewer">\s*<div id="boot" class="boot" role="status"[^>]*><picture><source srcset="icon\.svg" media="\(prefers-reduced-motion: reduce\)"><img src="logo-animated\.svg"[^>]*><\/picture><div class="boot-name">Far<b>Gems<\/b><\/div><div class="boot-title">What’s flying above you<\/div>/);
   assert.match(app, /const boot = \$\('#boot'\);[^\n]*\n\s*if \(boot\) \{ boot\.classList\.add\('done'\); setTimeout\(\(\) => boot\.remove\(\), 500\); \}/);
   assert.match(css, /\.boot \{[^}]*animation: bootout \.4s 6s forwards/, 'and goes by itself if the page cannot start');
   assert.match(css, /\.boot\.done \{[^}]*pointer-events: none/);
