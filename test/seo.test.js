@@ -152,5 +152,5 @@ test('the sitemap says when it was built, and the 404 page is published, helpful
 });
 
 test('the home page logo loads first and has its size, so the page does not jump', () => {
-  assert.match(read('index.html'), /<img class="logo logo-lg"[^>]*width="88" height="88" fetchpriority="high"/);
+  assert.match(read('index.html'), /<img class="logo logo-lg" src="logo-animated\.svg"[^>]*width="88" height="88" fetchpriority="high"/);
 });
