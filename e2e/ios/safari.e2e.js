@@ -2174,3 +2174,28 @@ test('share: a celestial object says what it is doing today, with the interestin
     assert.doesNotMatch(t, /17\.4|78\.3/, 'no coordinates');
   } finally { await context.close(); }
 });
+
+test('AR: Snap lines the overlay up on the Moon in one tap, and says so when nothing is in aim', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await openAr(page, AR_SKY(0.5, 200));
+    await page.tap('#arAlign');
+    assert.equal(await page.isVisible('#arAlignSnap'), true);
+    // The compass is made to read 6 degrees off, so the Moon is drawn off the cross.
+    await page.evaluate(() => { __fg.state.arOffset = { h: 6, p: 0 }; });
+    await sleep(500);
+    await page.tap('#arAlignSnap');
+    const off = await page.evaluate(() => __fg.state.arOffset);
+    assert.ok(Math.abs(off.h) < 1.5 && Math.abs(off.p) < 3, 'the correction came back to about nothing: ' + JSON.stringify(off));
+    assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('fg.arOffset'))), off, 'kept for next time');
+    assert.ok((await page.evaluate(() => window.__toasts)).some((t) => /^Lined up on the Moon/.test(t)));
+    // Aimed at an empty part of the sky: nothing changes, and it says what to do.
+    await heading(page, 280, 40);
+    await sleep(400);
+    await page.tap('#arAlignSnap');
+    assert.ok((await page.evaluate(() => window.__toasts)).some((t) => /Point the cross at the Sun, Moon or a bright planet/.test(t)));
+    assert.deepEqual(await page.evaluate(() => __fg.state.arOffset), off, 'unchanged');
+  } finally { await context.close(); }
+});

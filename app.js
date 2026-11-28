@@ -980,6 +980,10 @@ function initAR() {
   $('#arShot').onclick = takePhoto;
   const setAlign = (on) => { arView.setAligning(on); $('#arAlign').setAttribute('aria-pressed', String(on)); $('#arAlignBar').hidden = !on; };
   $('#arAlign').onclick = () => setAlign(!arView.isAligning());
+  $('#arAlignSnap').onclick = () => {
+    const r = arView.snap();
+    toast(r.ok ? 'Lined up on the ' + r.name + '. Saved.' : r.why === 'far' ? 'The ' + r.name + ' is too far from where the overlay thinks it is. Drag the picture closer first.' : 'Point the cross at the Sun, Moon or a bright planet first.');
+  };
   $('#arAlignDone').onclick = () => { setAlign(false); toast('Saved. The radar uses the same correction.'); };
   $('#arAlignReset').onclick = () => { state.arOffset = { h: 0, p: 0 }; state.dirty = true; lsSet('fg.arOffset', state.arOffset); };
   $('#arClose').addEventListener('click', () => setAlign(false));
