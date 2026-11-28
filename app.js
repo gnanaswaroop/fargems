@@ -1193,6 +1193,7 @@ function bindUI() {
   $('#zoomIn').onclick = () => { const c = centre(); zoomTo(1.5, c.x, c.y); };
   $('#zoomOut').onclick = () => { const c = centre(); zoomTo(1 / 1.5, c.x, c.y); };
   $('#zoomReset').onclick = resetView;
+  $('#legendBtn').onclick = () => { const d = $('#legend'); d.open = true; try { d.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' }); } catch { /* the key is where it is */ } }; // the key is far down the page: open it and bring it into view
   // Pin and share buttons (the cards and rows are redrawn, so the clicks are caught one level up).
   document.addEventListener('click', (e) => {
     const pin = e.target.closest('[data-pin]'), share = e.target.closest('[data-share]');

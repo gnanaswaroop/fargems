@@ -2252,3 +2252,22 @@ test('radar: the nearest satellite whose card shows on load is marked on the rad
     assert.equal(await page.evaluate(() => document.querySelector('.nearby-row.sel').dataset.id), 'sat:8');
   } finally { await context.close(); }
 });
+
+test('legend: a ? button under the radar opens the key and brings it into view', { skip }, async () => {
+  const { page, context } = await iphone({ storage: SAVED });
+  try {
+    await context.route('https://cdn.jsdelivr.net/**', (r) => r.abort());
+    await page.goto(base + '/viewer.html?fgtest=1');
+    await page.evaluate(FAKE_SKY);
+    const b = await page.locator('#legendBtn').boundingBox(), sky = await page.locator('#sky').boundingBox(), vp = page.viewportSize();
+    assert.ok(b && b.y > sky.y + sky.height - 4 && b.y + b.height <= vp.height, 'the button is right under the radar, on the first screen: ' + JSON.stringify({ b, sky: sky.y + sky.height, vp: vp.height }));
+    assert.ok(b.x + b.width <= vp.width, 'inside the screen');
+    assert.equal(await page.isVisible('#legend .legend-list'), false);
+    await page.tap('#legendBtn');
+    await page.waitForFunction(() => document.querySelector('#legend').open);
+    await sleep(800);
+    assert.equal(await page.isVisible('#legend .legend-list'), true);
+    const l = await page.locator('#legend .legend-list li').first().boundingBox();
+    assert.ok(l.y >= 0 && l.y + l.height <= vp.height, 'the key is on the screen now: ' + JSON.stringify(l));
+  } finally { await context.close(); }
+});
