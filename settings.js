@@ -49,6 +49,15 @@
     if (O.storeLocation(storage, s.lat, s.lon)) { msg('Sample location saved.'); showLocation(); }
   });
 
+  // Calibrate: the camera view does the lining up; this shows the correction it saved, and clears it.
+  function showCal() {
+    const off = window.FarGemsAR ? window.FarGemsAR.parseOffset(storage.getItem('fg.arOffset')) : { h: 0, p: 0 };
+    const f = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '°';
+    $('#calState').textContent = Math.abs(off.h) < 0.05 && Math.abs(off.p) < 0.05 ? 'None' : 'heading ' + f(off.h) + ', tilt ' + f(off.p);
+  }
+  $('#calReset').addEventListener('click', () => { storage.setItem('fg.arOffset', JSON.stringify({ h: 0, p: 0 })); showCal(); msg('Correction cleared.'); });
+  showCal();
+
   // Compass: the request must start inside the tap (iOS). Other devices need no permission.
   $('#compassBtn').addEventListener('click', () => {
     if (!O.compassNeedsPermission(window)) { O.storeCompass(storage, 'na'); showCompass(); return; }

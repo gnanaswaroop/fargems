@@ -6,7 +6,7 @@
 <title>FarGems — settings</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<meta name="description" content="FarGems settings: location, compass, units and map layers.">
+<meta name="description" content="FarGems settings: location, compass, calibration, units and map layers.">
 <meta name="theme-color" content="#070b14">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -42,6 +42,14 @@
     <p>Points the sky map the way you face. Only iPhone and iPad ask for permission; other devices don't need it.</p>
     <p>Status: <span id="compassState">Not asked yet</span></p>
     <button id="compassBtn" class="btn wide" type="button">Allow compass</button>
+  </section>
+
+  <section class="card" aria-labelledby="calTitle">
+    <h2 id="calTitle">Calibrate</h2>
+    <p>Phone compasses are often a few degrees off. If the Sun or Moon in the camera view is not where the real one is, line it up: aim the cross at the Sun, Moon or a bright planet and tap Snap. Never stare at the Sun through the camera.</p>
+    <p>Correction now: <span id="calState">None</span></p>
+    <a id="calBtn" class="btn wide primary" href="viewer.html?calibrate=1">Calibrate with the camera</a>
+    <button id="calReset" class="btn wide" type="button">Reset the correction</button>
   </section>
 
   <section class="card" aria-labelledby="displayTitle">
@@ -95,6 +103,7 @@
 
 <script defer src="lib/logic.js"></script>
 <script defer src="lib/onboarding.js"></script>
+<script defer src="lib/ar.js"></script>
 <script defer src="settings.js"></script>
 <script defer src="config.js"></script>
 <script defer src="lib/update.js"></script>

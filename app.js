@@ -955,7 +955,7 @@ function startCompass(wait = false) {
 // The camera picture with objects over it. It opens from the AR button, and by itself when the phone is
 // raised to look at the sky (once the camera has been allowed). Laying the phone flat closes it.
 let arView = null;
-const arState = { auto: null, opening: false, openedBy: null, pushed: false }; // openedBy: 'auto' or 'manual' while the view is open
+const arState = { auto: null, opening: false, openedBy: null, pushed: false, setAlign: null }; // openedBy: 'auto' or 'manual' while the view is open
 function initAR() {
   if (!window.FarGemsARView || !window.FarGemsAR) return;
   arState.auto = window.FarGemsAR.newAutoState();
@@ -979,6 +979,7 @@ function initAR() {
   $('#arBtn').onclick = () => openAR('manual');
   $('#arShot').onclick = takePhoto;
   const setAlign = (on) => { arView.setAligning(on); $('#arAlign').setAttribute('aria-pressed', String(on)); $('#arAlignBar').hidden = !on; };
+  arState.setAlign = setAlign;
   $('#arAlign').onclick = () => setAlign(!arView.isAligning());
   $('#arAlignSnap').onclick = () => {
     const r = arView.snap();
@@ -1344,6 +1345,11 @@ function start() {
   setInterval(refreshSats, 3600e3);
   setInterval(updatePasses, 20 * 60e3);
   requestAnimationFrame(loop);
+  // From Settings > Calibrate: open the camera view straight in line-up mode (and drop the flag so a reload does not repeat it).
+  if (/[?&]calibrate=1\b/.test(location.search)) {
+    try { history.replaceState(history.state, '', location.pathname + location.hash); } catch { /* the address stays as it is */ }
+    openAR('manual').then(() => { if (arView && arView.isOpen() && arState.setAlign) arState.setAlign(true); });
+  }
   const boot = $('#boot'); // the loading screen goes once the sky view has drawn
   if (boot) { boot.classList.add('done'); setTimeout(() => boot.remove(), 500); }
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
