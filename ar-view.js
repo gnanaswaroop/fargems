@@ -21,7 +21,7 @@
   const VFOV = 63; // typical phone camera, vertical field of view in portrait
 
   function create(o) {
-    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastFocal = 1000, topInset = 0, selTrack = { id: null, t0: 0 }, cardOpen = false, calloutBox = null, cardShown = null, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
+    let isOpen = false, stream = null, raf = 0, heading = null, items = [], aligning = false, lastCam = null, lastFocal = 1000, topInset = 0, selTrack = { id: null, t0: 0 }, cardOpen = false, calloutBox = null, cardShown = null, aimSt = { id: null, since: 0, done: false }, aimProgress = 0;
     const ctx = o.canvas.getContext('2d');
     const FONT_SYMBOLS = '"Segoe UI Symbol","Noto Sans Symbols2","Apple Symbols","DejaVu Sans",sans-serif';
 
@@ -190,6 +190,7 @@
       const trueHead = ((AR.chooseHeading(ori.compassHeading, pose.heading) + (ori.declination || 0) + off.h) % 360 + 360) % 360;
       heading = AR.followHeading(heading, trueHead, false); // big changes (the screen was turned) catch up fast, small ones are smoothed
       const cam = { heading, pitch: pose.pitch + off.p }, view = { W, H, vfov: VFOV };
+      lastCam = { heading: cam.heading, pitch: cam.pitch };
       lastFocal = AR.focalFor(H, VFOV);
       const objects = o.getObjects(), sun = objects.find((b) => b.kind === 'body' && b.name === 'Sun');
       const F = o.getFilters(), sel = o.getSelected();
@@ -304,6 +305,18 @@
     });
     o.canvas.addEventListener('pointercancel', () => { drag = null; });
 
+    // One tap: the phone is aimed at the real Sun, Moon or a bright planet; the correction becomes the difference.
+    // Returns { ok: true, name, off } or { ok: false, why: 'none' | 'far' }.
+    function snap() {
+      if (!lastCam || !o.onOffset) return { ok: false, why: 'none' };
+      const t = AR.snapTarget(o.getObjects(), lastCam);
+      if (!t) return { ok: false, why: 'none' };
+      const next = AR.snapOffset(o.getOffset ? o.getOffset() : null, lastCam, t);
+      if (!next) return { ok: false, why: 'far', name: t.name };
+      o.onOffset(next); heading = null; // the heading follows the new correction at once
+      return { ok: true, name: t.name, off: next };
+    }
+
     // The picture and the overlay as one image (PNG), the way they look on screen.
     function capture() {
       const cw = o.canvas.width, ch = o.canvas.height;
@@ -346,7 +359,7 @@
       if (!isOpen) return;
       isOpen = false; aligning = false; cancelAnimationFrame(raf); stopCamera(); o.root.hidden = true; document.body.classList.remove('ar-on');
     }
-    return { open, close, isOpen: () => isOpen, capture, callout: () => (calloutBox ? { ...calloutBox } : null), item: (id) => { const it = items.find((q) => q.id === id); return it ? { x: it.x, y: it.y } : null; }, cardShown: () => !!cardShown, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning };
+    return { open, close, isOpen: () => isOpen, capture, callout: () => (calloutBox ? { ...calloutBox } : null), item: (id) => { const it = items.find((q) => q.id === id); return it ? { x: it.x, y: it.y } : null; }, cardShown: () => !!cardShown, resetHeading: () => { heading = null; }, setAligning: (on) => { aligning = !!on; drag = null; }, isAligning: () => aligning, snap };
   }
 
   root.FarGemsARView = { create };
